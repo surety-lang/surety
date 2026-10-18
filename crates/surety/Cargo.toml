@@ -1,0 +1,13 @@
+[package]
+name = "surety"
+version = "0.0.1"
+description = "Surety: an agent-native language where models write implementations, humans write specs, and a checker is the referee. Placeholder release."
+readme = "../../README.md"
+keywords = ["language", "compiler", "verification", "agents", "wasm"]
+categories = ["development-tools", "compilers"]
+include = ["Cargo.toml", "src/", "README.md", "LICENSE-MIT", "LICENSE-APACHE"]
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true

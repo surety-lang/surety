@@ -1,0 +1,5 @@
+/target
+**/*.rs.bk
+
+# internal docs
+/surety-docs/

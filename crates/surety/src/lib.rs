@@ -4,7 +4,13 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use std::time::Duration;
+
+use surety_check::{Checker, Report, Verdict};
 use surety_syntax::{Error, Graph, parse};
+
+/// Per-call timeout for a performance.
+pub const TIMEOUT: Duration = Duration::from_secs(10);
 
 /// Every `.sur` file in a directory, parsed, as one graph. Parse errors are
 /// returned per file so one bad file does not hide the others.
@@ -80,4 +86,39 @@ pub fn load_with_siblings(file: &Path) -> Result<(Graph, usize), Vec<(PathBuf, E
         }
     }
     Ok((Graph::new(files), 0))
+}
+
+/// Check one obligation file against a performance module: examples and
+/// properties.
+pub fn check_file(file: &Path, performance: &Path) -> Result<Report, String> {
+    let (graph, idx) = load_with_siblings(file).map_err(|errs| {
+        errs.iter()
+            .map(|(p, e)| format!("{}: {e}", p.display()))
+            .collect::<Vec<_>>()
+            .join("\n")
+    })?;
+    graph
+        .check_file(idx)
+        .map_err(|e| format!("{}: {e}", file.display()))?;
+    let mut checker = Checker::new(&graph, idx, performance, TIMEOUT)?;
+    Ok(checker.check())
+}
+
+/// A plain-text rendering of a report.
+pub fn render(report: &Report) -> String {
+    let mut s = String::new();
+    s.push_str(&format!("{}\n", report.obligation));
+    for e in &report.examples {
+        let label = match &e.note {
+            Some(n) => format!("example {} (line {}, {n:?})", e.index + 1, e.line),
+            None => format!("example {} (line {})", e.index + 1, e.line),
+        };
+        match &e.verdict {
+            Verdict::Pass => s.push_str(&format!("  pass  {label}\n")),
+            Verdict::Boundary(m) => s.push_str(&format!("  BOUNDARY  {label}: {m}\n")),
+            Verdict::Mismatch(m) => s.push_str(&format!("  FAIL  {label}: {m}\n")),
+            Verdict::Error(m) => s.push_str(&format!("  ERROR  {label}: {m}\n")),
+        }
+    }
+    s
 }

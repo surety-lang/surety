@@ -12,6 +12,8 @@ Usage:
   surety extract <markdown> <out-dir>   cut the obligations out of the authored markdown
   surety parse <file.sur>...            parse and check each file (siblings form the graph)
   surety hash <file.sur>                print the canonical form and its hash
+  surety check <file.sur> [<perf.py>]   run the examples and properties against a performance
+                                        (default: <file>.py next to the obligation)
   surety --version | --help";
 
 fn main() -> ExitCode {
@@ -29,6 +31,8 @@ fn main() -> ExitCode {
         ["extract", md, out] => cmd_extract(Path::new(md), Path::new(out)),
         ["parse", files @ ..] if !files.is_empty() => cmd_parse(files),
         ["hash", file] => cmd_hash(Path::new(file)),
+        ["check", file] => cmd_check(Path::new(file), None),
+        ["check", file, perf] => cmd_check(Path::new(file), Some(Path::new(perf))),
         _ => {
             eprintln!("{HELP}");
             ExitCode::from(2)
@@ -131,6 +135,26 @@ fn cmd_hash(file: &Path) -> ExitCode {
         }
         Err(e) => {
             eprintln!("{}: {e}", file.display());
+            ExitCode::from(1)
+        }
+    }
+}
+
+fn cmd_check(file: &Path, perf: Option<&Path>) -> ExitCode {
+    let perf = perf
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| file.with_extension("py"));
+    match surety::check_file(file, &perf) {
+        Ok(report) => {
+            print!("{}", surety::render(&report));
+            if report.passed() {
+                ExitCode::SUCCESS
+            } else {
+                ExitCode::from(1)
+            }
+        }
+        Err(e) => {
+            eprintln!("{e}");
             ExitCode::from(1)
         }
     }

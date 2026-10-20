@@ -8,6 +8,7 @@ use surety_py::{RunError, Runner};
 use surety_syntax::resolve::Scope;
 use surety_syntax::{Decl, Example, Expr, Function, Graph};
 
+use crate::eval::Env;
 use crate::examples::{Step, compare, fill_rest, unordered_paths};
 use crate::value::{BoundaryError, Value, from_json, from_literal, to_json};
 
@@ -31,15 +32,53 @@ pub struct ExampleReport {
     pub verdict: Verdict,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum PropVerdict {
+    Pass,
+    /// False for at least one example; the first is named.
+    Fail {
+        example: usize,
+        line: usize,
+        detail: String,
+    },
+    /// Could not be evaluated: a missing performance, a type mismatch at
+    /// run time, or an error raised by a graph reference.
+    Error(String),
+    /// No example run to evaluate it over.
+    Skipped,
+}
+
+#[derive(Debug, Clone)]
+pub struct PropertyReport {
+    pub line: usize,
+    pub text: String,
+    pub sentence: Option<String>,
+    pub verdict: PropVerdict,
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct Report {
     pub obligation: String,
     pub examples: Vec<ExampleReport>,
+    pub properties: Vec<PropertyReport>,
+    /// Graph references the properties called, as `name -> module`.
+    pub graph_refs: Vec<String>,
 }
 
 impl Report {
     pub fn passed(&self) -> bool {
         self.examples.iter().all(|e| e.verdict == Verdict::Pass)
+            && self
+                .properties
+                .iter()
+                .all(|p| p.verdict == PropVerdict::Pass)
+    }
+
+    pub fn failed_properties(&self) -> Vec<&PropertyReport> {
+        self.properties
+            .iter()
+            .filter(|p| !matches!(p.verdict, PropVerdict::Pass | PropVerdict::Skipped))
+            .collect()
     }
 }
 
@@ -58,11 +97,14 @@ pub struct Checker<'g> {
     pub fun: &'g Function,
     pub scope: Scope<'g>,
     pub performance: PathBuf,
+    /// Where other obligations' performances live: `<module_dir>/<fixture>.py`.
+    pub module_dir: PathBuf,
     pub timeout: Duration,
     runners: HashMap<PathBuf, Runner>,
     named: HashMap<String, Value>,
     unordered: Vec<Vec<Step>>,
     pub runs: Vec<Run>,
+    pub graph_refs: Vec<String>,
 }
 
 impl<'g> Checker<'g> {
@@ -72,6 +114,7 @@ impl<'g> Checker<'g> {
         graph: &'g Graph,
         idx: usize,
         performance: &Path,
+        module_dir: &Path,
         timeout: Duration,
     ) -> Result<Checker<'g>, String> {
         let funs = graph.functions_in(idx);
@@ -83,11 +126,13 @@ impl<'g> Checker<'g> {
             fun,
             scope,
             performance: performance.to_path_buf(),
+            module_dir: module_dir.to_path_buf(),
             timeout,
             runners: HashMap::new(),
             named: HashMap::new(),
             unordered: unordered_paths(fun),
             runs: Vec::new(),
+            graph_refs: Vec::new(),
         };
         checker.decode_named_values()?;
         Ok(checker)
@@ -186,6 +231,14 @@ impl<'g> Checker<'g> {
         Ok(self.runners.get_mut(path).unwrap())
     }
 
+    /// Whether a module defines a callable of that name.
+    pub fn module_has(&mut self, module: &Path, name: &str) -> Result<bool, String> {
+        let module = module.to_path_buf();
+        self.runner(&module)
+            .and_then(|r| r.has(name))
+            .map_err(|e| e.to_string())
+    }
+
     /// Call a function in a module with values; the reply is raw JSON.
     pub fn call_raw(
         &mut self,
@@ -213,10 +266,67 @@ impl<'g> Checker<'g> {
     /// example runs.
     pub fn check(&mut self) -> Report {
         let examples = self.check_examples();
+        let properties = self.check_properties();
         Report {
             obligation: self.fun.name.clone(),
             examples,
+            properties,
+            graph_refs: self.graph_refs.clone(),
         }
+    }
+
+    /// Acceptance test 4: every property, evaluated over the example runs
+    /// (the performance's actual output for each example input). Runs
+    /// whose output failed the boundary are not here: that verdict stands
+    /// on its own.
+    pub fn check_properties(&mut self) -> Vec<PropertyReport> {
+        let mut reports = Vec::new();
+        for p in self.fun.properties.clone() {
+            let verdict = self.check_property(&p.expr);
+            reports.push(PropertyReport {
+                line: p.line,
+                text: p.text.clone(),
+                sentence: p.sentence.clone(),
+                verdict,
+            });
+        }
+        reports
+    }
+
+    /// One claim over every example run.
+    pub fn check_property(&mut self, expr: &Expr) -> PropVerdict {
+        if self.runs.is_empty() {
+            return PropVerdict::Skipped;
+        }
+        let runs = self.runs.clone();
+        for run in &runs {
+            let named: Vec<(String, Value)> = self
+                .scope
+                .inputs
+                .iter()
+                .map(|(n, _)| n.clone())
+                .zip(run.inputs.iter().cloned())
+                .collect();
+            let env = Env::new(&named, &run.output);
+            match self.eval_bool(expr, &env) {
+                Ok(true) => {}
+                Ok(false) => {
+                    let ex = &self.fun.examples[run.index];
+                    return PropVerdict::Fail {
+                        example: run.index,
+                        line: ex.line,
+                        detail: format!(
+                            "false for example {} (line {}): out = {}",
+                            run.index + 1,
+                            ex.line,
+                            run.output
+                        ),
+                    };
+                }
+                Err(m) => return PropVerdict::Error(m),
+            }
+        }
+        PropVerdict::Pass
     }
 
     /// Acceptance test 3: every example against the performance.

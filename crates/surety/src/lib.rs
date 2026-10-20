@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use std::time::Duration;
 
-use surety_check::{Checker, Report, Verdict};
+use surety_check::{Checker, PropVerdict, Report, Verdict};
 use surety_syntax::{Error, Graph, parse};
 
 /// Per-call timeout for a performance.
@@ -100,7 +100,8 @@ pub fn check_file(file: &Path, performance: &Path) -> Result<Report, String> {
     graph
         .check_file(idx)
         .map_err(|e| format!("{}: {e}", file.display()))?;
-    let mut checker = Checker::new(&graph, idx, performance, TIMEOUT)?;
+    let module_dir = file.parent().unwrap_or(Path::new("."));
+    let mut checker = Checker::new(&graph, idx, performance, module_dir, TIMEOUT)?;
     Ok(checker.check())
 }
 
@@ -119,6 +120,20 @@ pub fn render(report: &Report) -> String {
             Verdict::Mismatch(m) => s.push_str(&format!("  FAIL  {label}: {m}\n")),
             Verdict::Error(m) => s.push_str(&format!("  ERROR  {label}: {m}\n")),
         }
+    }
+    for p in &report.properties {
+        let label = format!("property (line {}): {}", p.line, p.text);
+        match &p.verdict {
+            PropVerdict::Pass => s.push_str(&format!("  pass  {label}\n")),
+            PropVerdict::Fail { detail, .. } => {
+                s.push_str(&format!("  FAIL  {label}\n        {detail}\n"))
+            }
+            PropVerdict::Error(m) => s.push_str(&format!("  ERROR  {label}\n        {m}\n")),
+            PropVerdict::Skipped => s.push_str(&format!("  skip  {label}\n")),
+        }
+    }
+    for g in &report.graph_refs {
+        s.push_str(&format!("  graph reference: {g}\n"));
     }
     s
 }

@@ -13,7 +13,8 @@ fn every_example_passes_against_its_performance() {
     for name in common::FIXTURES {
         let idx = common::fixture_index(&graph, name);
         let perf = common::corpus_dir().join(format!("{name}.py"));
-        let mut checker = Checker::new(&graph, idx, &perf, surety::TIMEOUT).unwrap();
+        let mut checker =
+            Checker::new(&graph, idx, &perf, &common::corpus_dir(), surety::TIMEOUT).unwrap();
         let reports = checker.check_examples();
         assert!(!reports.is_empty(), "{name}: no examples");
         for r in &reports {
@@ -84,6 +85,7 @@ fn a_performance_with_the_wrong_order_fails_p4_but_not_p8() {
         &graph,
         idx,
         &dir.join("p8_errors_reordered.py"),
+        &common::corpus_dir(),
         surety::TIMEOUT,
     )
     .unwrap();
@@ -97,7 +99,14 @@ fn a_performance_with_the_wrong_order_fails_p4_but_not_p8() {
     }
     // P4 with the output reversed: order is claimed, so it fails.
     let idx = common::fixture_index(&graph, "p4");
-    let mut c = Checker::new(&graph, idx, &dir.join("p4_reversed.py"), surety::TIMEOUT).unwrap();
+    let mut c = Checker::new(
+        &graph,
+        idx,
+        &dir.join("p4_reversed.py"),
+        &common::corpus_dir(),
+        surety::TIMEOUT,
+    )
+    .unwrap();
     let reports = c.check_examples();
     assert!(
         reports

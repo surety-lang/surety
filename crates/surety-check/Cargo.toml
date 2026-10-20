@@ -1,6 +1,6 @@
 [package]
 name = "surety-check"
-version = "0.0.1"
+version = "0.1.0"
 description = "Surety checker: boundary validator, example checker, property evaluator"
 publish = false
 edition.workspace = true

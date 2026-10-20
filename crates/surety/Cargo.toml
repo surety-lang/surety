@@ -1,6 +1,6 @@
 [package]
 name = "surety"
-version = "0.0.1"
+version = "0.1.0"
 description = "Surety: an obligation language, a checker, and a graph. Humans write obligations; models write performances; the checker is the referee."
 readme = "../../README.md"
 keywords = ["language", "compiler", "verification", "agents"]

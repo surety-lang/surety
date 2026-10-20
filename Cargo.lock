@@ -147,7 +147,7 @@ dependencies = [
 
 [[package]]
 name = "surety"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "serde_json",
  "surety-check",
@@ -157,7 +157,7 @@ dependencies = [
 
 [[package]]
 name = "surety-check"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "serde_json",
  "surety-py",
@@ -166,14 +166,14 @@ dependencies = [
 
 [[package]]
 name = "surety-py"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "serde_json",
 ]
 
 [[package]]
 name = "surety-syntax"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "sha2",
 ]

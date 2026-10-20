@@ -11,6 +11,7 @@ const HELP: &str = "\
 Usage:
   surety extract <markdown> <out-dir>   cut the obligations out of the authored markdown
   surety parse <file.sur>...            parse and check each file (siblings form the graph)
+  surety hash <file.sur>                print the canonical form and its hash
   surety --version | --help";
 
 fn main() -> ExitCode {
@@ -27,6 +28,7 @@ fn main() -> ExitCode {
         }
         ["extract", md, out] => cmd_extract(Path::new(md), Path::new(out)),
         ["parse", files @ ..] if !files.is_empty() => cmd_parse(files),
+        ["hash", file] => cmd_hash(Path::new(file)),
         _ => {
             eprintln!("{HELP}");
             ExitCode::from(2)
@@ -101,5 +103,35 @@ fn cmd_parse(files: &[&str]) -> ExitCode {
         ExitCode::from(1)
     } else {
         ExitCode::SUCCESS
+    }
+}
+
+fn cmd_hash(file: &Path) -> ExitCode {
+    let (graph, idx) = match surety::load_with_siblings(file) {
+        Ok(x) => x,
+        Err(errs) => {
+            for (p, e) in errs {
+                eprintln!("{}: {e}", p.display());
+            }
+            return ExitCode::from(1);
+        }
+    };
+    if let Err(e) = graph.check_file(idx) {
+        eprintln!("{}: {e}", file.display());
+        return ExitCode::from(1);
+    }
+    match surety_syntax::normalize::canonical_file(&graph, idx) {
+        Ok(c) => {
+            println!("{}", c.text);
+            println!("hash {}", c.hash);
+            for p in &graph.file(idx).pins {
+                println!("pinned {} {:?}: {}", p.line, p.kind, p.text);
+            }
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            eprintln!("{}: {e}", file.display());
+            ExitCode::from(1)
+        }
     }
 }

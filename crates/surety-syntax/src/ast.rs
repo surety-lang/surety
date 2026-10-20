@@ -79,7 +79,7 @@ pub struct Property {
     pub line: usize,
     /// The `#` sentence directly above, if any.
     pub sentence: Option<String>,
-    /// The source text of the first line, for reports.
+    /// The source text of the property, vertical body included, one line.
     pub text: String,
 }
 

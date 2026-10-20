@@ -56,11 +56,21 @@ pub struct PropertyReport {
     pub verdict: PropVerdict,
 }
 
+/// One frame-rule pair and the verdict of its implicit property.
+#[derive(Debug, Clone)]
+pub struct FrameReport {
+    pub description: String,
+    pub line: usize,
+    pub preserved: Vec<String>,
+    pub verdict: PropVerdict,
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct Report {
     pub obligation: String,
     pub examples: Vec<ExampleReport>,
     pub properties: Vec<PropertyReport>,
+    pub frame: Vec<FrameReport>,
     /// Graph references the properties called, as `name -> module`.
     pub graph_refs: Vec<String>,
 }
@@ -72,6 +82,7 @@ impl Report {
                 .properties
                 .iter()
                 .all(|p| p.verdict == PropVerdict::Pass)
+            && self.frame.iter().all(|f| f.verdict == PropVerdict::Pass)
     }
 
     pub fn failed_properties(&self) -> Vec<&PropertyReport> {
@@ -79,6 +90,20 @@ impl Report {
             .iter()
             .filter(|p| !matches!(p.verdict, PropVerdict::Pass | PropVerdict::Skipped))
             .collect()
+    }
+
+    /// Every field the frame rule preserved by default, sorted.
+    pub fn frame_preserved(&self) -> Vec<String> {
+        let mut all: Vec<String> = Vec::new();
+        for f in &self.frame {
+            for n in &f.preserved {
+                if !all.contains(n) {
+                    all.push(n.clone());
+                }
+            }
+        }
+        all.sort();
+        all
     }
 }
 
@@ -267,12 +292,30 @@ impl<'g> Checker<'g> {
     pub fn check(&mut self) -> Report {
         let examples = self.check_examples();
         let properties = self.check_properties();
+        let frame = self.check_frame();
         Report {
             obligation: self.fun.name.clone(),
             examples,
             properties,
+            frame,
             graph_refs: self.graph_refs.clone(),
         }
+    }
+
+    /// Acceptance test 6: the frame rule's implicit properties.
+    pub fn check_frame(&mut self) -> Vec<FrameReport> {
+        let pairs = crate::frame::frame_pairs(&self.scope, self.fun);
+        let mut reports = Vec::new();
+        for p in pairs {
+            let verdict = self.check_property(&p.implicit);
+            reports.push(FrameReport {
+                description: p.description,
+                line: p.line,
+                preserved: p.preserved,
+                verdict,
+            });
+        }
+        reports
     }
 
     /// Acceptance test 4: every property, evaluated over the example runs

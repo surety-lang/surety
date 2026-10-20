@@ -132,6 +132,21 @@ pub fn render(report: &Report) -> String {
             PropVerdict::Skipped => s.push_str(&format!("  skip  {label}\n")),
         }
     }
+    for f in &report.frame {
+        let label = format!(
+            "frame {}: preserves {} by default",
+            f.description,
+            f.preserved.join(", ")
+        );
+        match &f.verdict {
+            PropVerdict::Pass => s.push_str(&format!("  pass  {label}\n")),
+            PropVerdict::Fail { detail, .. } => {
+                s.push_str(&format!("  FAIL  {label}\n        {detail}\n"))
+            }
+            PropVerdict::Error(m) => s.push_str(&format!("  ERROR  {label}\n        {m}\n")),
+            PropVerdict::Skipped => s.push_str(&format!("  skip  {label}\n")),
+        }
+    }
     for g in &report.graph_refs {
         s.push_str(&format!("  graph reference: {g}\n"));
     }

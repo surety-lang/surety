@@ -54,7 +54,8 @@ pub struct Line {
     pub indent: String,
     pub line: usize,
     pub tokens: Vec<Token>,
-    /// The source text of the first physical line, trimmed.
+    /// The source text of the logical line, continuation lines joined by
+    /// single spaces.
     pub text: String,
     /// The `#` sentence directly above this line, if any.
     pub sentence: Option<String>,
@@ -362,6 +363,8 @@ pub fn lex(src: &str) -> Result<Lexed, Error> {
                 continue;
             }
             let cur = current.as_mut().expect("continuation without a line");
+            cur.text.push(' ');
+            cur.text.push_str(rest);
             let mut sc = Scanner {
                 src: rest,
                 pos: 0,

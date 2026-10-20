@@ -103,6 +103,19 @@ fn build_block(lines: &[Line], pos: &mut usize, parent: Option<&str>) -> Result<
     Ok(items)
 }
 
+/// The source of an item and its vertical body, lines joined by spaces.
+fn source_text(item: &Item) -> String {
+    let mut parts = vec![item.line.text.clone()];
+    fn walk(items: &[Item], parts: &mut Vec<String>) {
+        for it in items {
+            parts.push(it.line.text.clone());
+            walk(&it.children, parts);
+        }
+    }
+    walk(&item.children, &mut parts);
+    parts.join(" ")
+}
+
 fn flatten_tokens(items: &[Item], out: &mut Vec<Token>) {
     for it in items {
         out.extend(it.line.tokens.iter().cloned());
@@ -396,7 +409,7 @@ fn parse_body(fun: &mut Function, items: &[Item], pins: &mut Vec<Pin>) -> Result
             expr,
             line,
             sentence: it.line.sentence.clone(),
-            text: it.line.text.clone(),
+            text: source_text(it),
         });
         i += 1;
     }

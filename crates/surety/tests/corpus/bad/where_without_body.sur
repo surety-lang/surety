@@ -1,0 +1,3 @@
+type Order = { amount: Int }
+get_small_orders(orders: Order[]) -> Order[]
+	all o in out where o.amount > 100

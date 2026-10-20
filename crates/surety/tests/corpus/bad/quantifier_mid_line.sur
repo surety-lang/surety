@@ -1,0 +1,4 @@
+type Payload = { email: Text, age: Int }
+validate(p: Payload) -> Result<Payload, Text[]>
+	checks = p.age >= 13
+	exactly_one Ok(_) in out <-> checks

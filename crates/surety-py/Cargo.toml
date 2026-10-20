@@ -1,0 +1,13 @@
+[package]
+name = "surety-py"
+version = "0.0.1"
+description = "Surety Python runner: runs a performance in a subprocess over a JSON boundary"
+publish = false
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[dependencies]
+serde_json.workspace = true

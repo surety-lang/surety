@@ -1,0 +1,4 @@
+type Order = { id: Id, amount: Int }
+type EnrichedOrder = { ...Order, user_name: Option<Text> }
+enrich_orders(orders: Order[]) -> EnrichedOrder[]
+	out same_order_as orders

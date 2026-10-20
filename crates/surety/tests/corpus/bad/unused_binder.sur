@@ -1,0 +1,5 @@
+type ValidationError = { code: Text, display: Text }
+type Payload = { email: Text, age: Int }
+valid_errors = [{ code: "e", display: "e" }]
+validate(p: Payload) -> Result<Payload, ValidationError[]>
+	all Err(erors) in out: errs drawn_from valid_errors

@@ -1,0 +1,3 @@
+type Payload = { email: Text, age: Int }
+validate(p: Payload) -> Result<Payload, Text[]>
+	not Err(p)

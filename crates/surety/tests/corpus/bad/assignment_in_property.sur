@@ -1,0 +1,4 @@
+type Order = { amount: Int }
+get_small_orders(orders: Order[]) -> Order[]
+	# every output order is small
+	all o in out: o.amount = 100

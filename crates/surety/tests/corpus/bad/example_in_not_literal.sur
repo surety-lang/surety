@@ -1,0 +1,6 @@
+type Customer = { first_name: Text, last_name: Text, email: Text }
+combine(c: Customer) -> { name: Text, email: Text }
+	c.first_name in out.name
+	e:
+		in: { first_name: "Joe", ... }
+		out: { name: "Joe Shmoe", ... }

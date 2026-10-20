@@ -1,0 +1,3 @@
+type OrderGroup = { customer_email: Text, orders: Int[] }
+group_by_customer(orders: Int[]) -> OrderGroup[]
+	unique g.customer_email

@@ -1,0 +1,4 @@
+type Order = { amount: Int, customer_email: Text }
+get_small_orders(orders: Order[]) -> Order[]
+	all o in out: o.amount <= 100
+		o in orders

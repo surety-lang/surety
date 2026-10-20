@@ -4,6 +4,8 @@ Surety is an obligation language plus a checker plus a graph. Humans write oblig
 
 ## Sources of truth, in order
 
+`surety-docs/` is local-only: it is gitignored as internal, so a clone does not have it. What the repository carries is the extracted fixtures and the acceptance tests under `crates/surety/tests/`; the rules below stand on their own.
+
 1. `surety-docs/Implement 1-9 in surety.md` — the corpus: eleven obligations written by hand. The grammar is whatever parses these. When the brief and the corpus disagree, the corpus wins and the disagreement is a question (see below).
 2. `surety-docs/Build brief — slice 1.md` — scope, interfaces, acceptance tests for the current slice.
 3. `surety-docs/Catch-up — 2026-10-20, ...md` — every rule decided so far, one line each; the mutant list.

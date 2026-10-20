@@ -1,0 +1,6 @@
+# Pinned so a new stable's lints cannot fail CI without a commit here.
+# Bump deliberately; `rust-version` in Cargo.toml is the minimum, this is
+# the version CI and contributors build with.
+[toolchain]
+channel = "1.99.1"
+components = ["rustfmt", "clippy"]

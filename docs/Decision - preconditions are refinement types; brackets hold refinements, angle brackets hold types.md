@@ -28,3 +28,11 @@ Writing `List<Item>` next to `Item[]`, or `Unique<Item>[]` next to `Item[unique 
 ## Reached for
 
 - `Set<T>`: not needed. A `Set` says unordered, and inputs are lists whose order may matter elsewhere (5a, 5b). `Item[unique sku]` is a list with a key constraint, which is what every case so far has meant.
+
+## Addendum (2026-10-21): a precondition that relates two things is an error case
+
+Slice 2 found the case the rule predicted. `apply_diff` is contradictory when one sku is in both `diff.removed` and `diff.changed`: the obligation requires it absent from the result and present in it. No refinement on one list can exclude that input; it relates two fields of one input.
+
+The rule stands as written, with its scope stated more carefully: a precondition that can be expressed as a refinement on **one** list or field goes in the type; a precondition that relates **two** things (two inputs, or two fields of one input) is not a type and becomes an error case in a `Result`. `apply_diff` gained `conflicting_sku_err`, a `disjoint` abbreviation (`none s in diff.removed.sku: s in diff.changed.sku`), and a fourth conjunct in `checks`. Overlaps with `added` are already caught by `added_ok` (added requires the sku absent from `old`; removed and changed require it present), so only the removed/changed pair needed a new error.
+
+Problem 13 (pagination, `page * size <= len(items)`) is the same shape and gets the same answer.

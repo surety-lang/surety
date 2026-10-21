@@ -243,6 +243,8 @@ pub fn parse_rfc3339(s: &str) -> Option<i128> {
 pub struct BoundaryError {
     pub path: String,
     pub message: String,
+    /// The key of the `unique` refinement that failed, when one did.
+    pub unique_key: Option<String>,
 }
 
 impl fmt::Display for BoundaryError {
@@ -259,6 +261,7 @@ fn bad(path: &str, message: impl Into<String>) -> BoundaryError {
     BoundaryError {
         path: path.to_string(),
         message: message.into(),
+        unique_key: None,
     }
 }
 
@@ -297,12 +300,14 @@ pub fn check_refinements(
                         ));
                     };
                     if seen.contains(&k) {
-                        return Err(bad(
+                        let mut e = bad(
                             path,
                             format!(
                                 "`{key}` {k} appears more than once; the type says `unique {key}`"
                             ),
-                        ));
+                        );
+                        e.unique_key = Some(key.clone());
+                        return Err(e);
                     }
                     seen.push(k);
                 }

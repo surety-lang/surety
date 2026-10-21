@@ -133,6 +133,11 @@ impl Runner {
         &self.path
     }
 
+    /// Whether the process has gone (a timeout kills it; a raise does not).
+    pub fn is_dead(&self) -> bool {
+        self.dead
+    }
+
     fn request(&mut self, req: Value) -> Result<Value, RunError> {
         if self.dead {
             return Err(RunError::Exited("process already gone".into()));
@@ -194,6 +199,139 @@ impl Runner {
     pub fn call(&mut self, name: &str, args: &[Value]) -> Result<Value, RunError> {
         self.request(serde_json::json!({ "fn": name, "args": args }))
     }
+}
+
+const INSPECT: &str = r#"
+import ast, hashlib, json, sys
+path = sys.argv[1]
+src = open(path, encoding="utf-8").read()
+tree = ast.parse(src)
+imports = []
+for node in ast.walk(tree):
+    if isinstance(node, ast.Import):
+        for a in node.names:
+            imports.append(a.name.split(".")[0])
+    elif isinstance(node, ast.ImportFrom):
+        imports.append((node.module or "").split(".")[0] or ".")
+imports = list(dict.fromkeys(imports))
+stdlib = set(getattr(sys, "stdlib_module_names", ()))
+deps = [m for m in imports if m not in stdlib]
+functions = sum(isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) for n in ast.walk(tree))
+lines = len(src.splitlines())
+
+def strip_doc(body):
+    if (body and isinstance(body[0], ast.Expr)
+            and isinstance(getattr(body[0], "value", None), ast.Constant)
+            and isinstance(body[0].value.value, str)):
+        body = body[1:]
+    return body or [ast.Pass()]
+
+class Renamer(ast.NodeTransformer):
+    # Locals, comprehension variables, lambda and nested-function parameters
+    # become v0, v1, ... in order of first appearance. The function's own
+    # parameters and every global name are kept: they are the signature.
+    def __init__(self, keep):
+        self.keep = keep
+        self.map = {}
+    def fresh(self, name):
+        if name not in self.map:
+            self.map[name] = "v%d" % len(self.map)
+        return self.map[name]
+    def visit_arg(self, node):
+        if node.arg not in self.keep:
+            node.arg = self.fresh(node.arg)
+        node.annotation = None
+        return node
+    def visit_Name(self, node):
+        if node.id in self.keep:
+            return node
+        if node.id in self.map:
+            node.id = self.map[node.id]
+        elif isinstance(node.ctx, ast.Store):
+            node.id = self.fresh(node.id)
+        return node
+    def visit_ExceptHandler(self, node):
+        if node.name:
+            node.name = self.fresh(node.name)
+        self.generic_visit(node)
+        return node
+    def visit_FunctionDef(self, node):
+        node.body = strip_doc(node.body)
+        node.returns = None
+        self.generic_visit(node)
+        return node
+    visit_AsyncFunctionDef = visit_FunctionDef
+
+tree.body = strip_doc(tree.body)
+for node in tree.body:
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        a = node.args
+        params = {x.arg for x in a.posonlyargs + a.args + a.kwonlyargs}
+        if a.vararg:
+            params.add(a.vararg.arg)
+        if a.kwarg:
+            params.add(a.kwarg.arg)
+        node.body = strip_doc(node.body)
+        node.returns = None
+        Renamer(params).generic_visit(node)
+dump = ast.dump(tree, annotate_fields=True, include_attributes=False)
+print(json.dumps({
+    "hash": hashlib.sha256(dump.encode("utf-8")).hexdigest(),
+    "imports": imports,
+    "dependencies": deps,
+    "lines": lines,
+    "functions": functions,
+}))
+"#;
+
+/// What the Python target says about a performance's source: the
+/// structural hash (formatting and comments stripped, locals renamed in
+/// order of appearance), the modules it imports, which of those are not in
+/// the standard library, and its size.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Inspection {
+    pub hash: String,
+    pub imports: Vec<String>,
+    pub dependencies: Vec<String>,
+    pub lines: usize,
+    pub functions: usize,
+}
+
+/// Inspect a performance module without running it.
+pub fn inspect(path: &Path) -> Result<Inspection, RunError> {
+    let python = std::env::var("SURETY_PYTHON").unwrap_or_else(|_| "python3".to_string());
+    let out = Command::new(&python)
+        .arg("-I")
+        .arg("-c")
+        .arg(INSPECT)
+        .arg(path)
+        .output()
+        .map_err(|e| RunError::Spawn(format!("{python}: {e}")))?;
+    if !out.status.success() {
+        return Err(RunError::Exited(
+            String::from_utf8_lossy(&out.stderr).into_owned(),
+        ));
+    }
+    let text = String::from_utf8_lossy(&out.stdout).into_owned();
+    let v: Value = serde_json::from_str(text.trim())
+        .map_err(|e| RunError::Protocol(format!("{e}: {text}")))?;
+    let strings = |key: &str| -> Vec<String> {
+        v[key]
+            .as_array()
+            .map(|xs| {
+                xs.iter()
+                    .filter_map(|x| x.as_str().map(str::to_string))
+                    .collect()
+            })
+            .unwrap_or_default()
+    };
+    Ok(Inspection {
+        hash: v["hash"].as_str().unwrap_or_default().to_string(),
+        imports: strings("imports"),
+        dependencies: strings("dependencies"),
+        lines: v["lines"].as_u64().unwrap_or(0) as usize,
+        functions: v["functions"].as_u64().unwrap_or(0) as usize,
+    })
 }
 
 impl Drop for Runner {

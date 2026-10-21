@@ -340,9 +340,21 @@ impl<'g> Checker<'g> {
                 .expand(fidx, &f.output, f.line)
                 .map_err(|e| e.to_string())?;
         }
-        let json = self
-            .call_raw(&callee.module, name, &vals)
-            .map_err(|e| format!("calling `{name}`: {e}"))?;
+        let key = format!(
+            "{}\n{name}\n{}",
+            callee.module.display(),
+            serde_json::Value::Array(vals.iter().map(to_json).collect())
+        );
+        let json = match self.call_cache.get(&key) {
+            Some(j) => j.clone(),
+            None => {
+                let j = self
+                    .call_raw(&callee.module, name, &vals)
+                    .map_err(|e| format!("calling `{name}`: {e}"))?;
+                self.call_cache.insert(key, j.clone());
+                j
+            }
+        };
         if output_type.is_unknown() {
             Ok(from_json_untyped(&json))
         } else {

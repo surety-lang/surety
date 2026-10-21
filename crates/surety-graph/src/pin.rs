@@ -33,6 +33,7 @@ impl PinState {
     }
 }
 
+#[derive(Debug)]
 pub struct Pinned {
     pub name: String,
     pub obligation: String,
@@ -219,6 +220,18 @@ pub fn pin(
     let hash = canonical.hash.clone();
     let presentation =
         fs::read_to_string(file).map_err(|e| format!("cannot read {}: {e}", file.display()))?;
+    // A drafted obligation carries `// draft` on its first line until its
+    // author removes it; the mark is outside the hash and keeps the gate human.
+    if presentation
+        .lines()
+        .next()
+        .is_some_and(|l| l.trim() == "// draft")
+    {
+        return Err(format!(
+            "{}: carries the draft mark `// draft` on its first line; review it and remove the mark to pin",
+            file.display()
+        ));
+    }
     let references = References {
         calls: references_of(&graph, idx, fun),
         types: type_references_of(&graph, idx)?,

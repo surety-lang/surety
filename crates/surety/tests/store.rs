@@ -412,3 +412,36 @@ fn verify_reproduces_the_committed_graph() {
         );
     }
 }
+
+#[test]
+fn pin_refuses_a_file_that_still_carries_the_draft_mark() {
+    let dir = scratch("draft-mark");
+    let sur = dir.join("p2.sur");
+    let src = fs::read_to_string(common::corpus_dir().join("p2.sur")).unwrap();
+    fs::write(&sur, format!("// draft\n{src}")).unwrap();
+    fs::copy(common::corpus_dir().join("p2.py"), dir.join("p2.py")).unwrap();
+    let store = Store::open(&dir.join("graph"));
+    let err = pin(
+        &store,
+        &sur,
+        None,
+        Budget::default(),
+        surety::TIMEOUT,
+        surety::rendered,
+    )
+    .expect_err("the mark is refused");
+    assert!(err.contains("draft mark"), "{err}");
+    assert!(store.namespace().unwrap().is_empty(), "nothing was pinned");
+    // The mark removed, the same file pins.
+    fs::write(&sur, src).unwrap();
+    let p = pin(
+        &store,
+        &sur,
+        None,
+        Budget::default(),
+        surety::TIMEOUT,
+        surety::rendered,
+    )
+    .unwrap();
+    assert_eq!(p.state, PinState::Verified);
+}

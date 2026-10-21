@@ -189,7 +189,7 @@ export function activate(context: vscode.ExtensionContext): void {
             // The draft calls a model with the credentials in your shell, so it runs in a terminal.
             const terminal = vscode.window.createTerminal({ name: 'Surety draft', cwd: root });
             terminal.show();
-            terminal.sendText(`${settings().python} ${script} lines ${doc.uri.fsPath}`);
+            terminal.sendText(`${settings().python} ${script} lines ${doc.uri.fsPath} --surety ${settings().path}`);
         }),
     );
 }

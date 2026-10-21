@@ -34,15 +34,25 @@ fn applicability_matches_the_table() {
         "append_fabricated",
         "swap_adjacent",
     ];
+    const SKELETON: &[&str] = &[
+        "empty",
+        "skeleton",
+        "skeleton_per_key",
+        "skeleton_drop_one",
+        "skeleton_duplicate_one",
+        "skeleton_append_fabricated",
+        "skeleton_swap_adjacent",
+    ];
     const TABLE: &[(&str, &[&str])] = &[
-        ("p1", &["empty"]),
+        // P1's single-record pair gives a skeleton record; no list to key or edit.
+        ("p1", &["empty", "skeleton"]),
         ("p2", ALL),
-        ("p3", &["empty"]),
+        ("p3", SKELETON),
         ("p4", ALL),
         ("p5a", ALL),
         ("p5b", ALL),
-        ("p6", &["empty"]),
-        ("p7", &["empty"]),
+        ("p6", SKELETON),
+        ("p7", SKELETON),
         ("p8", &["empty", "ok_empty", "identity"]),
         (
             "apply_diff",
@@ -54,16 +64,22 @@ fn applicability_matches_the_table() {
                 "duplicate_one",
                 "append_fabricated",
                 "swap_adjacent",
+                "skeleton",
+                "skeleton_per_key",
+                "skeleton_drop_one",
+                "skeleton_duplicate_one",
+                "skeleton_append_fabricated",
+                "skeleton_swap_adjacent",
             ],
         ),
-        ("p14", &["empty"]),
+        ("p14", SKELETON),
     ];
     let graph = common::corpus();
     for (name, expected) in TABLE {
         let c = checker(&graph, name);
         for m in LIBRARY {
             assert_eq!(
-                applies(m, &c.scope),
+                applies(m, &c.scope, &c.plan),
                 expected.contains(&m.name()),
                 "{name}: {} applicability",
                 m.name()
@@ -82,7 +98,10 @@ fn applicability_matches_the_table() {
     assert!(by_type.message.as_deref().unwrap_or("").contains("0..3"));
     for name in ["p1", "p3", "p6", "p7", "p14"] {
         let r = report(name);
-        assert_eq!(r.applicable(), 1, "{name}: only `empty` applies");
+        assert!(
+            r.applicable() > 1,
+            "{name}: the skeleton family applies beside `empty`"
+        );
     }
 }
 

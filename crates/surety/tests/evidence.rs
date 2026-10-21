@@ -433,7 +433,7 @@ fn check_carries_the_mutant_verdict() {
     assert_eq!(m.slipped().len(), 0);
     let text = surety::render(&r);
     assert!(
-        text.contains("    underdetermination: 6 of 7 mutants apply; slipped 0; inputs with two passing outputs 0"),
+        text.contains("    underdetermination: 6 of 13 mutants apply; slipped 0; inputs with two passing outputs 0"),
         "{text}"
     );
     assert!(r.strict_passed(), "{text}");

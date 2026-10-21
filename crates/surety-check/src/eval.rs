@@ -412,7 +412,7 @@ impl<'g> Checker<'g> {
         if name == self.fun.name {
             if let Some(m) = self.mutant {
                 // The mutant is the performance, for its own recursion too.
-                if let Some(v) = crate::mutants::apply(m, &vals, &self.scope) {
+                if let Some(v) = crate::mutants::apply(m, &vals, &self.scope, &self.plan) {
                     return Ok(v);
                 }
                 if !self.performance.is_file() {

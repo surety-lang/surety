@@ -745,6 +745,9 @@ fn not_applicable_reason(m: surety_check::Mutant) -> &'static str {
         surety_check::Mutant::Empty => "always applies",
         surety_check::Mutant::OkEmpty => "the output is not a Result",
         surety_check::Mutant::Identity => "no single input has the output's shape",
+        surety_check::Mutant::Skeleton => "no frame pair gives the output a source",
+        surety_check::Mutant::SkeletonPerKey => "no frame pair matches on a field",
+        m if m.is_skeleton() => "the skeleton has no list to edit, or no input gave it an element",
         _ => "the identity is not a list, or no input gave it an element to edit",
     }
 }

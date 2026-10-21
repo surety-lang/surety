@@ -313,6 +313,9 @@ pub struct Checker<'g> {
     /// While the underdetermination check runs a mutant, a property's call
     /// of the obligation's own name means that mutant.
     pub mutant: Option<crate::mutants::Mutant>,
+    /// The correspondences the frame pairs state, one per output path: what
+    /// the skeleton mutants are built from.
+    pub plan: Vec<crate::frame::Correspondence>,
     runners: HashMap<PathBuf, Runner>,
     named: HashMap<String, Value>,
     unordered: Vec<Vec<Step>>,
@@ -345,6 +348,7 @@ impl<'g> Checker<'g> {
             timeout,
             budget: Budget::default(),
             mutant: None,
+            plan: Vec::new(),
             runners: HashMap::new(),
             named: HashMap::new(),
             unordered: unordered_paths(fun),
@@ -354,6 +358,8 @@ impl<'g> Checker<'g> {
             call_cache: HashMap::new(),
         };
         checker.decode_named_values()?;
+        checker.plan =
+            crate::mutants::skeleton_plan(&crate::frame::frame_pairs(&checker.scope, fun));
         Ok(checker)
     }
 

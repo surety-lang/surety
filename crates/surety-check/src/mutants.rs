@@ -17,7 +17,7 @@ use surety_syntax::{Expr, Type};
 
 use crate::checker::Checker;
 use crate::examples::{Step, compare};
-use crate::frame::frame_pairs;
+use crate::frame::{Correspondence, frame_pairs};
 use crate::generate::{Bucket, Domain, candidates};
 use crate::value::{Value, from_json, to_json};
 
@@ -30,9 +30,20 @@ pub enum Mutant {
     DuplicateOne,
     AppendFabricated,
     SwapAdjacent,
+    /// Built from the frame pairs: one output element per element of the
+    /// paired input list, matched and preserved fields copied, every other
+    /// field empty. The wrong performance for a transform.
+    Skeleton,
+    /// The skeleton with one element per distinct value of the matched
+    /// fields: the wrong group-by.
+    SkeletonPerKey,
+    SkeletonDropOne,
+    SkeletonDuplicateOne,
+    SkeletonAppendFabricated,
+    SkeletonSwapAdjacent,
 }
 
-pub const LIBRARY: [Mutant; 7] = [
+pub const LIBRARY: [Mutant; 13] = [
     Mutant::Empty,
     Mutant::OkEmpty,
     Mutant::Identity,
@@ -40,6 +51,12 @@ pub const LIBRARY: [Mutant; 7] = [
     Mutant::DuplicateOne,
     Mutant::AppendFabricated,
     Mutant::SwapAdjacent,
+    Mutant::Skeleton,
+    Mutant::SkeletonPerKey,
+    Mutant::SkeletonDropOne,
+    Mutant::SkeletonDuplicateOne,
+    Mutant::SkeletonAppendFabricated,
+    Mutant::SkeletonSwapAdjacent,
 ];
 
 impl Mutant {
@@ -52,7 +69,27 @@ impl Mutant {
             Mutant::DuplicateOne => "duplicate_one",
             Mutant::AppendFabricated => "append_fabricated",
             Mutant::SwapAdjacent => "swap_adjacent",
+            Mutant::Skeleton => "skeleton",
+            Mutant::SkeletonPerKey => "skeleton_per_key",
+            Mutant::SkeletonDropOne => "skeleton_drop_one",
+            Mutant::SkeletonDuplicateOne => "skeleton_duplicate_one",
+            Mutant::SkeletonAppendFabricated => "skeleton_append_fabricated",
+            Mutant::SkeletonSwapAdjacent => "skeleton_swap_adjacent",
         }
+    }
+
+    /// The skeleton family: built from the frame pairs, not from an input
+    /// that has the output's shape.
+    pub fn is_skeleton(self) -> bool {
+        matches!(
+            self,
+            Mutant::Skeleton
+                | Mutant::SkeletonPerKey
+                | Mutant::SkeletonDropOne
+                | Mutant::SkeletonDuplicateOne
+                | Mutant::SkeletonAppendFabricated
+                | Mutant::SkeletonSwapAdjacent
+        )
     }
 
     pub fn describe(self) -> &'static str {
@@ -64,6 +101,20 @@ impl Mutant {
             Mutant::AppendFabricated => "returns the input with a fabricated element appended",
             Mutant::DuplicateOne => "returns the input with its first element repeated",
             Mutant::SwapAdjacent => "returns the input with its first two elements swapped",
+            Mutant::Skeleton => {
+                "builds the output from the frame pairs: one element per paired input element, matched and preserved fields copied, the rest empty"
+            }
+            Mutant::SkeletonPerKey => {
+                "builds the skeleton with one element per distinct value of the matched fields"
+            }
+            Mutant::SkeletonDropOne => "builds the skeleton without its first element",
+            Mutant::SkeletonDuplicateOne => "builds the skeleton with its first element repeated",
+            Mutant::SkeletonAppendFabricated => {
+                "builds the skeleton with a fabricated element appended"
+            }
+            Mutant::SkeletonSwapAdjacent => {
+                "builds the skeleton with its first two elements swapped"
+            }
         }
     }
 
@@ -173,8 +224,167 @@ fn identity_list(scope: &Scope<'_>) -> Option<Type> {
     }
 }
 
+/// The value at a path inside a value, through record fields and Result
+/// sides.
+fn value_at<'v>(v: &'v Value, path: &[Step]) -> Option<&'v Value> {
+    let mut cur = v;
+    for step in path {
+        cur = match (step, cur) {
+            (Step::Field(f), Value::Record(_)) => cur.field(f)?,
+            (Step::Ok, Value::Ok(x)) | (Step::Err, Value::Err(x)) => x,
+            _ => return None,
+        };
+    }
+    Some(cur)
+}
+
+/// The type at a path inside a type.
+fn type_at<'t>(t: &'t Type, path: &[Step]) -> Option<&'t Type> {
+    let mut cur = t;
+    for step in path {
+        cur = match (step, cur) {
+            (Step::Field(f), Type::Record { fields, .. }) => {
+                &fields.iter().find(|(n, _)| n == f)?.1
+            }
+            (Step::Ok, Type::Result(ok, _)) => ok,
+            (Step::Err, Type::Result(_, err)) => err,
+            (Step::Each, Type::List(elem, _)) => elem,
+            _ => return None,
+        };
+    }
+    Some(cur)
+}
+
+/// The skeleton plan: one correspondence per output path, the first the
+/// frame pairs state for it.
+pub fn skeleton_plan(pairs: &[crate::frame::FramePair]) -> Vec<Correspondence> {
+    let mut plan: Vec<Correspondence> = Vec::new();
+    for p in pairs {
+        if !plan.iter().any(|c| c.out_path == p.correspondence.out_path) {
+            plan.push(p.correspondence.clone());
+        }
+    }
+    plan
+}
+
+fn skeleton_record(fields: &[(String, Type)], c: &Correspondence, src: Option<&Value>) -> Value {
+    Value::record(
+        fields
+            .iter()
+            .map(|(n, t)| {
+                let from = c
+                    .matched
+                    .iter()
+                    .find(|(of, _)| of == n)
+                    .map(|(_, inf)| inf.as_str())
+                    .or_else(|| c.preserved.contains(n).then_some(n.as_str()));
+                let v = from
+                    .and_then(|f| src.and_then(|s| s.field(f)).cloned())
+                    .unwrap_or_else(|| empty_value(t));
+                (n.clone(), v)
+            })
+            .collect(),
+    )
+}
+
+fn skeleton_list(elem: &Type, c: &Correspondence, inputs: &[Value], per_key: bool) -> Value {
+    let src = match inputs.get(c.input).and_then(|v| value_at(v, &c.input_path)) {
+        Some(Value::List(xs)) => xs,
+        _ => return Value::List(Vec::new()),
+    };
+    let Some(fields) = elem.record_fields() else {
+        return Value::List(Vec::new());
+    };
+    let mut out = Vec::new();
+    let mut seen: Vec<Vec<Option<Value>>> = Vec::new();
+    for s in src {
+        if per_key {
+            let key: Vec<Option<Value>> = c
+                .matched
+                .iter()
+                .map(|(_, inf)| s.field(inf).cloned())
+                .collect();
+            if seen.contains(&key) {
+                continue;
+            }
+            seen.push(key);
+        }
+        out.push(skeleton_record(fields, c, Some(s)));
+    }
+    Value::List(out)
+}
+
+fn skeleton_value(
+    ty: &Type,
+    path: &mut Vec<Step>,
+    inputs: &[Value],
+    plan: &[Correspondence],
+    per_key: bool,
+) -> Value {
+    match ty {
+        Type::List(elem, _) => match plan.iter().find(|c| c.out_path == *path) {
+            Some(c) => skeleton_list(elem, c, inputs, per_key),
+            None => Value::List(Vec::new()),
+        },
+        Type::Record { fields, .. } => match plan.iter().find(|c| c.out_path == *path) {
+            Some(c) => {
+                let src = inputs.get(c.input).and_then(|v| value_at(v, &c.input_path));
+                skeleton_record(fields, c, src)
+            }
+            None => Value::record(
+                fields
+                    .iter()
+                    .map(|(n, t)| {
+                        path.push(Step::Field(n.clone()));
+                        let v = skeleton_value(t, path, inputs, plan, per_key);
+                        path.pop();
+                        (n.clone(), v)
+                    })
+                    .collect(),
+            ),
+        },
+        Type::Result(ok, err) => {
+            path.push(Step::Ok);
+            let inside = plan.iter().any(|c| c.out_path.starts_with(path));
+            let v = if inside {
+                Value::Ok(Box::new(skeleton_value(ok, path, inputs, plan, per_key)))
+            } else {
+                Value::Err(Box::new(empty_value(err)))
+            };
+            path.pop();
+            v
+        }
+        other => empty_value(other),
+    }
+}
+
+/// The output path of the first list the skeleton builds: what the
+/// skeleton tweaks edit.
+fn skeleton_list_path(out: &Type, plan: &[Correspondence]) -> Option<Vec<Step>> {
+    plan.iter()
+        .find(|c| matches!(type_at(out, &c.out_path), Some(Type::List(..))))
+        .map(|c| c.out_path.clone())
+}
+
+fn edit_at(v: &mut Value, path: &[Step], edit: &dyn Fn(&mut Vec<Value>) -> bool) -> bool {
+    if path.is_empty() {
+        return match v {
+            Value::List(xs) => edit(xs),
+            _ => false,
+        };
+    }
+    match (&path[0], v) {
+        (Step::Field(f), Value::Record(fields)) => fields
+            .iter_mut()
+            .find(|(n, _)| n == f)
+            .is_some_and(|(_, x)| edit_at(x, &path[1..], edit)),
+        (Step::Ok, Value::Ok(x)) | (Step::Err, Value::Err(x)) => edit_at(x, &path[1..], edit),
+        _ => false,
+    }
+}
+
 /// Whether a mutant can be built for this signature at all.
-pub fn applies(m: Mutant, scope: &Scope<'_>) -> bool {
+pub fn applies(m: Mutant, scope: &Scope<'_>, plan: &[Correspondence]) -> bool {
     let Some(out) = scope.output.as_ref() else {
         return false;
     };
@@ -182,13 +392,24 @@ pub fn applies(m: Mutant, scope: &Scope<'_>) -> bool {
         Mutant::Empty => true,
         Mutant::OkEmpty => matches!(out, Type::Result(..)),
         Mutant::Identity => identity_source(scope).is_some(),
-        _ => identity_list(scope).is_some(),
+        Mutant::DropOne
+        | Mutant::DuplicateOne
+        | Mutant::AppendFabricated
+        | Mutant::SwapAdjacent => identity_list(scope).is_some(),
+        Mutant::Skeleton => !plan.is_empty(),
+        Mutant::SkeletonPerKey => plan.iter().any(|c| !c.matched.is_empty()),
+        _ => skeleton_list_path(out, plan).is_some(),
     }
 }
 
 /// The mutant's output for given inputs, or `None` where it has none on
 /// those inputs (nothing to drop from an empty list).
-pub fn apply(m: Mutant, inputs: &[Value], scope: &Scope<'_>) -> Option<Value> {
+pub fn apply(
+    m: Mutant,
+    inputs: &[Value],
+    scope: &Scope<'_>,
+    plan: &[Correspondence],
+) -> Option<Value> {
     let out = scope.output.as_ref()?;
     match m {
         Mutant::Empty => Some(empty_value(out)),
@@ -196,6 +417,51 @@ pub fn apply(m: Mutant, inputs: &[Value], scope: &Scope<'_>) -> Option<Value> {
             Type::Result(ok, _) => Some(Value::Ok(Box::new(empty_value(ok)))),
             _ => None,
         },
+        m if m.is_skeleton() => {
+            if !applies(m, scope, plan) {
+                return None;
+            }
+            let per_key = m == Mutant::SkeletonPerKey;
+            let mut v = skeleton_value(out, &mut Vec::new(), inputs, plan, per_key);
+            if matches!(m, Mutant::Skeleton | Mutant::SkeletonPerKey) {
+                return Some(v);
+            }
+            let path = skeleton_list_path(out, plan)?;
+            let elem = match type_at(out, &path) {
+                Some(Type::List(elem, _)) => elem.as_ref().clone(),
+                _ => return None,
+            };
+            let ok = match m {
+                Mutant::SkeletonDropOne => edit_at(&mut v, &path, &|xs| {
+                    if xs.is_empty() {
+                        return false;
+                    }
+                    xs.remove(0);
+                    true
+                }),
+                Mutant::SkeletonDuplicateOne => edit_at(&mut v, &path, &|xs| {
+                    if xs.is_empty() {
+                        return false;
+                    }
+                    let first = xs[0].clone();
+                    xs.insert(0, first);
+                    true
+                }),
+                Mutant::SkeletonAppendFabricated => edit_at(&mut v, &path, &|xs| {
+                    xs.push(fabricated(&elem));
+                    true
+                }),
+                Mutant::SkeletonSwapAdjacent => edit_at(&mut v, &path, &|xs| {
+                    if xs.len() < 2 {
+                        return false;
+                    }
+                    xs.swap(0, 1);
+                    true
+                }),
+                _ => false,
+            };
+            ok.then_some(v)
+        }
         _ => {
             let (idx, wrap) = identity_source(scope)?;
             let base = inputs.get(idx)?.clone();
@@ -626,13 +892,13 @@ impl<'g> Checker<'g> {
                 example_catches: Vec::new(),
                 shown: None,
             };
-            if !applies(m, &self.scope) {
+            if !applies(m, &self.scope, &self.plan) {
                 mutants.push(run);
                 continue;
             }
             self.mutant = Some(m);
             for case in &cases {
-                let Some(out) = apply(m, &case.inputs, &self.scope) else {
+                let Some(out) = apply(m, &case.inputs, &self.scope, &self.plan) else {
                     continue;
                 };
                 run.inputs_tried += 1;

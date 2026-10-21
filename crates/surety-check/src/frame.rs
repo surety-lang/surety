@@ -5,14 +5,33 @@
 //! exactly one of L1, L2 is reached from `out` and the other from an
 //! input. A same-named field is preserved unless M or B names it on either
 //! binder. Each pair becomes an implicit property the checker evaluates.
+//!
+//! Each pair also states a correspondence: which output list (or the
+//! output record) goes with which input list (or input record), matched on
+//! which fields, preserving which. The skeleton mutants are built from it.
 
 use surety_syntax::resolve::Scope;
-use surety_syntax::{BinOp, Binder, Expr, Function, QKind, Quantifier, Type};
+use surety_syntax::{BinOp, Binder, Expr, Function, QKind, Quantifier, Side, Type};
+
+use crate::examples::Step;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Origin {
+pub enum Root {
     Out,
-    Input,
+    Input(usize),
+}
+
+/// What a frame pair states structurally.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Correspondence {
+    /// From `out` to the output list, or empty for the output itself.
+    pub out_path: Vec<Step>,
+    pub input: usize,
+    /// From that input to the list, or empty for the input itself.
+    pub input_path: Vec<Step>,
+    /// `(output field, input field)` pairs the match equates.
+    pub matched: Vec<(String, String)>,
+    pub preserved: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -23,14 +42,28 @@ pub struct FramePair {
     pub preserved: Vec<String>,
     /// The implicit property: every preserved field is equal on the pair.
     pub implicit: Expr,
+    pub correspondence: Correspondence,
 }
 
-fn origin(e: &Expr, scope: &Scope<'_>, binders: &[(String, Origin)]) -> Option<Origin> {
+type Bound = (String, Root, Vec<Step>);
+
+fn origin(e: &Expr, scope: &Scope<'_>, binders: &[Bound]) -> Option<(Root, Vec<Step>)> {
     match e {
-        Expr::Name(n, _) if n == "out" => Some(Origin::Out),
-        Expr::Name(n, _) if scope.is_input(n) => Some(Origin::Input),
-        Expr::Name(n, _) => binders.iter().rev().find(|(b, _)| b == n).map(|(_, o)| *o),
-        Expr::Field(base, _, _) => origin(base, scope, binders),
+        Expr::Name(n, _) if n == "out" => Some((Root::Out, Vec::new())),
+        Expr::Name(n, _) if scope.is_input(n) => {
+            let pos = scope.inputs.iter().position(|(m, _)| m == n)?;
+            Some((Root::Input(pos), Vec::new()))
+        }
+        Expr::Name(n, _) => binders
+            .iter()
+            .rev()
+            .find(|(b, _, _)| b == n)
+            .map(|(_, r, p)| (*r, p.clone())),
+        Expr::Field(base, f, _) => {
+            let (r, mut p) = origin(base, scope, binders)?;
+            p.push(Step::Field(f.clone()));
+            Some((r, p))
+        }
         _ => None,
     }
 }
@@ -53,6 +86,40 @@ fn fields_named(e: &Expr, root: &str, out: &mut Vec<String>) {
             }
         }
     });
+}
+
+/// `(out field, input field)` pairs that `x.f == y.g` equalities state,
+/// given which binder is the output side.
+fn matched_fields(e: &Expr, out_binder: &str, in_binder: &str) -> Vec<(String, String)> {
+    let mut out = Vec::new();
+    e.walk(&mut |sub| {
+        let Expr::Binary(BinOp::Eq, a, b) = sub else {
+            return;
+        };
+        let (Expr::Field(ba, fa, _), Expr::Field(bb, fb, _)) = (&**a, &**b) else {
+            return;
+        };
+        let name = |base: &Expr| match base {
+            Expr::Name(n, _) => Some(n.clone()),
+            _ => None,
+        };
+        let (Some(na), Some(nb)) = (name(ba), name(bb)) else {
+            return;
+        };
+        let pair = if na == out_binder && nb == in_binder {
+            Some((fa.clone(), fb.clone()))
+        } else if nb == out_binder && na == in_binder {
+            Some((fb.clone(), fa.clone()))
+        } else {
+            None
+        };
+        if let Some(p) = pair {
+            if !out.contains(&p) {
+                out.push(p);
+            }
+        }
+    });
+    out
 }
 
 fn field_of(root: &str, f: &str, line: usize) -> Expr {
@@ -104,6 +171,13 @@ pub fn frame_pairs(scope: &Scope<'_>, f: &Function) -> Vec<FramePair> {
                     description: format!("out ~ {input} (single record input)"),
                     line: f.line,
                     implicit: all_equal("out", input, &preserved, f.line),
+                    correspondence: Correspondence {
+                        out_path: Vec::new(),
+                        input: 0,
+                        input_path: Vec::new(),
+                        matched: Vec::new(),
+                        preserved: preserved.clone(),
+                    },
                     preserved,
                 });
             }
@@ -122,15 +196,20 @@ fn plain_name(b: &Binder) -> Option<&str> {
     }
 }
 
-fn scan(
-    e: &Expr,
-    scope: &Scope<'_>,
-    binders: &mut Vec<(String, Origin)>,
-    pairs: &mut Vec<FramePair>,
-) {
+fn binder_path(q: &Quantifier, domain: &[Step]) -> Vec<Step> {
+    let mut p = domain.to_vec();
+    p.push(match q.binder.side {
+        Some(Side::Ok) => Step::Ok,
+        Some(Side::Err) => Step::Err,
+        None => Step::Each,
+    });
+    p
+}
+
+fn scan(e: &Expr, scope: &Scope<'_>, binders: &mut Vec<Bound>, pairs: &mut Vec<FramePair>) {
     match e {
         Expr::Quantifier(q) => {
-            let dom_origin = origin(&q.domain, scope, binders);
+            let dom = origin(&q.domain, scope, binders);
             let Ok(elem) = scope.domain_elem(q) else {
                 return;
             };
@@ -145,25 +224,40 @@ fn scan(
                 {
                     if inner.kind == QKind::ExactlyOne && !inner.leftover {
                         if let Some(y) = plain_name(&inner.binder) {
-                            let ox = dom_origin;
                             let oy = origin(&inner.domain, scope, binders);
-                            let crossed = matches!(
-                                (ox, oy),
-                                (Some(Origin::Out), Some(Origin::Input))
-                                    | (Some(Origin::Input), Some(Origin::Out))
-                            );
-                            if crossed {
-                                if let Ok(ty) = inner_scope.domain_elem(inner.as_ref()) {
-                                    pair(q, inner.as_ref(), x, y, &elem, &ty, pairs);
+                            if let (Some((rx, px)), Some((ry, py))) = (&dom, &oy) {
+                                let crossed = matches!(
+                                    (rx, ry),
+                                    (Root::Out, Root::Input(_)) | (Root::Input(_), Root::Out)
+                                );
+                                if crossed {
+                                    if let Ok(ty) = inner_scope.domain_elem(inner.as_ref()) {
+                                        let (out_side, in_side) = if *rx == Root::Out {
+                                            ((x, px.clone()), (y, *ry, py.clone()))
+                                        } else {
+                                            ((y, py.clone()), (x, *rx, px.clone()))
+                                        };
+                                        pair(
+                                            q,
+                                            inner.as_ref(),
+                                            x,
+                                            y,
+                                            &elem,
+                                            &ty,
+                                            out_side,
+                                            in_side,
+                                            pairs,
+                                        );
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
-            let pushed = match (&q.binder.name, dom_origin) {
-                (Some(n), Some(o)) => {
-                    binders.push((n.clone(), o));
+            let pushed = match (&q.binder.name, &dom) {
+                (Some(n), Some((r, p))) => {
+                    binders.push((n.clone(), *r, binder_path(q, p)));
                     true
                 }
                 _ => false,
@@ -184,6 +278,7 @@ fn scan(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn pair(
     outer: &Quantifier,
     inner: &Quantifier,
@@ -191,6 +286,8 @@ fn pair(
     y: &str,
     tx: &Type,
     ty: &Type,
+    out_side: (&str, Vec<Step>),
+    in_side: (&str, Root, Vec<Step>),
     pairs: &mut Vec<FramePair>,
 ) {
     let fx = field_names(tx);
@@ -207,16 +304,37 @@ fn pair(
         .into_iter()
         .filter(|n| fy.contains(n) && !named.contains(n))
         .collect();
-    if preserved.is_empty() {
-        return;
-    }
-    let line = inner.line;
     // The match is `where M` when present, else the body itself.
     let matcher = inner
         .where_
         .clone()
         .or_else(|| inner.body.clone())
         .expect("exactly_one has a match");
+    let (out_binder, out_path) = out_side;
+    let (in_binder, in_root, input_path) = in_side;
+    let Root::Input(input) = in_root else {
+        return;
+    };
+    let correspondence = Correspondence {
+        out_path,
+        input,
+        input_path,
+        matched: matched_fields(&matcher, out_binder, in_binder),
+        preserved: preserved.clone(),
+    };
+    if preserved.is_empty() {
+        // No implicit property, but the correspondence still holds for the
+        // skeleton mutants: record it on a pair with a vacuous claim.
+        pairs.push(FramePair {
+            description: format!("{x} ~ {y} (line {})", inner.line),
+            line: inner.line,
+            preserved,
+            implicit: Expr::Binary(BinOp::Eq, Box::new(Expr::Int(0)), Box::new(Expr::Int(0))),
+            correspondence,
+        });
+        return;
+    }
+    let line = inner.line;
     let implicit = Expr::Quantifier(Box::new(Quantifier {
         kind: QKind::All,
         binder: outer.binder.clone(),
@@ -241,5 +359,6 @@ fn pair(
         line,
         preserved,
         implicit,
+        correspondence,
     });
 }

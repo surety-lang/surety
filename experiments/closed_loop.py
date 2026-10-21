@@ -146,9 +146,21 @@ def extract_module(reply: str) -> str | None:
     return m.group(1) if m else None
 
 
-def run_check(surety: pathlib.Path, sur: pathlib.Path, perf: pathlib.Path) -> tuple[int, str]:
+def run_check(surety: pathlib.Path, sur: pathlib.Path, perf: pathlib.Path) -> tuple[int, str, dict]:
+    """The text report for a person, and the evidence object from the JSON
+    channel (one object per finding, then one of kind `evidence`)."""
     proc = subprocess.run([str(surety), "check", str(sur), str(perf)], capture_output=True, text=True, timeout=600)
-    return proc.returncode, proc.stdout + proc.stderr
+    text = proc.stdout + proc.stderr
+    evidence: dict = {}
+    js = subprocess.run([str(surety), "check", "--json", str(sur), str(perf)], capture_output=True, text=True, timeout=600)
+    for line in js.stdout.splitlines():
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if obj.get("kind") == "evidence":
+            evidence = obj
+    return proc.returncode, text, evidence
 
 
 def tally(report: str) -> dict:
@@ -169,6 +181,8 @@ def tally(report: str) -> dict:
             killers.append(s[9:][:160])
         elif s.startswith("skip "):
             counts["skip"] += 1
+        elif s.startswith("FINDING "):
+            counts["finding"] = counts.get("finding", 0) + 1
     counts["killers"] = killers
     return counts
 
@@ -265,13 +279,21 @@ def main() -> int:
                 break
             perf = run_dir / f"{name}.py"
             perf.write_text(module, encoding="utf-8")
-            code, report = run_check(surety, run_dir / f"{name}.sur", perf)
+            code, report, evidence = run_check(surety, run_dir / f"{name}.sur", perf)
             (run_dir / f"{name}.round{attempt}.report.txt").write_text(report, encoding="utf-8")
             counts = tally(report)
-            record.update({"exit": code, **counts})
+            record.update({"exit": code, **counts, "evidence": evidence})
             entry["attempts"].append(record)
             verdict = "PASS" if code == 0 else "fail"
-            print(f"{name} round {attempt}: {verdict}  pass={counts['pass']} fail={counts['fail']} error={counts['error']} boundary={counts['boundary']}  {seconds}s  in={usage['input']} out={usage['output']}")
+            ev = evidence or {}
+            summary_bits = ""
+            if ev:
+                summary_bits = (f"  runs={ev.get('properties', {}).get('runs', '?')}"
+                                f" findings={ev.get('properties', {}).get('findings', '?')}"
+                                f" det={ev.get('determinism', {}).get('matched', '?')}/{ev.get('determinism', {}).get('total', '?')}"
+                                f" imports={','.join(ev.get('imports', [])) or 'none'}"
+                                f" lines={ev.get('shape', {}).get('lines', '?')}")
+            print(f"{name} round {attempt}: {verdict}  pass={counts['pass']} fail={counts['fail']} error={counts['error']} boundary={counts['boundary']}{summary_bits}  {seconds}s  in={usage['input']} out={usage['output']}")
             if code == 0 or attempt == args.rounds:
                 break
             # v2's inner loop: the counterexample goes back, the obligation does not change.
@@ -281,20 +303,27 @@ def main() -> int:
 
     (run_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     lines = [f"# Closed-loop run {stamp}", "", f"model `{args.model}`, effort `{args.effort}`, rounds {args.rounds}", "",
-             "| Obligation | Result | Round | Pass | Fail | Error | Boundary | Seconds | Tokens in/out | First killer |",
-             "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
+             "| Obligation | Result | Round | Pass | Fail | Error | Boundary | Runs | Findings | Determinism | Imports | Lines | Seconds | Tokens in/out | First killer |",
+             "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
     passed = 0
     for e in summary["obligations"]:
         if not e["attempts"]:
-            lines.append(f"| {e['name']} | not run | | | | | | | | |")
+            lines.append(f"| {e['name']} | not run | | | | | | | | | | | | | |")
             continue
         a = e["attempts"][-1]
         if "exit" not in a:
-            lines.append(f"| {e['name']} | error | {a['round']} | | | | | {a.get('seconds', '')} | | {a.get('error', '')} |")
+            lines.append(f"| {e['name']} | error | {a['round']} | | | | | | | | | | {a.get('seconds', '')} | | {a.get('error', '')} |")
             continue
         passed += e["passed"]
         killer = (a["killers"][0] if a["killers"] else "").replace("|", "\\|")
-        lines.append(f"| {e['name']} | {'pass' if e['passed'] else 'fail'} | {a['round']} | {a['pass']} | {a['fail']} | {a['error']} | {a['boundary']} | {a['seconds']} | {a['usage']['input']}/{a['usage']['output']} | {killer} |")
+        ev = a.get("evidence") or {}
+        runs = ev.get("properties", {}).get("runs", "")
+        findings = ev.get("properties", {}).get("findings", "")
+        det = ev.get("determinism", {})
+        det_text = f"{det.get('matched', '')}/{det.get('total', '')}" if det else ""
+        imports = ", ".join(ev.get("imports", [])) or ("none" if ev else "")
+        lines_n = ev.get("shape", {}).get("lines", "")
+        lines.append(f"| {e['name']} | {'pass' if e['passed'] else 'fail'} | {a['round']} | {a['pass']} | {a['fail']} | {a['error']} | {a['boundary']} | {runs} | {findings} | {det_text} | {imports} | {lines_n} | {a['seconds']} | {a['usage']['input']}/{a['usage']['output']} | {killer} |")
     lines += ["", f"{passed} of {len(summary['obligations'])} obligations passed."]
     (run_dir / "summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"\nrun written to {run_dir}")

@@ -667,10 +667,11 @@ pub fn generate(
     out
 }
 
-/// Output candidates for the mutant search: every value with lists of at
-/// most one element first, smallest first, then sampled values with lists
-/// up to `MAX_LEN`, up to `cap` in all.
-pub fn candidates(ty: &Type, d: &Domain, cap: usize) -> Vec<Value> {
+/// Output candidates for the mutant search: the `seed` values first (what
+/// the caller drew from the input), then every value with lists of at most
+/// one element, smallest first, then sampled values with lists up to
+/// `MAX_LEN`, up to `cap` in all.
+pub fn candidates(ty: &Type, d: &Domain, cap: usize, seed: Vec<Value>) -> Vec<Value> {
     struct Pool {
         out: Vec<Value>,
         seen: HashSet<String>,
@@ -688,6 +689,9 @@ pub fn candidates(ty: &Type, d: &Domain, cap: usize) -> Vec<Value> {
         seen: HashSet::new(),
         cap,
     };
+    for v in seed {
+        pool.push(v);
+    }
     match all(ty, d, None, 1, cap) {
         Some(mut small) => {
             small.sort_by_key(size);

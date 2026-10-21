@@ -315,6 +315,20 @@ impl<'g> Checker<'g> {
         if self.named_value(name).is_some() {
             return Err(format!("`{name}` is a value, not a function"));
         }
+        if name == self.fun.name {
+            if let Some(m) = self.mutant {
+                // The mutant is the performance, for its own recursion too.
+                if let Some(v) = crate::mutants::apply(m, &vals, &self.scope) {
+                    return Ok(v);
+                }
+                if !self.performance.is_file() {
+                    return Err(format!(
+                        "`{name}` refers to itself and the mutant `{}` has no value for those inputs (line {line})",
+                        m.name()
+                    ));
+                }
+            }
+        }
         let callee = self.resolve_callee(name, line)?;
         let display = self.graph_ref_label(&callee, name);
         if !self.graph_refs.contains(&display) {

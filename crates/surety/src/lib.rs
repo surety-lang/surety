@@ -6,8 +6,9 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use serde_json::{Value as Json, json};
+use surety_check::mutants::{Clause, MutantReport, MutantRun, MutantVerdict};
 use surety_check::value::to_json;
-use surety_check::{Budget, Checker, Counterexample, PropVerdict, Report, Value, Verdict};
+use surety_check::{Bucket, Budget, Checker, Counterexample, PropVerdict, Report, Value, Verdict};
 use surety_syntax::{Error, Graph, parse};
 
 /// Per-call timeout for a performance.
@@ -188,9 +189,8 @@ fn render_claim(s: &mut String, example_runs: usize, c: &ClaimView<'_>) {
     }
 }
 
-fn bucket_text(report: &Report) -> String {
-    report
-        .buckets
+fn bucket_text(buckets: &[Bucket]) -> String {
+    buckets
         .iter()
         .map(|b| {
             let lengths = if b.lengths.is_empty() {
@@ -313,7 +313,7 @@ pub fn render_evidence(r: &Report) -> String {
         s.push_str(&format!(
             "    generated:        {} inputs by list length: {}\n",
             r.generated_inputs,
-            bucket_text(r)
+            bucket_text(&r.buckets)
         ));
     }
     s
@@ -589,6 +589,337 @@ pub fn json_lines(r: &Report) -> Vec<Json> {
 /// The machine form as text: one JSON object per line.
 pub fn render_json(r: &Report) -> String {
     json_lines(r)
+        .iter()
+        .map(|j| j.to_string())
+        .collect::<Vec<_>>()
+        .join("\n")
+        + "\n"
+}
+
+/// The underdetermination check on one obligation file. The performance is
+/// optional: it is only consulted where a property calls the obligation's
+/// own name and the active mutant has no value for those inputs, and for
+/// the search.
+pub fn mutants_file(
+    file: &Path,
+    performance: Option<&Path>,
+    budget: Budget,
+) -> Result<MutantReport, String> {
+    let (graph, idx) = load_with_siblings(file).map_err(errors_text)?;
+    let perf = performance
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| file.with_extension("py"));
+    let mut checker = checker_for(&graph, idx, file, &perf)?;
+    checker.budget = budget;
+    Ok(checker.mutants())
+}
+
+fn clause_label(c: &Clause) -> String {
+    match c {
+        Clause::Property { line, text } => format!("line {line}: {text}"),
+        Clause::Frame { line, description } => format!("frame {description} (line {line})"),
+        Clause::Boundary => "the output type".to_string(),
+    }
+}
+
+fn clause_lines(cs: &[Clause]) -> String {
+    let mut parts: Vec<String> = Vec::new();
+    let lines: Vec<String> = cs
+        .iter()
+        .filter_map(|c| c.line().map(|l| l.to_string()))
+        .collect();
+    if !lines.is_empty() {
+        parts.push(format!(
+            "line{} {}",
+            if lines.len() == 1 { "" } else { "s" },
+            lines.join(", ")
+        ));
+    }
+    if cs.contains(&Clause::Boundary) {
+        parts.push("the output type".to_string());
+    }
+    parts.join(" and ")
+}
+
+fn short(text: &str, max: usize) -> String {
+    if text.chars().count() <= max {
+        text.to_string()
+    } else {
+        let cut: String = text.chars().take(max).collect();
+        format!("{cut}…")
+    }
+}
+
+fn example_catch_text(m: &MutantRun) -> String {
+    match m.example_catches.as_slice() {
+        [] => "caught by no example".to_string(),
+        [one] => format!("caught by example {one} only"),
+        many => format!(
+            "caught by examples {} only",
+            many.iter()
+                .map(|n| n.to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+    }
+}
+
+fn not_applicable_reason(m: surety_check::Mutant) -> &'static str {
+    match m {
+        surety_check::Mutant::Empty => "always applies",
+        surety_check::Mutant::OkEmpty => "the output is not a Result",
+        surety_check::Mutant::Identity => "no single input has the output's shape",
+        _ => "the identity is not a list, or no input gave it an element to edit",
+    }
+}
+
+/// The default view: one line per obligation, one per slipping mutant, one
+/// per underdetermined input. `--full` adds the behaviour-first detail.
+pub fn render_mutants(r: &MutantReport, full: bool) -> String {
+    let mut s = String::new();
+    let slipped = r.slipped();
+    s.push_str(&format!(
+        "{}  inputs {}+{}  mutants {} of {} apply  slipped {}  caught {}  underdetermined {}\n",
+        r.obligation,
+        r.example_inputs,
+        r.generated_inputs,
+        r.applicable(),
+        r.mutants.len(),
+        slipped.len(),
+        r.caught(),
+        r.search.len()
+    ));
+    for m in &slipped {
+        let shown = m
+            .shown
+            .as_ref()
+            .map(|sh| format!("; in: {}", short(&sur_inputs(&sh.inputs), 80)))
+            .unwrap_or_default();
+        s.push_str(&format!(
+            "  slipped  {}: {}; through {} clause{} ({}); {}{shown}\n",
+            m.mutant.name(),
+            m.mutant.describe(),
+            m.slipped.len(),
+            if m.slipped.len() == 1 { "" } else { "s" },
+            clause_lines(&m.slipped),
+            example_catch_text(m)
+        ));
+    }
+    for u in &r.search {
+        s.push_str(&format!(
+            "  underdetermined  in: {}: two outputs pass every clause{}\n",
+            short(&sur_inputs(&u.inputs), 80),
+            if u.a_is_expected {
+                " (one is the example's)"
+            } else {
+                ""
+            }
+        ));
+    }
+    if !full {
+        return s;
+    }
+    for m in &slipped {
+        s.push_str(&format!(
+            "  mutant {} slipped through the properties: {}\n",
+            m.mutant.name(),
+            m.mutant.describe()
+        ));
+        if let Some(sh) = &m.shown {
+            s.push_str("    e:\n");
+            s.push_str(&format!("      in: {}\n", sur_inputs(&sh.inputs)));
+            if let Some(e) = &sh.expected {
+                s.push_str(&format!(
+                    "      out: {e}    # example {}\n",
+                    sh.example.unwrap_or(0)
+                ));
+            }
+            s.push_str(&format!(
+                "      out: {}    # {}\n",
+                sh.output,
+                m.mutant.name()
+            ));
+        }
+        s.push_str(&format!(
+            "    {}; on {} inputs\n",
+            example_catch_text(m),
+            m.inputs_tried
+        ));
+        for c in &m.slipped {
+            s.push_str(&format!("    slipped through {}\n", clause_label(c)));
+        }
+    }
+    for u in &r.search {
+        s.push_str("  underdetermined: two outputs pass every clause\n    e:\n");
+        s.push_str(&format!("      in: {}\n", sur_inputs(&u.inputs)));
+        s.push_str(&format!(
+            "      out: {}    # {}\n",
+            u.a,
+            if u.a_is_expected {
+                format!("example {}", u.example.unwrap_or(0))
+            } else {
+                "passes every clause".to_string()
+            }
+        ));
+        s.push_str(&format!(
+            "      out: {}    # also passes every clause; {} candidates tried\n",
+            u.b, u.candidates_tried
+        ));
+    }
+    for m in r
+        .mutants
+        .iter()
+        .filter(|m| m.verdict == MutantVerdict::Caught)
+    {
+        let kills: Vec<String> = m
+            .kills
+            .iter()
+            .map(|k| {
+                format!(
+                    "{} ({} input{})",
+                    clause_label(&k.clause),
+                    k.count,
+                    if k.count == 1 { "" } else { "s" }
+                )
+            })
+            .collect();
+        s.push_str(&format!(
+            "  mutant {} caught on {} of {} inputs by {}\n",
+            m.mutant.name(),
+            m.caught_inputs,
+            m.inputs_tried,
+            kills.join("; ")
+        ));
+        if !m.slipped.is_empty() {
+            s.push_str(&format!(
+                "    slipped through anyway: {}\n",
+                clause_lines(&m.slipped)
+            ));
+        }
+    }
+    for m in r
+        .mutants
+        .iter()
+        .filter(|m| m.verdict == MutantVerdict::NotApplicable)
+    {
+        s.push_str(&format!(
+            "  mutant {} does not apply: {}\n",
+            m.mutant.name(),
+            not_applicable_reason(m.mutant)
+        ));
+    }
+    if !r.uncaught.is_empty() {
+        s.push_str("  clauses that caught no mutant:\n");
+        for c in &r.uncaught {
+            s.push_str(&format!("    {}\n", clause_label(c)));
+        }
+    }
+    for (c, e) in &r.unevaluable {
+        s.push_str(&format!(
+            "  the search could not evaluate {}: {}\n",
+            clause_label(c),
+            last_line(e)
+        ));
+    }
+    s.push_str(&format!(
+        "  search: {} inputs, up to {} candidates each\n",
+        r.search_inputs, r.search_cap
+    ));
+    s.push_str(&format!(
+        "  generated: {} inputs by list length: {}\n",
+        r.generated_inputs,
+        bucket_text(&r.buckets)
+    ));
+    s.push_str(&format!("  obligation: {}\n", r.obligation_hash));
+    s
+}
+
+fn clause_json(c: &Clause) -> Json {
+    match c {
+        Clause::Property { line, text } => json!({ "line": line, "text": text }),
+        Clause::Frame { line, description } => {
+            json!({ "line": line, "text": format!("frame {description}") })
+        }
+        Clause::Boundary => json!({ "text": "the output type" }),
+    }
+}
+
+/// The machine form of the underdetermination check: one object per
+/// mutant, one per underdetermined input, then a summary.
+pub fn mutants_json_lines(r: &MutantReport) -> Vec<Json> {
+    let mut out = Vec::new();
+    for m in &r.mutants {
+        let kind = match m.verdict {
+            MutantVerdict::Slipped => "mutant_slipped",
+            MutantVerdict::Caught => "mutant_caught",
+            MutantVerdict::NotApplicable => "mutant_not_applicable",
+        };
+        let mut f = json!({
+            "kind": kind,
+            "obligation": r.obligation,
+            "obligation_hash": r.obligation_hash,
+            "candidate": { "mutant": m.mutant.name(), "describes": m.mutant.describe() },
+            "inputs_tried": m.inputs_tried,
+            "caught_inputs": m.caught_inputs,
+            "slipped": m.slipped.iter().map(clause_json).collect::<Vec<_>>(),
+        });
+        let mut caught_by: Vec<Json> = m
+            .example_catches
+            .iter()
+            .map(|n| json!(format!("example {n}")))
+            .collect();
+        for k in &m.kills {
+            let mut c = clause_json(&k.clause);
+            c["inputs"] = json!(k.count);
+            if let Some(msg) = &k.message {
+                c["message"] = json!(msg);
+            }
+            caught_by.push(c);
+        }
+        f["caught_by"] = Json::Array(caught_by);
+        if let Some(sh) = &m.shown {
+            f["inputs"] = input_json(&sh.inputs);
+            f = with_outputs(f, sh.expected.as_ref(), Some(&sh.output));
+            if let Some(n) = sh.example {
+                f["example"] = json!(n);
+            }
+        }
+        out.push(f);
+    }
+    for u in &r.search {
+        let mut f = json!({
+            "kind": "underdetermined",
+            "obligation": r.obligation,
+            "obligation_hash": r.obligation_hash,
+            "inputs": input_json(&u.inputs),
+            "outputs": { "a": to_json(&u.a), "b": to_json(&u.b) },
+            "a_is_expected": u.a_is_expected,
+            "candidates_tried": u.candidates_tried,
+        });
+        if let Some(n) = u.example {
+            f["example"] = json!(n);
+        }
+        out.push(f);
+    }
+    out.push(json!({
+        "kind": "mutant_report",
+        "obligation": r.obligation,
+        "obligation_hash": r.obligation_hash,
+        "example_inputs": r.example_inputs,
+        "generated_inputs": r.generated_inputs,
+        "mutants": { "total": r.mutants.len(), "applicable": r.applicable(), "slipped": r.slipped().len(), "caught": r.caught() },
+        "underdetermined_inputs": r.search.len(),
+        "underdetermined": r.underdetermined(),
+        "uncaught": r.uncaught.iter().map(clause_json).collect::<Vec<_>>(),
+        "unevaluable": r.unevaluable.iter().map(|(c, e)| { let mut j = clause_json(c); j["message"] = json!(last_line(e)); j }).collect::<Vec<_>>(),
+        "search": { "inputs": r.search_inputs, "candidates_cap": r.search_cap },
+        "generated": r.buckets.iter().map(|b| json!({ "lengths": b.lengths, "taken": b.taken, "space": b.space.to_string(), "exhaustive": b.exhaustive })).collect::<Vec<_>>(),
+    }));
+    out
+}
+
+pub fn render_mutants_json(r: &MutantReport) -> String {
+    mutants_json_lines(r)
         .iter()
         .map(|j| j.to_string())
         .collect::<Vec<_>>()

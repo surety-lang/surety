@@ -17,12 +17,18 @@ Usage:
                                         over generated inputs, determinism and totality against
                                         a performance (default: <file>.py next to the obligation),
                                         and print the evidence record
+  surety mutants <file.sur>...          the underdetermination check: the mutant library against
+                                        the obligation alone, over the same inputs, and the search
+                                        for inputs with two passing outputs; a performance next to
+                                        the file is used only where a property calls the obligation
   surety --version | --help
 
 Flags:
-  --json          one JSON object per finding, then one for the evidence record
-  --strict        findings on generated inputs fail the check too
-  --budget <n>    generated inputs per obligation (default 500; 0 is slice 1 behaviour)";
+  --json          one JSON object per finding, then one summary object
+  --strict        check: findings on generated inputs fail the check too
+  --full          mutants: the behaviour-first detail, not just the one-line view
+  --budget <n>    generated inputs per obligation (default 500; 0 is slice 1 behaviour)
+  --candidates <n>  mutants: output candidates the search tries per input (default 2000)";
 
 #[derive(Default)]
 struct Flags {
@@ -30,6 +36,7 @@ struct Flags {
     strict: bool,
     full: bool,
     budget: Option<usize>,
+    candidates: Option<usize>,
 }
 
 impl Flags {
@@ -37,6 +44,9 @@ impl Flags {
         let mut b = Budget::default();
         if let Some(n) = self.budget {
             b.generated = n;
+        }
+        if let Some(n) = self.candidates {
+            b.search_candidates = n;
         }
         b
     }
@@ -59,6 +69,16 @@ fn main() -> ExitCode {
                     Some(n) => flags.budget = Some(n),
                     None => {
                         eprintln!("--budget needs a number");
+                        return ExitCode::from(2);
+                    }
+                }
+            }
+            "--candidates" => {
+                i += 1;
+                match args.get(i).and_then(|n| n.parse().ok()) {
+                    Some(n) => flags.candidates = Some(n),
+                    None => {
+                        eprintln!("--candidates needs a number");
                         return ExitCode::from(2);
                     }
                 }
@@ -89,6 +109,7 @@ fn main() -> ExitCode {
         ["hash", file] => cmd_hash(Path::new(file)),
         ["check", file] => cmd_check(Path::new(file), None, &flags),
         ["check", file, perf] => cmd_check(Path::new(file), Some(Path::new(perf)), &flags),
+        ["mutants", files @ ..] if !files.is_empty() => cmd_mutants(files, &flags),
         _ => {
             eprintln!("{HELP}");
             ExitCode::from(2)
@@ -222,5 +243,40 @@ fn cmd_check(file: &Path, perf: Option<&Path>, flags: &Flags) -> ExitCode {
             eprintln!("{e}");
             ExitCode::from(1)
         }
+    }
+}
+
+fn cmd_mutants(files: &[&str], flags: &Flags) -> ExitCode {
+    let mut failed = false;
+    let mut underdetermined = 0;
+    for f in files {
+        let file = Path::new(f);
+        match surety::mutants_file(file, None, flags.budget()) {
+            Ok(report) => {
+                if flags.json {
+                    print!("{}", surety::render_mutants_json(&report));
+                } else {
+                    print!("{}", surety::render_mutants(&report, flags.full));
+                }
+                if report.underdetermined() {
+                    underdetermined += 1;
+                }
+            }
+            Err(e) => {
+                eprintln!("{}: {e}", file.display());
+                failed = true;
+            }
+        }
+    }
+    if files.len() > 1 && !flags.json {
+        println!(
+            "underdetermination rate: {underdetermined} of {} obligations",
+            files.len()
+        );
+    }
+    if failed {
+        ExitCode::from(1)
+    } else {
+        ExitCode::SUCCESS
     }
 }

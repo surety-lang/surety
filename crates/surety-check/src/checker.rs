@@ -272,6 +272,9 @@ pub struct Checker<'g> {
     pub module_dir: PathBuf,
     pub timeout: Duration,
     pub budget: Budget,
+    /// While the underdetermination check runs a mutant, a property's call
+    /// of the obligation's own name means that mutant.
+    pub mutant: Option<crate::mutants::Mutant>,
     runners: HashMap<PathBuf, Runner>,
     named: HashMap<String, Value>,
     unordered: Vec<Vec<Step>>,
@@ -303,6 +306,7 @@ impl<'g> Checker<'g> {
             module_dir: module_dir.to_path_buf(),
             timeout,
             budget: Budget::default(),
+            mutant: None,
             runners: HashMap::new(),
             named: HashMap::new(),
             unordered: unordered_paths(fun),

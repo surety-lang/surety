@@ -226,33 +226,41 @@ def strip_doc(body):
         body = body[1:]
     return body or [ast.Pass()]
 
-class Renamer(ast.NodeTransformer):
-    # Locals, comprehension variables, lambda and nested-function parameters
-    # become v0, v1, ... in order of first appearance. The function's own
-    # parameters and every global name are kept: they are the signature.
+class Collector(ast.NodeVisitor):
+    # Pass one: every local binding, in order of first appearance. Locals,
+    # comprehension variables, lambda and nested-function parameters and
+    # exception names are bindings; the function's own parameters and every
+    # global name are kept, since they are the signature.
     def __init__(self, keep):
         self.keep = keep
         self.map = {}
     def fresh(self, name):
-        if name not in self.map:
+        if name not in self.keep and name not in self.map:
             self.map[name] = "v%d" % len(self.map)
-        return self.map[name]
     def visit_arg(self, node):
-        if node.arg not in self.keep:
-            node.arg = self.fresh(node.arg)
+        self.fresh(node.arg)
+    def visit_Name(self, node):
+        if isinstance(node.ctx, ast.Store):
+            self.fresh(node.id)
+    def visit_ExceptHandler(self, node):
+        if node.name:
+            self.fresh(node.name)
+        self.generic_visit(node)
+
+class Renamer(ast.NodeTransformer):
+    # Pass two: rename every occurrence, strip docstrings and annotations.
+    def __init__(self, mapping):
+        self.map = mapping
+    def visit_arg(self, node):
+        node.arg = self.map.get(node.arg, node.arg)
         node.annotation = None
         return node
     def visit_Name(self, node):
-        if node.id in self.keep:
-            return node
-        if node.id in self.map:
-            node.id = self.map[node.id]
-        elif isinstance(node.ctx, ast.Store):
-            node.id = self.fresh(node.id)
+        node.id = self.map.get(node.id, node.id)
         return node
     def visit_ExceptHandler(self, node):
         if node.name:
-            node.name = self.fresh(node.name)
+            node.name = self.map.get(node.name, node.name)
         self.generic_visit(node)
         return node
     def visit_FunctionDef(self, node):
@@ -273,7 +281,9 @@ for node in tree.body:
             params.add(a.kwarg.arg)
         node.body = strip_doc(node.body)
         node.returns = None
-        Renamer(params).generic_visit(node)
+        collector = Collector(params)
+        collector.generic_visit(node)
+        Renamer(collector.map).generic_visit(node)
 dump = ast.dump(tree, annotate_fields=True, include_attributes=False)
 print(json.dumps({
     "hash": hashlib.sha256(dump.encode("utf-8")).hexdigest(),

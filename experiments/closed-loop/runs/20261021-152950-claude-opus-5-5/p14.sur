@@ -1,0 +1,90 @@
+snapshot_diff(old: Item[unique sku], new: Item[unique sku]) -> Diff
+	note "return the added, removed, and changed items in the inventory diff"
+	
+	# All items in out.added are present only in new and not in old
+	all a in out.added: a in new and a.sku not in old.sku
+	# Every item in new whose sku is not in old is in added
+	all n in new where n.sku not in old.sku: n in out.added
+	
+	# all items in out.removed are present only in old and not in new
+	all r in out.removed: r in old and r.sku not in new.sku
+	# Every item in old whose sku is not in new is in removed
+	all o in old where o.sku not in new.sku: o in out.removed
+	
+	# all items in changed are present in both
+	all c in out.changed: c.sku in old.sku and c.sku in new.sku
+	# Every sku in both, with a different qty, is in changed
+	all n in new:
+		all o in old where o.sku == n.sku and o.qty != n.qty:
+			n.sku in out.changed.sku
+	
+	# All items in changed carry `old_qty` and `new_qty`, `qty` is removed
+	# Which are set respective to new.qty or old.qty
+	all c_out in out.changed:
+		exactly_one old_entry in old where c_out.sku == old_entry.sku:
+			c_out.old_qty == old_entry.qty
+		// note wanted to just nest the sub selects e.g
+		// exactly_one new...
+	
+	all c_out in out.changed:
+		exactly_one new_entry in new where c_out.sku == new_entry.sku:
+			c_out.new_qty == new_entry.qty
+	
+	# If there is no update, it is unchanged
+	all c in out.changed: c.old_qty != c.new_qty
+	
+	unique out.added.sku
+	unique out.removed.sku
+	unique out.changed.sku
+	
+	out.added unordered
+	out.removed unordered
+	out.changed unordered
+	
+	exactly_one Ok(items) in apply_diff(old, out): items same_elements_as new
+
+	
+	
+	
+	e:
+		in: ([
+				{ sku: "A", qty: 5 },
+				{ sku: "B", qty: 2 },
+				{ sku: "C", qty: 1 }
+			],
+			[
+				{ sku: "A", qty: 5 },
+				{ sku: "B", qty: 3 },
+				{ sku: "D", qty: 7 }
+			])
+		out: {
+				added:   [ { sku: "D", qty: 7 } ],
+				removed: [ { sku: "C", qty: 1 } ],
+				changed: [ { sku: "B", old_qty: 2, new_qty: 3 } ]
+			}
+		
+		
+	e:
+		in: ([
+				{ sku: "A", qty: 5 },
+				{ sku: "B", qty: 2 },
+				{ sku: "C", qty: 1 }
+			],
+			[
+				{ sku: "A", qty: 5 },
+				{ sku: "C", qty: 1 },
+				{ sku: "B", qty: 3 },
+				{ sku: "D", qty: 7 }
+			])
+		out: {
+				added:   [ { sku: "D", qty: 7 } ],
+				removed: [],
+				changed: [ { sku: "B", old_qty: 2, new_qty: 3 } ]
+			}
+	e:
+		in: ([], [])
+		out: {
+			added: [],
+			removed: [],
+			changed: []
+		}

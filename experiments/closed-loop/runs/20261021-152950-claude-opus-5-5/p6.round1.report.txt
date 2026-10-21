@@ -1,0 +1,22 @@
+flatten_order
+  pass  example 1 (line 23)
+  pass  example 2 (line 43)
+  pass  property (line 7): all l_i in out: exactly_one i_row in order.items: i_row.id == l_i.line_id  (502 runs, 0 findings)
+  pass  property (line 11): all i_row in order.items: exactly_one r in out: r.line_id == i_row.id  (502 runs, 0 findings)
+  pass  property (line 16): out.order_id == order.id  (502 runs, 0 findings)
+  pass  property (line 17): out.customer_email == order.customer_email  (502 runs, 0 findings)
+  pass  property (line 21): out.line_id same_order_as order.items.id  (502 runs, 0 findings)
+  pass  frame l_i ~ i_row (line 8): preserves amount, item_id by default  (502 runs, 0 findings)
+  pass  frame i_row ~ r (line 12): preserves amount, item_id by default  (502 runs, 0 findings)
+  evidence
+    types:            validated at the boundary; 2 example inputs, 500 generated inputs, 502 outputs
+    examples:         2/2
+    properties:       7/7 over 502 runs; findings: 0
+    determinism:      502/502, each input run twice and compared under the order claims
+    totality:         502/502 answered within 10s
+    purity:           unverified (no sandbox in this slice); imports: none
+    shape:            13 lines, 1 functions; dependencies: none
+    underdetermination: 7 of 13 mutants apply; slipped 0; inputs with two passing outputs 0
+    obligation:       150131328a400b324de692005af855135d96915582d15624b2568174b51ce0f5
+    performance:      33be3e05ec2e1180fe80e530731c830367b2945fe221f528a7e9645771e5bf11
+    generated:        500 inputs by list length: any: 500 of 126042933636

@@ -1,0 +1,58 @@
+def well_formed_email(email):
+    if not isinstance(email, str):
+        return False
+    if email != email.strip() or any(c.isspace() for c in email):
+        return False
+    if email.count("@") != 1:
+        return False
+    local, domain = email.split("@")
+    if not local or not domain:
+        return False
+    if local.startswith(".") or local.endswith(".") or ".." in local:
+        return False
+    if "." not in domain:
+        return False
+    if domain.startswith(".") or domain.endswith(".") or ".." in domain:
+        return False
+    labels = domain.split(".")
+    for label in labels:
+        if not label:
+            return False
+        if label.startswith("-") or label.endswith("-"):
+            return False
+    return True
+
+
+def _valid_age(age):
+    return 13 <= age <= 120
+
+
+def _valid_pass(password):
+    return len(password) >= 12
+
+
+def validate_signup(p):
+    email_error = {
+        "code": "e-email-shape",
+        "display": "Please provide a valid email",
+    }
+    age_error = {
+        "code": "e-age-invalid",
+        "display": "You are not old enough or did not enter a valid birthday.",
+    }
+    password_error = {
+        "code": "e-pass-length",
+        "display": "Your password must be at least 12 characters",
+    }
+
+    errs = []
+    if not well_formed_email(p["email"]):
+        errs.append(email_error)
+    if not _valid_age(p["age"]):
+        errs.append(age_error)
+    if not _valid_pass(p["password"]):
+        errs.append(password_error)
+
+    if errs:
+        return {"err": errs}
+    return {"ok": {"email": p["email"], "age": p["age"], "password": p["password"]}}

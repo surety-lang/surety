@@ -1,0 +1,24 @@
+group_by_customer
+  pass  example 1 (line 36)
+  pass  example 2 (line 68)
+  pass  property (line 7): all o in orders: exactly_one g in out: g.customer_email == o.customer_email  (502 runs, 0 findings)
+  pass  property (line 12): unique out.customer_email  (502 runs, 0 findings)
+  pass  property (line 15): all g in out: all o in g.orders: o.customer_email == g.customer_email  (502 runs, 0 findings)
+  pass  property (line 23): flatten(out.orders) same_elements_as orders  (502 runs, 0 findings)
+  pass  property (line 27): all g in out: g.total_amount == sum(g.orders.amount)  (502 runs, 0 findings)
+  pass  property (line 30): all g in out: g.customer_email in orders.customer_email  (502 runs, 0 findings)
+  pass  property (line 33): out unordered  (502 runs, 0 findings)
+  pass  property (line 34): all g in out: g.orders unordered  (502 runs, 0 findings)
+  pass  frame o ~ g (line 8): preserves  by default  (502 runs, 0 findings)
+  evidence
+    types:            validated at the boundary; 2 example inputs, 500 generated inputs, 502 outputs
+    examples:         2/2
+    properties:       9/9 over 502 runs; findings: 0
+    determinism:      502/502, each input run twice and compared under the order claims
+    totality:         502/502 answered within 10s
+    purity:           unverified (no sandbox in this slice); imports: none
+    shape:            12 lines, 1 functions; dependencies: none
+    underdetermination: 7 of 13 mutants apply; slipped 0; inputs with two passing outputs 0
+    obligation:       e5dcff838def52522007d9783eddb69385cc7a52fb36099c87adbf5b6ad3be65
+    performance:      bef0ab40e184628c9040c0c51072d60886181e41d0c5ecec29ceefdedaed4419
+    generated:        500 inputs by list length: 0: all 0, 1: all 60, 2: 240 of 3600, 3: 100 of 216000, 4: 100 of 12960000

@@ -2,6 +2,7 @@
 //! frame rule, generated inputs, evidence record.
 
 pub mod checker;
+pub mod diff;
 pub mod eval;
 pub mod examples;
 pub mod frame;
@@ -13,6 +14,7 @@ pub use checker::{
     AcceptReport, Cause, Checker, Counterexample, Determinism, ExampleReport, Failure, FrameReport,
     GenRun, Outcome, Party, PropVerdict, PropertyReport, Report, Verdict,
 };
+pub use diff::{Class, DiffReport, Difference};
 pub use generate::{Bucket, Budget, Domain, Generated};
 pub use mutants::{Clause, Mutant, MutantReport, MutantRun, MutantVerdict, Underdetermined};
 pub use value::{BoundaryError, Value};

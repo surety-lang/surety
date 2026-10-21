@@ -8,7 +8,10 @@ use std::time::Duration;
 use serde_json::{Value as Json, json};
 use surety_check::mutants::{Clause, MutantReport, MutantRun, MutantVerdict};
 use surety_check::value::to_json;
-use surety_check::{Bucket, Budget, Cause, Checker, Party, PropVerdict, Report, Value, Verdict};
+use surety_check::{
+    Bucket, Budget, Cause, Checker, Class, DiffReport, Difference, Outcome, Party, PropVerdict,
+    Report, Value, Verdict,
+};
 use surety_syntax::{Error, Graph, parse};
 
 /// Per-call timeout for a performance.
@@ -1436,4 +1439,226 @@ pub fn render_mutants_json(r: &MutantReport) -> String {
         .collect::<Vec<_>>()
         .join("\n")
         + "\n"
+}
+
+// ---- the behavioural diff ----
+
+fn side<'g>(
+    graph: &'g Graph,
+    idx: usize,
+    perf: &Path,
+    budget: Budget,
+) -> Result<Checker<'g>, String> {
+    // Graph references resolve beside the performance, not beside the
+    // obligation: each side of a diff brings its own siblings.
+    let dir = perf.parent().unwrap_or(Path::new("."));
+    let mut c = Checker::new(graph, idx, perf, dir, TIMEOUT)?;
+    c.budget = budget;
+    Ok(c)
+}
+
+/// Two performances of one obligation file, diffed on the file's examples
+/// and generated inputs under `budget`.
+pub fn diff_files(
+    file: &Path,
+    old: &Path,
+    new: &Path,
+    budget: Budget,
+) -> Result<DiffReport, String> {
+    let (graph, idx) = load_with_siblings(file).map_err(errors_text)?;
+    graph
+        .check_file(idx)
+        .map_err(|e| format!("{}: {e}", file.display()))?;
+    let mut a = side(&graph, idx, old, budget.clone())?;
+    let mut b = side(&graph, idx, new, budget)?;
+    Ok(surety_check::diff::diff(&mut a, &mut b))
+}
+
+fn outcome_text(o: &Outcome) -> String {
+    match o {
+        Outcome::Output(v) => v.to_string(),
+        Outcome::Raised(m) => format!("raised: {}", last_line(m)),
+        Outcome::Boundary(b) => format!("rejected at the boundary: {b}"),
+        Outcome::Timeout => "timed out".to_string(),
+    }
+}
+
+fn fails_text(cs: &[Clause]) -> String {
+    match cs {
+        [Clause::Property { line, text }] => format!("line {line} ({})", short(text, 70)),
+        [Clause::Frame { line, description }] => format!("frame {description} (line {line})"),
+        [Clause::Boundary] => "the output type".to_string(),
+        _ => clause_lines(cs),
+    }
+}
+
+fn side_text(label: &str, o: &Outcome, fails: &[Clause]) -> String {
+    match o {
+        Outcome::Output(_) if fails.is_empty() => format!("{label} passes"),
+        Outcome::Output(_) => format!("{label} fails {}", fails_text(fails)),
+        Outcome::Raised(_) => format!("{label} raised"),
+        Outcome::Boundary(_) => format!("{label} was rejected at the boundary"),
+        Outcome::Timeout => format!("{label} timed out"),
+    }
+}
+
+fn difference_label(d: &Difference) -> String {
+    let old = || side_text("old", &d.old, &d.old_fails);
+    let new = || side_text("new", &d.new, &d.new_fails);
+    match d.class {
+        Class::Regression => format!("REGRESSION  {}; {}", new(), old()),
+        Class::Fix => format!("FIX  {}; {}", old(), new()),
+        Class::NeitherPasses => format!("NEITHER PASSES  {}; {}", old(), new()),
+        Class::Within => match d.accept {
+            Some(line) => format!(
+                "WITHIN THE OBLIGATION  both outputs pass every clause; accept (line {line}) covers this input"
+            ),
+            None => "WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them".to_string(),
+        },
+    }
+}
+
+fn count_text(n: usize, one: &str, many: &str) -> String {
+    format!("{n} {}", if n == 1 { one } else { many })
+}
+
+/// The first line of a diff report: the verdict and the counts.
+pub fn diff_verdict_line(r: &DiffReport) -> String {
+    let inputs = format!(
+        "{} inputs ({} examples, {} generated)",
+        r.inputs(),
+        r.examples,
+        r.generated
+    );
+    if r.same() {
+        return format!("{}  SAME  old and new agree on all {inputs}", r.obligation);
+    }
+    let mut parts = Vec::new();
+    let regressions = r.count(Class::Regression);
+    if regressions > 0 {
+        parts.push(count_text(regressions, "regression", "regressions"));
+    }
+    let neither = r.count(Class::NeitherPasses);
+    if neither > 0 {
+        parts.push(format!("{neither} where neither passes"));
+    }
+    let fixes = r.count(Class::Fix);
+    if fixes > 0 {
+        parts.push(count_text(fixes, "fix", "fixes"));
+    }
+    let within = r.count(Class::Within);
+    if within > 0 {
+        parts.push(format!(
+            "{within} within the obligation ({} accepted, {} undecided)",
+            r.accepted(),
+            r.undecided()
+        ));
+    }
+    format!(
+        "{}  DIFFERS  on {} of {inputs}: {}",
+        r.obligation,
+        r.differences.len(),
+        parts.join(", ")
+    )
+}
+
+/// The text report: the verdict line, both performances by path and hash,
+/// the first three differences (all with `full`), the obligation's hash.
+pub fn render_diff(r: &DiffReport, full: bool) -> String {
+    let mut s = String::new();
+    s.push_str(&diff_verdict_line(r));
+    s.push('\n');
+    let hash = |h: &Option<String>| h.clone().unwrap_or_else(|| "(not readable)".to_string());
+    s.push_str(&format!(
+        "  old: {}  {}\n",
+        r.old.display(),
+        hash(&r.old_hash)
+    ));
+    s.push_str(&format!(
+        "  new: {}  {}\n",
+        r.new.display(),
+        hash(&r.new_hash)
+    ));
+    let shown = if full {
+        r.differences.len()
+    } else {
+        r.differences.len().min(3)
+    };
+    for d in &r.differences[..shown] {
+        s.push_str(&format!("  {}\n", difference_label(d)));
+        s.push_str(&format!("        in: {}", sur_inputs(&d.inputs)));
+        if let Some(n) = d.example {
+            s.push_str(&format!("    # example {n}"));
+        }
+        s.push('\n');
+        s.push_str(&format!("        old: {}\n", outcome_text(&d.old)));
+        s.push_str(&format!("        new: {}\n", outcome_text(&d.new)));
+    }
+    if shown < r.differences.len() {
+        s.push_str(&format!(
+            "  {shown} of {} shown, regressions and smallest first; --full for all\n",
+            r.differences.len()
+        ));
+    }
+    s.push_str(&format!("  obligation: {}\n", r.obligation_hash));
+    s
+}
+
+fn outcome_json(o: &Outcome) -> Json {
+    match o {
+        Outcome::Output(v) => json!({ "output": to_json(v) }),
+        Outcome::Raised(m) => json!({ "raised": last_line(m) }),
+        Outcome::Boundary(b) => json!({ "boundary": b.to_string() }),
+        Outcome::Timeout => json!({ "timeout": true }),
+    }
+}
+
+/// One object per difference, then one summary object.
+pub fn diff_json_lines(r: &DiffReport) -> Vec<Json> {
+    let mut out: Vec<Json> = r
+        .differences
+        .iter()
+        .map(|d| {
+            json!({
+                "kind": "difference",
+                "class": d.class.name(),
+                "example": d.example,
+                "inputs": input_json(&d.inputs),
+                "old": outcome_json(&d.old),
+                "new": outcome_json(&d.new),
+                "old_fails": d.old_fails.iter().map(clause_json).collect::<Vec<_>>(),
+                "new_fails": d.new_fails.iter().map(clause_json).collect::<Vec<_>>(),
+                "accept": d.accept,
+            })
+        })
+        .collect();
+    out.push(json!({
+        "kind": "summary",
+        "obligation": r.obligation,
+        "obligation_hash": r.obligation_hash,
+        "verdict": if r.same() { "same" } else { "differs" },
+        "inputs": r.inputs(),
+        "examples": r.examples,
+        "generated": r.generated,
+        "agree": r.agree,
+        "differences": r.differences.len(),
+        "regressions": r.count(Class::Regression),
+        "neither_passes": r.count(Class::NeitherPasses),
+        "fixes": r.count(Class::Fix),
+        "within": r.count(Class::Within),
+        "accepted": r.accepted(),
+        "undecided": r.undecided(),
+        "old": { "path": r.old.display().to_string(), "hash": r.old_hash },
+        "new": { "path": r.new.display().to_string(), "hash": r.new_hash },
+    }));
+    out
+}
+
+pub fn render_diff_json(r: &DiffReport) -> String {
+    let mut s = String::new();
+    for j in diff_json_lines(r) {
+        s.push_str(&j.to_string());
+        s.push('\n');
+    }
+    s
 }

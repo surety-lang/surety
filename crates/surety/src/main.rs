@@ -21,12 +21,19 @@ Usage:
                                         the obligation alone, over the same inputs, and the search
                                         for inputs with two passing outputs; a performance next to
                                         the file is used only where a property calls the obligation
+  surety diff <file.sur> <old.py> <new.py>
+                                        the behavioural diff: both performances on the obligation's
+                                        examples and generated inputs, and the inputs on which their
+                                        outputs differ under the order claims, each classed against
+                                        the obligation; graph references resolve beside each
+                                        performance. Exit 0 when they agree everywhere, 1 when not
   surety --version | --help
 
 Flags:
   --json          one JSON object per finding, then one summary object
   --strict        check: findings on generated inputs fail the check too
-  --full          check: the bucket detail; mutants: the behaviour-first detail
+  --full          check: the bucket detail; mutants: the behaviour-first detail; diff: every
+                  difference, not the first three
   --budget <n>    generated inputs per obligation (default 500; 0 is slice 1 behaviour)
   --candidates <n>  output candidates the search tries per input (default 600)";
 
@@ -110,6 +117,9 @@ fn main() -> ExitCode {
         ["check", file] => cmd_check(Path::new(file), None, &flags),
         ["check", file, perf] => cmd_check(Path::new(file), Some(Path::new(perf)), &flags),
         ["mutants", files @ ..] if !files.is_empty() => cmd_mutants(files, &flags),
+        ["diff", file, old, new] => {
+            cmd_diff(Path::new(file), Path::new(old), Path::new(new), &flags)
+        }
         _ => {
             eprintln!("{HELP}");
             ExitCode::from(2)
@@ -279,5 +289,26 @@ fn cmd_mutants(files: &[&str], flags: &Flags) -> ExitCode {
         ExitCode::from(1)
     } else {
         ExitCode::SUCCESS
+    }
+}
+
+fn cmd_diff(file: &Path, old: &Path, new: &Path, flags: &Flags) -> ExitCode {
+    match surety::diff_files(file, old, new, flags.budget()) {
+        Ok(report) => {
+            if flags.json {
+                print!("{}", surety::render_diff_json(&report));
+            } else {
+                print!("{}", surety::render_diff(&report, flags.full));
+            }
+            if report.same() {
+                ExitCode::SUCCESS
+            } else {
+                ExitCode::from(1)
+            }
+        }
+        Err(e) => {
+            eprintln!("{e}");
+            ExitCode::from(2)
+        }
     }
 }

@@ -1,6 +1,6 @@
 type Item   = { sku: Id, qty: Int }
 type Change = { sku: Id, old_qty: Int, new_qty: Int }
-type Diff   = { added: Item[], removed: Item[], changed: Change[] }
+type Diff   = { added: Item[unique sku], removed: Item[unique sku], changed: Change[unique sku] }
 
 type DiffError = ValidationError
 

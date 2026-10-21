@@ -257,3 +257,53 @@ fn a_slipping_mutant_is_a_report_not_a_bug() {
             .any(|k| k.clause.text().contains("sorted_by"))
     );
 }
+
+/// P5b before the author's fix: its first line said every output email is
+/// an input's, which the always-empty performance satisfies vacuously, so
+/// `empty` slipped through every property and only examples caught it.
+/// Flipped to in-to-out, the line catches it.
+#[test]
+fn p5b_without_nothing_lost_admits_the_empty_performance() {
+    let src = std::fs::read_to_string(common::corpus_dir().join("p5b.sur")).unwrap();
+    let fixed = "\tall o in orders: o.customer_email in out.customer_email\n";
+    let hole = "\tall o in out: o.customer_email in orders.customer_email\n";
+    assert!(src.contains(fixed), "the fixture carries the fix");
+    let file = surety_syntax::parse(&src.replace(fixed, hole)).unwrap();
+    let graph = surety_syntax::Graph::new(vec![("p5b".to_string(), file)]);
+    let perf = common::corpus_dir().join("p5b.py");
+    let mut c = Checker::new(&graph, 0, &perf, &common::corpus_dir(), surety::TIMEOUT).unwrap();
+    let r = c.mutants();
+    let text = surety::render_mutants(&r, true);
+    let empty = r.run(Mutant::Empty).unwrap();
+    assert_eq!(empty.verdict, MutantVerdict::Slipped, "{text}");
+    assert_eq!(empty.example_catches, vec![1, 3], "{text}");
+    assert_eq!(
+        empty.slipped.len(),
+        5,
+        "every property, the self-call included:\n{text}"
+    );
+    assert!(
+        !r.search.is_empty(),
+        "an output missing an email passes every clause:\n{text}"
+    );
+    assert!(r.underdetermined());
+
+    let fixed_report = report("p5b");
+    let empty = fixed_report.run(Mutant::Empty).unwrap();
+    assert_eq!(empty.verdict, MutantVerdict::Caught);
+    assert!(
+        empty.kills.iter().any(|k| k
+            .clause
+            .text()
+            .contains("all o in orders: o.customer_email in out.customer_email")),
+        "the in-to-out line is the killer: {:?}",
+        kill_text(&fixed_report, Mutant::Empty)
+    );
+    // Two identical orders yield one output value: the search compares by
+    // value, so it reports no choice between them.
+    assert!(
+        fixed_report.search.is_empty(),
+        "no underdetermined input on the fixed obligation:\n{}",
+        surety::render_mutants(&fixed_report, true)
+    );
+}

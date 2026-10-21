@@ -1,5 +1,5 @@
 type OrderItemRow = { id: Id, amount: Int, item_id: Id }
-type Order = { id: Id, customer_email: Text, items: OrderItemRow[] }
+type Order = { id: Id, customer_email: Text, items: OrderItemRow[unique id] }
 type OrderLineItem = { line_id: Id, order_id: Id, customer_email: Text, amount: Int, item_id: Id }
 
 flatten_order(order: Order) -> OrderLineItem[]

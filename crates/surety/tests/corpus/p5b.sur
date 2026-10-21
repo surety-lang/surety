@@ -1,7 +1,7 @@
 type Order = { amount: Int, customer_email: Text }
 get_first_occurrence_per_email(orders: Order[]) -> Order[]
 	# Every customer email in the input orders appears exactly once in the output orders
-	all o in out: o.customer_email in orders.customer_email
+	all o in orders: o.customer_email in out.customer_email
 	unique out.customer_email
 	
 	# Every same email leftover is later in the orders list

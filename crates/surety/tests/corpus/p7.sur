@@ -7,7 +7,7 @@ type Order = {
 }
 type EnrichedOrder = { ...Order, user_name: Option<Text> }
 
-enrich_orders(orders: Order[], users: User[unique id]) -> EnrichedOrder[]
+enrich_orders(orders: Order[unique id], users: User[unique id]) -> EnrichedOrder[]
 	# For every output order, there is exactly one input order with the same id
 	all o in out:
 		exactly_one i_o in orders:

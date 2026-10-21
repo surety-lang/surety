@@ -1,0 +1,9 @@
+get_first_customer_orders
+  pass  example 1 (line 20)
+  pass  example 2 (line 28)
+  pass  example 3 (line 31)
+  pass  property (line 4): all o in orders: o.customer_email in out.customer_email
+  pass  property (line 5): unique out.customer_email
+  pass  property (line 7): all o in out: all l_o leftover in orders where o.customer_email == l_o.customer_email: o.ordered_at <= l_o.ordered_at
+  pass  property (line 11): out drawn_from orders
+  pass  property (line 12): out unordered

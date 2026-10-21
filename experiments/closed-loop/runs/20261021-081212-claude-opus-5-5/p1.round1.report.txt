@@ -1,0 +1,6 @@
+combine
+  pass  example 1 (line 8)
+  pass  example 2 (line 11)
+  pass  property (line 6): c.first_name in out.name
+  pass  property (line 7): c.last_name in out.name
+  pass  frame out ~ c (single record input): preserves email by default

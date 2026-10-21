@@ -1,0 +1,21 @@
+snapshot_diff
+  pass  example 1 (line 49)
+  pass  example 2 (line 67)
+  pass  example 3 (line 84)
+  pass  property (line 5): all a in out.added: a in new and a.sku not in old.sku
+  pass  property (line 7): all n in new where n.sku not in old.sku: n in out.added
+  pass  property (line 10): all r in out.removed: r in old and r.sku not in new.sku
+  pass  property (line 12): all o in old where o.sku not in new.sku: o in out.removed
+  pass  property (line 15): all c in out.changed: c.sku in old.sku and c.sku in new.sku
+  pass  property (line 17): all n in new: all o in old where o.sku == n.sku and o.qty != n.qty: n.sku in out.changed.sku
+  pass  property (line 23): all c_out in out.changed: exactly_one old_entry in old where c_out.sku == old_entry.sku: c_out.old_qty == old_entry.qty
+  pass  property (line 29): all c_out in out.changed: exactly_one new_entry in new where c_out.sku == new_entry.sku: c_out.new_qty == new_entry.qty
+  pass  property (line 34): all c in out.changed: c.old_qty != c.new_qty
+  pass  property (line 36): unique out.added.sku
+  pass  property (line 37): unique out.removed.sku
+  pass  property (line 38): unique out.changed.sku
+  pass  property (line 40): out.added unordered
+  pass  property (line 41): out.removed unordered
+  pass  property (line 42): out.changed unordered
+  pass  property (line 44): exactly_one Ok(items) in apply_diff(old, out): items same_elements_as new
+  graph reference: apply_diff -> apply_diff.py

@@ -1,0 +1,10 @@
+flatten_order
+  pass  example 1 (line 23)
+  pass  example 2 (line 43)
+  pass  property (line 7): all l_i in out: exactly_one i_row in order.items: i_row.id == l_i.line_id
+  pass  property (line 11): all i_row in order.items: exactly_one r in out: r.line_id == i_row.id
+  pass  property (line 16): out.order_id == order.id
+  pass  property (line 17): out.customer_email == order.customer_email
+  pass  property (line 21): out.line_id same_order_as order.items.id
+  pass  frame l_i ~ i_row (line 8): preserves amount, item_id by default
+  pass  frame i_row ~ r (line 12): preserves amount, item_id by default

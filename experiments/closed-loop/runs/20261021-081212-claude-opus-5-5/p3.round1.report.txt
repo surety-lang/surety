@@ -1,0 +1,11 @@
+group_by_customer
+  pass  example 1 (line 36)
+  pass  example 2 (line 68)
+  pass  property (line 7): all o in orders: exactly_one g in out: g.customer_email == o.customer_email
+  pass  property (line 12): unique out.customer_email
+  pass  property (line 15): all g in out: all o in g.orders: o.customer_email == g.customer_email
+  pass  property (line 23): flatten(out.orders) same_elements_as orders
+  pass  property (line 27): all g in out: g.total_amount == sum(g.orders.amount)
+  pass  property (line 30): all g in out: g.customer_email in orders.customer_email
+  pass  property (line 33): out unordered
+  pass  property (line 34): all g in out: g.orders unordered

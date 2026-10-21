@@ -1,0 +1,21 @@
+apply_diff
+  pass  example 1 (line 81, "one of each kind; A untouched")
+  pass  example 2 (line 99, "empty diff is the identity")
+  pass  example 3 (line 104)
+  pass  example 4 (line 108, "removed sku not in old")
+  pass  example 5 (line 113, "changed sku not in old")
+  pass  example 6 (line 118, "added sku already in old")
+  pass  example 7 (line 123, "two disagreements, both reported")
+  pass  property (line 34): checks <-> exactly_one Ok(_) in out
+  pass  property (line 36): all Err(errs) in out: missing_removed_sku_err in errs <-> not removed_ok
+  pass  property (line 38): all Err(errs) in out: missing_changed_sku_err in errs <-> not changed_ok
+  pass  property (line 40): all Err(errs) in out: added_already_present_sku_err in errs <-> not added_ok
+  pass  property (line 43): all Err(errs) in out: errs drawn_from valid_errors
+  pass  property (line 45): all Err(errs) in out: errs unordered
+  pass  property (line 49): all Ok(res) in out: all i in diff.added: i in res
+  pass  property (line 54): all Ok(res) in out: all sk in diff.removed.sku: sk not in res.sku
+  pass  property (line 59): all Ok(res) in out: all c in diff.changed: exactly_one i in res where i.sku == c.sku: i.qty == c.new_qty
+  pass  property (line 65): all Ok(res) in out: all i_o in old where ( i_o.sku not in diff.removed.sku and i_o.sku not in diff.changed.sku ): i_o in res
+  pass  property (line 73): all Ok(res) in out: all sk in res.sku: sk in old.sku or sk in diff.added.sku
+  pass  property (line 78): all Ok(res) in out: unique res.sku
+  pass  property (line 79): all Ok(res) in out: res unordered

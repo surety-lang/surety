@@ -1,0 +1,21 @@
+validate_signup
+  pass  example 1 (line 44)
+  pass  example 2 (line 47)
+  pass  example 3 (line 50)
+  pass  example 4 (line 53)
+  pass  example 5 (line 56)
+  pass  example 6 (line 59)
+  pass  example 7 (line 62, "age lower boundary, 12 fails")
+  pass  example 8 (line 64, "age lower boundary, 13 passes")
+  pass  example 9 (line 68, "age upper boundary, 120 passes")
+  pass  example 10 (line 72, "age upper boundary, 121 fails")
+  pass  example 11 (line 76, "password boundary, 11 characters fails")
+  pass  example 12 (line 80, "password boundary, 12 characters passes")
+  pass  property (line 29): checks <-> exactly_one Ok(_) in out
+  pass  property (line 32): all Ok(p_o) in out: p_o == p
+  pass  property (line 34): all Err(errs) in out: email_error in errs <-> not well_formed_email(p.email)
+  pass  property (line 36): all Err(errs) in out: age_error in errs <-> not valid_age(p.age)
+  pass  property (line 38): all Err(errs) in out: password_error in errs <-> not valid_pass(p.password)
+  pass  property (line 40): all Err(errs) in out: errs drawn_from valid_errors
+  pass  property (line 42): all Err(errs) in out: errs unordered
+  graph reference: well_formed_email -> p8.py

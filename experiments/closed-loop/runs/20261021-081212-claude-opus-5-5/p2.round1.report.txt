@@ -1,0 +1,7 @@
+get_small_orders
+  pass  example 1 (line 9)
+  pass  example 2 (line 12)
+  pass  property (line 4): all o in out: o in orders
+  pass  property (line 5): all o in out: o.amount <= 100
+  pass  property (line 6): all o leftover in orders: o.amount > 100
+  pass  property (line 7): out same_order_as orders

@@ -1,0 +1,10 @@
+enrich_orders
+  pass  example 1 (line 27, "simple test case with happy path")
+  pass  example 2 (line 65, "no users provided or present in orders")
+  pass  example 3 (line 98, "users provided do not match orders")
+  pass  property (line 12): all o in out: exactly_one i_o in orders: o.id == i_o.id
+  pass  property (line 17): all i_o in orders: exactly_one o in out: i_o.id == o.id
+  pass  property (line 22): all o in out: all u in users where u.id == o.user_id: o.user_name == u.user_name else o.user_name == None
+  pass  property (line 25): out.id same_order_as orders.id
+  pass  frame o ~ i_o (line 13): preserves customer_email, amount, user_id by default
+  pass  frame i_o ~ o (line 18): preserves customer_email, amount, user_id by default

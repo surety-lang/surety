@@ -1,0 +1,13 @@
+type Customer = {first_name: Text, last_name: Text, email: Text}
+
+combine(c: Customer) -> {name: Text, email: Text}
+	note "combine a customers' `first_name` & `last_name` into a single `name`"
+	// out.email == c.email is not required due to frame preservation
+	c.first_name in out.name
+	c.last_name in out.name
+	e: 
+		in: { first_name: "Joe", last_name: "Shmoe", email: "test@test.com" }
+		out: { name: "Joe Shmoe", ... }
+	e:
+		in: { first_name: "", last_name: "Show", email: "test@test.com"  }
+		out: { name: "Show", ... }

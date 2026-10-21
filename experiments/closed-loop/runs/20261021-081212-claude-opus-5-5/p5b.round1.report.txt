@@ -1,0 +1,10 @@
+get_first_occurrence_per_email
+  pass  example 1 (line 17)
+  pass  example 2 (line 25)
+  pass  example 3 (line 28)
+  pass  property (line 4): all o in out: o.customer_email in orders.customer_email
+  pass  property (line 5): unique out.customer_email
+  pass  property (line 8): all o in out: all l leftover in orders where o.customer_email == l.customer_email: o before l in orders
+  pass  property (line 13): out same_order_as orders
+  pass  property (line 15): get_first_occurrence_per_email(out) == out
+  graph reference: get_first_occurrence_per_email -> p5b.py

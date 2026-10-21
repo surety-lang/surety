@@ -1,6 +1,0 @@
-def get_small_orders(orders):
-    return [
-        {"amount": o["amount"], "customer_email": o["customer_email"]}
-        for o in orders
-        if o["amount"] <= 100
-    ]

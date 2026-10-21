@@ -318,9 +318,25 @@ for node in tree.body:
         collector = Collector(params)
         collector.generic_visit(node)
         Renamer(collector.map).generic_visit(node)
-dump = ast.dump(tree, annotate_fields=True, include_attributes=False)
+def dump(node):
+    # Our own dump, the same on every Python: ast.dump's shape changed in
+    # 3.13 (empty fields are left out), and a hash is an identity only if
+    # every interpreter computes the same one.
+    if isinstance(node, ast.AST):
+        parts = []
+        for f in node._fields:
+            v = getattr(node, f, None)
+            if v is None or (isinstance(v, list) and not v):
+                continue
+            parts.append(f + "=" + dump(v))
+        return type(node).__name__ + "(" + ", ".join(parts) + ")"
+    if isinstance(node, list):
+        return "[" + ", ".join(dump(x) for x in node) + "]"
+    return repr(node)
+
+dumped = dump(tree)
 print(json.dumps({
-    "hash": hashlib.sha256(dump.encode("utf-8")).hexdigest(),
+    "hash": hashlib.sha256(dumped.encode("utf-8")).hexdigest(),
     "imports": imports,
     "dependencies": deps,
     "lines": lines,

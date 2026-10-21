@@ -7,7 +7,7 @@
       "search_inputs": 8
     },
     "obligation": "b7f1698c634e7b4246073f32da76bb1bd36573ad54d80b151752038891360210",
-    "performance": "72b37636c7c7ce63b9eb06529e4d541f84a6409fe7677878a1434cd28f1e004d",
+    "performance": "5faa21d2c7a59e21747891385a18f05663247ac04657092cf0753e95ac1a9df1",
     "report": [
       {
         "accepts": [],
@@ -38,7 +38,7 @@
         "obligation_hash": "b7f1698c634e7b4246073f32da76bb1bd36573ad54d80b151752038891360210",
         "passed": true,
         "performance_findings": [],
-        "performance_hash": "72b37636c7c7ce63b9eb06529e4d541f84a6409fe7677878a1434cd28f1e004d",
+        "performance_hash": "5faa21d2c7a59e21747891385a18f05663247ac04657092cf0753e95ac1a9df1",
         "properties": {
           "causes": 0,
           "each": [

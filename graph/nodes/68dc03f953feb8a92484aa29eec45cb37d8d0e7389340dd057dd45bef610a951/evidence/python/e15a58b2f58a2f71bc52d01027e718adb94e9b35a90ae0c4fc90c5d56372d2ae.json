@@ -7,7 +7,7 @@
       "search_inputs": 8
     },
     "obligation": "68dc03f953feb8a92484aa29eec45cb37d8d0e7389340dd057dd45bef610a951",
-    "performance": "c22c6e007d5fc884a05c58b7d2a717223eb85dc69c27c7ac0059a6a5d4bea88e",
+    "performance": "e15a58b2f58a2f71bc52d01027e718adb94e9b35a90ae0c4fc90c5d56372d2ae",
     "report": [
       {
         "accepts": [],
@@ -255,7 +255,7 @@
         "obligation_hash": "68dc03f953feb8a92484aa29eec45cb37d8d0e7389340dd057dd45bef610a951",
         "passed": true,
         "performance_findings": [],
-        "performance_hash": "c22c6e007d5fc884a05c58b7d2a717223eb85dc69c27c7ac0059a6a5d4bea88e",
+        "performance_hash": "e15a58b2f58a2f71bc52d01027e718adb94e9b35a90ae0c4fc90c5d56372d2ae",
         "properties": {
           "causes": 0,
           "each": [

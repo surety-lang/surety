@@ -49,9 +49,19 @@ fn locals_and_formatting_do_not_change_the_hash_but_an_operator_does() {
 
 #[test]
 fn imports_and_dependencies_are_listed() {
+    let stdlib = tmp(
+        "stdlib.py",
+        "from datetime import datetime\n\n\ndef f(t):\n    return isinstance(t, datetime)\n",
+    );
+    let i = surety_py::inspect(&stdlib).unwrap();
+    assert_eq!(i.imports, vec!["datetime".to_string()]);
+    assert!(i.dependencies.is_empty(), "datetime is standard library");
     let p5a = surety_py::inspect(&common::corpus_dir().join("p5a.py")).unwrap();
-    assert_eq!(p5a.imports, vec!["datetime".to_string()]);
-    assert!(p5a.dependencies.is_empty(), "datetime is standard library");
+    assert_eq!(
+        p5a.imports,
+        Vec::<String>::new(),
+        "a Time arrives as a datetime, so P5a parses nothing and imports nothing"
+    );
     let third_party = tmp(
         "deps.py",
         "import re\nimport numpy as np\nfrom requests.adapters import HTTPAdapter\n\n\ndef f(x):\n    return x\n",

@@ -371,6 +371,9 @@ fn decode(json: &Json, ty: &Type, path: &str) -> Result<Value, BoundaryError> {
                 }),
                 Option::None => Err(bad(path, format!("{s:?} is not an RFC 3339 time"))),
             },
+            Json::Object(map) if map.len() == 1 && map.contains_key("$time") => {
+                decode(&map["$time"], ty, path)
+            }
             other => Err(bad(
                 path,
                 format!("expected a Time string, found {}", describe(other)),
@@ -468,6 +471,16 @@ pub fn from_json_untyped(json: &Json) -> Value {
             .unwrap_or_else(|| Value::Float(n.as_f64().unwrap_or(f64::NAN))),
         Json::String(s) => Value::Text(s.clone()),
         Json::Array(xs) => Value::List(xs.iter().map(from_json_untyped).collect()),
+        Json::Object(map) if map.len() == 1 && map.contains_key("$time") => match &map["$time"] {
+            Json::String(s) => match parse_rfc3339(s) {
+                Some(instant) => Value::Time {
+                    instant,
+                    text: s.clone(),
+                },
+                Option::None => Value::Text(s.clone()),
+            },
+            other => from_json_untyped(other),
+        },
         Json::Object(map) if map.len() == 1 && map.contains_key("ok") => {
             Value::Ok(Box::new(from_json_untyped(&map["ok"])))
         }
@@ -482,7 +495,8 @@ pub fn from_json_untyped(json: &Json) -> Value {
     }
 }
 
-/// Encode a value for the Python boundary.
+/// Encode a value as plain JSON, a Time as its text as written: reports,
+/// keys and the record. The Python boundary uses `to_boundary_json`.
 pub fn to_json(v: &Value) -> Json {
     match v {
         Value::Int(i) => Json::from(*i),
@@ -510,6 +524,51 @@ pub fn to_json(v: &Value) -> Json {
             Json::Object(map)
         }
     }
+}
+
+/// Encode a value for the Python boundary: `to_json`, except that a Time
+/// crosses tagged, `{"$time": "<RFC 3339>"}`, in its instant's canonical UTC
+/// form, so the driver can deliver it as an aware UTC datetime.
+pub fn to_boundary_json(v: &Value) -> Json {
+    match v {
+        Value::Time { instant, .. } => {
+            let mut map = Map::new();
+            map.insert("$time".into(), Json::String(boundary_text(*instant)));
+            Json::Object(map)
+        }
+        Value::List(xs) => Json::Array(xs.iter().map(to_boundary_json).collect()),
+        Value::Record(fields) => {
+            let mut map = Map::new();
+            for (n, v) in fields {
+                map.insert(n.clone(), to_boundary_json(v));
+            }
+            Json::Object(map)
+        }
+        Value::Ok(x) => {
+            let mut map = Map::new();
+            map.insert("ok".into(), to_boundary_json(x));
+            Json::Object(map)
+        }
+        Value::Err(x) => {
+            let mut map = Map::new();
+            map.insert("err".into(), to_boundary_json(x));
+            Json::Object(map)
+        }
+        other => to_json(other),
+    }
+}
+
+/// An instant as RFC 3339 UTC text, with its fraction to the microsecond
+/// (what a Python datetime holds) when there is one.
+fn boundary_text(instant: i128) -> String {
+    let mut text = crate::generate::format_rfc3339(instant);
+    let micros = instant.rem_euclid(1_000_000_000) / 1_000;
+    if micros != 0 {
+        let frac = format!("{micros:06}");
+        let frac = frac.trim_end_matches('0');
+        text.insert_str(text.len() - 1, &format!(".{frac}"));
+    }
+    text
 }
 
 /// How `...` in an output record literal is filled: given the stated

@@ -16,10 +16,44 @@ use serde_json::Value;
 
 const DRIVER: &str = r#"
 import importlib.util, json, sys, traceback
+from datetime import datetime, timezone
 path = sys.argv[1]
 spec = importlib.util.spec_from_file_location("performance", path)
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
+
+
+def thaw(v):
+    # A Time crosses tagged, {"$time": "<RFC 3339 UTC>"}: deliver it as an
+    # aware UTC datetime. Everything else is plain JSON.
+    if isinstance(v, dict):
+        if len(v) == 1 and "$time" in v:
+            s = v["$time"]
+            if s.endswith("Z"):
+                s = s[:-1] + "+00:00"
+            t = datetime.fromisoformat(s)
+            if t.tzinfo is None:
+                t = t.replace(tzinfo=timezone.utc)
+            return t.astimezone(timezone.utc)
+        return {k: thaw(x) for k, x in v.items()}
+    if isinstance(v, list):
+        return [thaw(x) for x in v]
+    return v
+
+
+def freeze(v):
+    # A datetime returns as RFC 3339 UTC text; a naive one is read as UTC.
+    if isinstance(v, datetime):
+        if v.tzinfo is None:
+            v = v.replace(tzinfo=timezone.utc)
+        v = v.astimezone(timezone.utc)
+        s = "%04d-%02d-%02dT%02d:%02d:%02d" % (v.year, v.month, v.day, v.hour, v.minute, v.second)
+        if v.microsecond:
+            s += (".%06d" % v.microsecond).rstrip("0")
+        return s + "Z"
+    raise TypeError("Object of type %s is not JSON serializable" % type(v).__name__)
+
+
 for line in sys.stdin:
     line = line.strip()
     if not line:
@@ -30,8 +64,8 @@ for line in sys.stdin:
             resp = {"ok": callable(getattr(mod, req["has"], None))}
         else:
             fn = getattr(mod, req["fn"])
-            resp = {"ok": fn(*req["args"])}
-        out = json.dumps(resp)
+            resp = {"ok": fn(*thaw(req["args"]))}
+        out = json.dumps(resp, default=freeze)
     except BaseException:
         out = json.dumps({"error": traceback.format_exc()})
     sys.stdout.write(out + "\n")

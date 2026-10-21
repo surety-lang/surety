@@ -50,7 +50,7 @@ The boundary contract, which the checker enforces on every call:
 - A list `T[]` is a Python list. `T[0..3]` bounds its length; `T[unique f]` means no two elements share field f.
 - `Option<T>` is the bare value or None. There is no Some.
 - `Result<T, E>` is {"ok": v} or {"err": e}. `Err([...])` in an example is {"err": [...]}.
-- `Int` is an int, `Float` a float, `Text` and `Id` are str, `Time` is a str in RFC 3339 form exactly as given.
+- `Int` is an int, `Float` a float, `Text` and `Id` are str. A `Time` arrives as a timezone-aware UTC `datetime`, whatever form the obligation wrote it in: compare it directly, never parse it. Return a `Time` as a `datetime` (a naive one is read as UTC) or as RFC 3339 text.
 - Named values (`email_error: ValidationError = { ... }`) are literals the obligation reuses; where your output must contain one, return a dict with exactly those fields and values.
 - `out` in a property is your function's return value. `unordered` on a list means the checker does not care about its order; otherwise order matters and the examples show it.
 - `all x leftover in L` ranges over the input list L minus the elements that appear in out.

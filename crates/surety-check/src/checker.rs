@@ -18,7 +18,7 @@ use crate::eval::Env;
 use crate::examples::{Step, compare, fill_rest, unordered_paths};
 use crate::generate::{Bucket, Budget, Domain, Generated, generate};
 use crate::mutants::MutantReport;
-use crate::value::{BoundaryError, Value, from_json, from_literal, to_json};
+use crate::value::{BoundaryError, Value, from_json, from_literal, to_boundary_json};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Verdict {
@@ -545,7 +545,7 @@ impl<'g> Checker<'g> {
         name: &str,
         args: &[Value],
     ) -> Result<serde_json::Value, RunError> {
-        let json: Vec<serde_json::Value> = args.iter().map(to_json).collect();
+        let json: Vec<serde_json::Value> = args.iter().map(to_boundary_json).collect();
         let module = module.to_path_buf();
         self.runner(&module)?.call(name, &json)
     }

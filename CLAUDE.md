@@ -10,7 +10,7 @@ Surety is an obligation language plus a checker plus a graph. Humans write oblig
 2. `surety-docs/Build brief — slice 1.md` — scope, interfaces, acceptance tests for the current slice.
 3. `surety-docs/Catch-up — 2026-10-20, ...md` — every rule decided so far, one line each; the mutant list.
 4. `surety-docs/Decision - *.md` — individual decisions with their reasoning.
-5. `surety-docs/Surety - Agent-Native Language Spec.md` — the v1 spec; design principles and architecture. Read for intent, not for syntax; the syntax there predates the corpus.
+5. `surety-docs/Surety Spec v2.md` and `surety-docs/The Target Reframe.md` — the current spec and the decision record behind it: Surety is the obligation language, the checker, and the graph; the model writes performances in a target language (Python first); Surety's own core is deferred behind four named triggers. Read for intent and architecture, not for syntax; the syntax lives in the corpus and the brief. `surety-docs/Surety - Agent-Native Language Spec.md` is v1, superseded on 2026-10-19 and kept unchanged for history; its validation plan (experiment numbering, the model-competence gate, constrained decoding) does not apply under v2.
 
 ## Rules for working here
 

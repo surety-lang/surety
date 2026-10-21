@@ -8,7 +8,7 @@ use std::time::Duration;
 use serde_json::{Value as Json, json};
 use surety_check::mutants::{Clause, MutantReport, MutantRun, MutantVerdict};
 use surety_check::value::to_json;
-use surety_check::{Bucket, Budget, Checker, Counterexample, PropVerdict, Report, Value, Verdict};
+use surety_check::{Bucket, Budget, Cause, Checker, Party, PropVerdict, Report, Value, Verdict};
 use surety_syntax::{Error, Graph, parse};
 
 /// Per-call timeout for a performance.
@@ -146,46 +146,11 @@ pub fn last_line(m: &str) -> &str {
     m.trim_end().lines().last().unwrap_or("").trim()
 }
 
-/// One claim as the text report shows it.
-struct ClaimView<'a> {
-    label: String,
-    verdict: &'a PropVerdict,
-    runs: usize,
-    cex: &'a [Counterexample],
-    suggest: Option<&'a str>,
-    note: Option<&'a str>,
-}
-
-fn render_claim(s: &mut String, example_runs: usize, c: &ClaimView<'_>) {
-    let label = &c.label;
-    match c.verdict {
-        PropVerdict::Pass if c.cex.is_empty() => {
-            s.push_str(&format!("  pass  {label}  ({} runs, 0 findings)\n", c.runs))
-        }
-        PropVerdict::Pass => {
-            let first = &c.cex[0];
-            s.push_str(&format!(
-                "  FINDING  {label}\n        false on {} of {} generated runs; first: in: {}, out = {}\n",
-                c.cex.len(),
-                c.runs - example_runs,
-                sur_inputs(&first.inputs),
-                first.output
-            ));
-            if let Some(e) = &first.error {
-                s.push_str(&format!("        {e}\n"));
-            }
-            if let Some(sg) = c.suggest {
-                s.push_str(&format!("        suggest {sg}\n"));
-            }
-            if let Some(n) = c.note {
-                s.push_str(&format!("        note: {n}\n"));
-            }
-        }
-        PropVerdict::Fail { detail, .. } => {
-            s.push_str(&format!("  FAIL  {label}\n        {detail}\n"))
-        }
-        PropVerdict::Error(m) => s.push_str(&format!("  ERROR  {label}\n        {m}\n")),
-        PropVerdict::Skipped => s.push_str(&format!("  skip  {label}\n")),
+fn plural(n: usize, one: &str, many: &str) -> String {
+    if n == 1 {
+        format!("{n} {one}")
+    } else {
+        format!("{n} {many}")
     }
 }
 
@@ -212,8 +177,500 @@ fn bucket_text(buckets: &[Bucket]) -> String {
         .join(", ")
 }
 
-/// The evidence record, one line per kind.
+/// The `generated:` line: one line, whatever the number of buckets.
+fn generated_text(r: &Report) -> String {
+    if r.buckets.is_empty() {
+        return format!("{} inputs", r.generated_inputs);
+    }
+    let list_inputs = r.buckets[0].lengths.len();
+    let enumerated = r.buckets.iter().filter(|b| b.exhaustive).count();
+    let max_len = r
+        .buckets
+        .iter()
+        .flat_map(|b| b.lengths.iter().copied())
+        .max()
+        .unwrap_or(0);
+    if list_inputs == 0 {
+        return format!(
+            "{} inputs over the record's fields{}",
+            r.generated_inputs,
+            if enumerated > 0 {
+                ", enumerated whole"
+            } else {
+                ", sampled"
+            }
+        );
+    }
+    format!(
+        "{} inputs: lists of length 0 to {max_len} over {}, {}, {enumerated} enumerated whole, {} sampled",
+        r.generated_inputs,
+        plural(list_inputs, "list input", "list inputs"),
+        plural(r.buckets.len(), "length combination", "length combinations"),
+        r.buckets.len() - enumerated
+    )
+}
+
+/// What the report says about each party, as short phrases.
+fn party_summaries(r: &Report) -> (Vec<String>, Vec<String>) {
+    let mut obligation = Vec::new();
+    let mut performance = Vec::new();
+    let failing: Vec<String> = r
+        .examples
+        .iter()
+        .filter(|e| e.verdict != Verdict::Pass)
+        .map(|e| (e.index + 1).to_string())
+        .collect();
+    if !failing.is_empty() {
+        performance.push(format!(
+            "fails {} {}",
+            if failing.len() == 1 {
+                "example"
+            } else {
+                "examples"
+            },
+            failing.join(", ")
+        ));
+    }
+    for p in &r.properties {
+        match &p.verdict {
+            PropVerdict::Fail { example, .. } => performance.push(format!(
+                "fails property (line {}) on example {}",
+                p.line,
+                example + 1
+            )),
+            PropVerdict::Error(_) => {
+                performance.push(format!("cannot evaluate property (line {})", p.line))
+            }
+            _ => {}
+        }
+    }
+    for f in &r.frame {
+        if let PropVerdict::Fail { example, .. } = &f.verdict {
+            performance.push(format!(
+                "fails frame {} on example {}",
+                f.description,
+                example + 1
+            ));
+        }
+    }
+    for c in &r.causes {
+        let where_ = format!("{} of {} generated inputs", c.inputs, c.generated);
+        match c.party {
+            Party::Obligation => obligation.push(format!(
+                "unsatisfiable on {where_}{}",
+                match (&c.suggest, &c.note) {
+                    (Some(sg), _) => format!(", closed by {sg}"),
+                    (None, Some(_)) => ", no refinement closes it".to_string(),
+                    (None, None) => String::new(),
+                }
+            )),
+            Party::Performance => performance.push(format!("fails {} on {where_}", c.label())),
+            Party::Undetermined => obligation.push(format!(
+                "{} false on {where_} (party not determined: search budget 0)",
+                c.label()
+            )),
+        }
+    }
+    if !r.generated_boundary.is_empty() {
+        let n = r.generated_boundary.len();
+        match &r.boundary_suggest {
+            Some(sg) => obligation.push(format!(
+                "forces an output outside the type on {n} generated inputs, closed by {sg}"
+            )),
+            None => performance.push(format!(
+                "returns a value outside the type on {n} generated inputs"
+            )),
+        }
+    }
+    if !r.generated_raised.is_empty() {
+        performance.push(format!(
+            "raises on {} generated inputs",
+            r.generated_raised.len()
+        ));
+    }
+    if !r.generated_timeouts.is_empty() {
+        performance.push(format!(
+            "times out on {} generated inputs",
+            r.generated_timeouts.len()
+        ));
+    }
+    if !r.determinism.failures.is_empty() {
+        performance.push(format!(
+            "nondeterministic on {} inputs",
+            r.determinism.failures.len()
+        ));
+    }
+    if let Some(m) = &r.mutants {
+        let slipped = m.slipped();
+        if !slipped.is_empty() {
+            obligation.push(format!(
+                "{} slipped ({})",
+                plural(slipped.len(), "mutant", "mutants"),
+                slipped
+                    .iter()
+                    .map(|s| s.mutant.name())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ));
+        }
+        let open = m.open();
+        if !open.is_empty() {
+            let causes = underdetermined_groups(m).len();
+            obligation.push(format!(
+                "{}{}",
+                plural(
+                    open.len(),
+                    "underdetermined input",
+                    "underdetermined inputs"
+                ),
+                if open.len() > 1 {
+                    format!(", {}", plural(causes, "cause", "causes"))
+                } else {
+                    String::new()
+                }
+            ));
+        }
+    }
+    let dead = r.dead_accepts();
+    if dead > 0 {
+        obligation.push(plural(dead, "dead accept", "dead accepts"));
+    }
+    (obligation, performance)
+}
+
+/// The first line of a report: the verdict, and whose problem anything is.
+pub fn verdict_line(r: &Report) -> String {
+    let (obligation, performance) = party_summaries(r);
+    if obligation.is_empty() && performance.is_empty() {
+        let claims = r.properties.len() + r.frame.len();
+        let mutants = match &r.mutants {
+            Some(m) => format!(
+                "{} of {} mutants apply, none slipped",
+                m.applicable(),
+                m.mutants.len()
+            ),
+            None => "mutants not run".to_string(),
+        };
+        format!(
+            "{}  ACCEPTED  examples {}/{}; {} clean over {} runs; {mutants}",
+            r.obligation,
+            r.examples
+                .iter()
+                .filter(|e| e.verdict == Verdict::Pass)
+                .count(),
+            r.examples.len(),
+            plural(claims, "clause", "clauses"),
+            r.runs
+        )
+    } else {
+        format!(
+            "{}  NOT ACCEPTED  obligation: {}  performance: {}",
+            r.obligation,
+            if obligation.is_empty() {
+                "nothing found".to_string()
+            } else {
+                obligation.join("; ")
+            },
+            if performance.is_empty() {
+                "passes".to_string()
+            } else {
+                performance.join("; ")
+            }
+        )
+    }
+}
+
+/// One claim line: pass with its counts, a finding with its cause number,
+/// or the binding verdicts of slice 1.
+fn claim_line(
+    s: &mut String,
+    label: &str,
+    verdict: &PropVerdict,
+    runs: usize,
+    findings: usize,
+    cause: Option<usize>,
+) {
+    match verdict {
+        PropVerdict::Pass if findings == 0 => {
+            s.push_str(&format!("  pass  {label}  ({runs} runs, 0 findings)\n"))
+        }
+        PropVerdict::Pass => s.push_str(&format!(
+            "  finding  {label}  ({runs} runs, {findings} findings; cause {})\n",
+            cause.map(|c| (c + 1).to_string()).unwrap_or_default()
+        )),
+        PropVerdict::Fail { detail, .. } => {
+            s.push_str(&format!("  FAIL  {label}\n        {detail}\n"))
+        }
+        PropVerdict::Error(m) => s.push_str(&format!("  ERROR  {label}\n        {m}\n")),
+        PropVerdict::Skipped => s.push_str(&format!("  skip  {label}\n")),
+    }
+}
+
+fn cause_of(r: &Report, line: usize, label_prefix: &str) -> Option<usize> {
+    r.causes.iter().position(|c| {
+        c.clauses
+            .iter()
+            .any(|(l, lab, _)| *l == line && lab.starts_with(label_prefix))
+    })
+}
+
+fn cause_block(s: &mut String, index: usize, c: &Cause) {
+    let clauses = c
+        .clauses
+        .iter()
+        .map(|(_, l, _)| l.clone())
+        .collect::<Vec<_>>()
+        .join(", ");
+    let where_ = format!("{} of {} generated inputs", c.inputs, c.generated);
+    match c.party {
+        Party::Obligation => {
+            let closed = match (&c.suggest, &c.note) {
+                (Some(sg), _) => format!("closed by {sg}"),
+                (None, Some(n)) => format!("no refinement closes it: {n}"),
+                (None, None) => "no refinement found".to_string(),
+            };
+            let searched = if c.candidates_tried > 0 {
+                format!(
+                    "; no output among {} candidates passes every clause",
+                    c.candidates_tried
+                )
+            } else {
+                String::new()
+            };
+            s.push_str(&format!(
+                "  UNSATISFIABLE ON  cause {}: {where_}; {closed}{searched}; {}: {clauses}\n",
+                index + 1,
+                plural(c.clauses.len(), "clause", "clauses")
+            ));
+        }
+        Party::Performance => {
+            s.push_str(&format!(
+                "  PERFORMANCE FAILS  cause {}: {clauses} on {where_}; an output that passes every clause exists\n",
+                index + 1
+            ));
+        }
+        Party::Undetermined => {
+            s.push_str(&format!(
+                "  FALSE ON GENERATED INPUT  cause {}: {clauses} on {where_}; party not determined (search budget 0)\n",
+                index + 1
+            ));
+        }
+    }
+    s.push_str(&format!("        in: {}\n", sur_inputs(&c.witness.inputs)));
+    s.push_str(&format!(
+        "        out: {}    # the performance's\n",
+        c.witness.output
+    ));
+    if let Some(e) = &c.witness.error {
+        s.push_str(&format!("        {e}\n"));
+    }
+    if let Some(p) = &c.passing {
+        s.push_str(&format!("        out: {p}    # passes every clause\n"));
+    }
+}
+
+/// Underdetermined inputs no `accept` covers, grouped by the slipped
+/// mutant whose hole they repeat (`None` = each on its own).
+fn underdetermined_groups(
+    m: &MutantReport,
+) -> Vec<(
+    Option<surety_check::Mutant>,
+    Vec<&surety_check::Underdetermined>,
+)> {
+    let mut groups: Vec<(
+        Option<surety_check::Mutant>,
+        Vec<&surety_check::Underdetermined>,
+    )> = Vec::new();
+    for u in m.open() {
+        match u.same_as {
+            Some(mu) => match groups.iter_mut().find(|(k, _)| *k == Some(mu)) {
+                Some((_, v)) => v.push(u),
+                None => groups.push((Some(mu), vec![u])),
+            },
+            None => groups.push((None, vec![u])),
+        }
+    }
+    groups
+}
+
+fn two_outputs(s: &mut String, u: &surety_check::Underdetermined) {
+    s.push_str(&format!("        in: {}\n", sur_inputs(&u.inputs)));
+    s.push_str(&format!(
+        "        out: {}    # {}\n",
+        u.a,
+        if u.a_is_expected {
+            format!("example {}", u.example.unwrap_or(0))
+        } else {
+            "passes every clause".to_string()
+        }
+    ));
+    s.push_str(&format!(
+        "        out: {}    # also passes every clause\n",
+        u.b
+    ));
+}
+
+/// A plain-text rendering of a report. `full` adds the bucket detail.
+pub fn render_with(report: &Report, full: bool) -> String {
+    let mut s = String::new();
+    s.push_str(&verdict_line(report));
+    s.push('\n');
+    for e in &report.examples {
+        let label = match &e.note {
+            Some(n) => format!("example {} (line {}, {n:?})", e.index + 1, e.line),
+            None => format!("example {} (line {})", e.index + 1, e.line),
+        };
+        match &e.verdict {
+            Verdict::Pass => s.push_str(&format!("  pass  {label}\n")),
+            Verdict::Boundary(m) => s.push_str(&format!("  BOUNDARY  {label}: {m}\n")),
+            Verdict::Mismatch(m) => s.push_str(&format!("  FAIL  {label}: {m}\n")),
+            Verdict::Error(m) => s.push_str(&format!("  ERROR  {label}: {m}\n")),
+        }
+    }
+    for p in &report.properties {
+        claim_line(
+            &mut s,
+            &format!("property (line {}): {}", p.line, p.text),
+            &p.verdict,
+            p.runs,
+            p.findings(),
+            cause_of(report, p.line, "property"),
+        );
+    }
+    for f in &report.frame {
+        claim_line(
+            &mut s,
+            &format!(
+                "frame {}: preserves {} by default",
+                f.description,
+                f.preserved.join(", ")
+            ),
+            &f.verdict,
+            f.runs,
+            f.findings(),
+            cause_of(report, f.line, "frame"),
+        );
+    }
+    for g in &report.graph_refs {
+        s.push_str(&format!("  graph reference: {g}\n"));
+    }
+    for (i, c) in report.causes.iter().enumerate() {
+        cause_block(&mut s, i, c);
+    }
+    if let Some(f) = report.generated_boundary.first() {
+        let n = report.generated_boundary.len();
+        match &report.boundary_suggest {
+            Some(sg) => s.push_str(&format!(
+                "  UNSATISFIABLE ON  the output type: {n} of {} generated inputs force an output outside it; closed by {sg}\n",
+                report.generated_inputs
+            )),
+            None => s.push_str(&format!(
+                "  PERFORMANCE FAILS  returns a value outside the type on {n} of {} generated inputs\n",
+                report.generated_inputs
+            )),
+        }
+        s.push_str(&format!(
+            "        in: {}\n        {}\n",
+            sur_inputs(&f.inputs),
+            f.message
+        ));
+    }
+    for f in &report.generated_raised {
+        s.push_str(&format!(
+            "  PERFORMANCE FAILS  raised on generated input {}: {}\n",
+            sur_inputs(&f.inputs),
+            last_line(&f.message)
+        ));
+    }
+    for f in &report.generated_timeouts {
+        s.push_str(&format!(
+            "  PERFORMANCE FAILS  generated input {}: {}\n",
+            sur_inputs(&f.inputs),
+            f.message
+        ));
+    }
+    for f in &report.determinism.failures {
+        s.push_str(&format!(
+            "  PERFORMANCE FAILS  nondeterministic on {}: {}\n",
+            sur_inputs(&f.inputs),
+            f.message
+        ));
+    }
+    if let Some(m) = &report.mutants {
+        for run in m.slipped() {
+            s.push_str(&format!("  SLIPPED  {}\n", slipped_line(run)));
+            if let Some(sh) = &run.shown {
+                s.push_str(&format!("        in: {}\n", sur_inputs(&sh.inputs)));
+                if let Some(e) = &sh.expected {
+                    s.push_str(&format!(
+                        "        out: {e}    # example {}\n",
+                        sh.example.unwrap_or(0)
+                    ));
+                }
+                s.push_str(&format!(
+                    "        out: {}    # {}\n",
+                    sh.output,
+                    run.mutant.name()
+                ));
+            }
+        }
+        for (same_as, group) in underdetermined_groups(m) {
+            match same_as {
+                Some(mu) if group.len() > 1 => {
+                    s.push_str(&format!(
+                        "  UNDERDETERMINED  {} inputs; in each, one of the two passing outputs is what `{}` returns: the same hole; first:\n",
+                        group.len(),
+                        mu.name()
+                    ));
+                    two_outputs(&mut s, group[0]);
+                }
+                Some(mu) => {
+                    s.push_str(&format!(
+                        "  UNDERDETERMINED  one of the two passing outputs is what `{}` returns: the same hole\n",
+                        mu.name()
+                    ));
+                    two_outputs(&mut s, group[0]);
+                }
+                None => {
+                    for u in group {
+                        s.push_str("  UNDERDETERMINED  two outputs pass every clause\n");
+                        two_outputs(&mut s, u);
+                    }
+                }
+            }
+        }
+        for u in m.accepted() {
+            let line = u
+                .accepted_by
+                .and_then(|i| report.accepts.get(i))
+                .map(|a| a.line)
+                .unwrap_or(0);
+            s.push_str(&format!(
+                "  ACCEPTED  two outputs pass every clause; accept (line {line})\n"
+            ));
+            two_outputs(&mut s, u);
+        }
+    }
+    for a in report.accepts.iter().filter(|a| a.dead()) {
+        s.push_str(&format!(
+            "  DEAD ACCEPT  accept (line {}): {} holds on no example or generated input\n",
+            a.line, a.text
+        ));
+    }
+    s.push_str(&render_evidence_with(report, full));
+    s
+}
+
+pub fn render(report: &Report) -> String {
+    render_with(report, false)
+}
+
+/// The evidence record, one line per kind; every count agrees with the body.
 pub fn render_evidence(r: &Report) -> String {
+    render_evidence_with(r, false)
+}
+
+pub fn render_evidence_with(r: &Report, full: bool) -> String {
     let mut s = String::new();
     let ex_pass = r
         .examples
@@ -221,14 +678,14 @@ pub fn render_evidence(r: &Report) -> String {
         .filter(|e| e.verdict == Verdict::Pass)
         .count();
     let claims = r.properties.len() + r.frame.len();
-    let claims_pass = r
+    let with_findings = r
         .properties
         .iter()
-        .filter(|p| p.verdict == PropVerdict::Pass)
+        .filter(|p| p.findings() > 0 || p.verdict != PropVerdict::Pass)
         .count()
         + r.frame
             .iter()
-            .filter(|f| f.verdict == PropVerdict::Pass)
+            .filter(|f| f.findings() > 0 || f.verdict != PropVerdict::Pass)
             .count();
     let calls = r.example_inputs + r.generated_inputs;
     let timeouts = r.generated_timeouts.len();
@@ -249,10 +706,33 @@ pub fn render_evidence(r: &Report) -> String {
         "    examples:         {ex_pass}/{}\n",
         r.examples.len()
     ));
+    let mut parties: Vec<&str> = Vec::new();
+    if r.causes.iter().any(|c| c.party == Party::Obligation) {
+        parties.push("the obligation's");
+    }
+    if r.causes.iter().any(|c| c.party == Party::Performance) {
+        parties.push("the performance's");
+    }
+    if r.causes.iter().any(|c| c.party == Party::Undetermined) {
+        parties.push("party not determined");
+    }
     s.push_str(&format!(
-        "    properties:       {claims_pass}/{claims} over {} runs; findings: {}\n",
+        "    properties:       {} of {claims} clean over {} runs{}\n",
+        claims - with_findings,
         r.runs,
-        r.claim_findings()
+        if with_findings == 0 {
+            String::new()
+        } else {
+            format!(
+                "; {with_findings} with findings, {}{}",
+                plural(r.causes.len(), "cause", "causes"),
+                if parties.is_empty() {
+                    String::new()
+                } else {
+                    format!(", {}", parties.join(" and "))
+                }
+            )
+        }
     ));
     s.push_str(&format!(
         "    determinism:      {}/{}, each input run twice and compared under the order claims\n",
@@ -302,17 +782,33 @@ pub fn render_evidence(r: &Report) -> String {
     }
     match &r.mutants {
         Some(m) => {
+            let slipped = m.slipped();
+            let open = m.open();
             let accepted = m.accepted().len();
+            let groups = underdetermined_groups(m).len();
             s.push_str(&format!(
-                "    underdetermination: {} of {} mutants apply; slipped {}; inputs with two passing outputs {}{}\n",
+                "    underdetermination: {} of {} mutants apply; {} slipped{}; {} underdetermined inputs{}{}\n",
                 m.applicable(),
                 m.mutants.len(),
-                m.slipped().len(),
-                m.search.len(),
-                if accepted == 0 {
+                slipped.len(),
+                if slipped.is_empty() {
                     String::new()
                 } else {
-                    format!(", accepted {accepted}, open {}", m.open().len())
+                    format!(
+                        " ({})",
+                        slipped.iter().map(|s| s.mutant.name()).collect::<Vec<_>>().join(", ")
+                    )
+                },
+                open.len(),
+                if open.len() > 1 {
+                    format!(", {}", plural(groups, "cause", "causes"))
+                } else {
+                    String::new()
+                },
+                if accepted > 0 {
+                    format!("; {accepted} accepted")
+                } else {
+                    String::new()
                 }
             ));
         }
@@ -339,130 +835,15 @@ pub fn render_evidence(r: &Report) -> String {
             .unwrap_or("-")
     ));
     if r.generated_inputs > 0 || !r.buckets.is_empty() {
-        s.push_str(&format!(
-            "    generated:        {} inputs by list length: {}\n",
-            r.generated_inputs,
-            bucket_text(&r.buckets)
-        ));
+        s.push_str(&format!("    generated:        {}\n", generated_text(r)));
+        if full {
+            s.push_str(&format!(
+                "    buckets:          {}\n",
+                bucket_text(&r.buckets)
+            ));
+        }
     }
     s
-}
-
-/// A plain-text rendering of a report.
-pub fn render(report: &Report) -> String {
-    let mut s = String::new();
-    s.push_str(&format!("{}\n", report.obligation));
-    for e in &report.examples {
-        let label = match &e.note {
-            Some(n) => format!("example {} (line {}, {n:?})", e.index + 1, e.line),
-            None => format!("example {} (line {})", e.index + 1, e.line),
-        };
-        match &e.verdict {
-            Verdict::Pass => s.push_str(&format!("  pass  {label}\n")),
-            Verdict::Boundary(m) => s.push_str(&format!("  BOUNDARY  {label}: {m}\n")),
-            Verdict::Mismatch(m) => s.push_str(&format!("  FAIL  {label}: {m}\n")),
-            Verdict::Error(m) => s.push_str(&format!("  ERROR  {label}: {m}\n")),
-        }
-    }
-    for p in &report.properties {
-        render_claim(
-            &mut s,
-            report.example_runs,
-            &ClaimView {
-                label: format!("property (line {}): {}", p.line, p.text),
-                verdict: &p.verdict,
-                runs: p.runs,
-                cex: &p.counterexamples,
-                suggest: p.suggest.as_deref(),
-                note: p.note.as_deref(),
-            },
-        );
-    }
-    for f in &report.frame {
-        render_claim(
-            &mut s,
-            report.example_runs,
-            &ClaimView {
-                label: format!(
-                    "frame {}: preserves {} by default",
-                    f.description,
-                    f.preserved.join(", ")
-                ),
-                verdict: &f.verdict,
-                runs: f.runs,
-                cex: &f.counterexamples,
-                suggest: f.suggest.as_deref(),
-                note: f.note.as_deref(),
-            },
-        );
-    }
-    for g in &report.graph_refs {
-        s.push_str(&format!("  graph reference: {g}\n"));
-    }
-    if let Some(f) = report.generated_boundary.first() {
-        s.push_str(&format!(
-            "  FINDING  {} generated outputs failed the boundary; first: in: {}: {}\n",
-            report.generated_boundary.len(),
-            sur_inputs(&f.inputs),
-            f.message
-        ));
-        if let Some(sg) = &report.boundary_suggest {
-            s.push_str(&format!("        suggest {sg}\n"));
-        }
-    }
-    for f in &report.generated_raised {
-        s.push_str(&format!(
-            "  FINDING  raised on generated input {}: {}\n",
-            sur_inputs(&f.inputs),
-            last_line(&f.message)
-        ));
-    }
-    for f in &report.generated_timeouts {
-        s.push_str(&format!(
-            "  FINDING  generated input {}: {}\n",
-            sur_inputs(&f.inputs),
-            f.message
-        ));
-    }
-    for f in &report.determinism.failures {
-        s.push_str(&format!(
-            "  FINDING  nondeterministic on {}: {}\n",
-            sur_inputs(&f.inputs),
-            f.message
-        ));
-    }
-    if let Some(m) = &report.mutants {
-        for run in m.slipped() {
-            s.push_str(&format!("  SLIPPED  {}\n", slipped_line(run)));
-        }
-        for u in &m.search {
-            s.push_str(&underdetermined_report_line(u, &report.accepts));
-        }
-    }
-    for a in report.accepts.iter().filter(|a| a.dead()) {
-        s.push_str(&format!(
-            "  FINDING  accept (line {}): {} holds on no example or generated input: a dead accept\n",
-            a.line, a.text
-        ));
-    }
-    s.push_str(&render_evidence(report));
-    s
-}
-
-/// An underdetermined input as a report line: ACCEPTED when an `accept`
-/// covers it, UNDERDETERMINED otherwise.
-fn underdetermined_report_line(
-    u: &surety_check::Underdetermined,
-    accepts: &[surety_check::AcceptReport],
-) -> String {
-    match u.accepted_by {
-        Some(i) => format!(
-            "  ACCEPTED  {}; accept (line {})\n",
-            underdetermined_line(u),
-            accepts.get(i).map(|a| a.line).unwrap_or(0)
-        ),
-        None => format!("  UNDERDETERMINED  {}\n", underdetermined_line(u)),
-    }
 }
 
 fn input_json(inputs: &[Value]) -> Json {
@@ -499,10 +880,17 @@ fn with_outputs(mut f: Json, expected: Option<&Value>, candidate: Option<&Value>
     f
 }
 
+fn party_text(p: Party) -> &'static str {
+    match p {
+        Party::Obligation => "obligation",
+        Party::Performance => "performance",
+        Party::Undetermined => "undetermined",
+    }
+}
+
 /// The machine form: one object per finding, then one `evidence` object.
 pub fn json_lines(r: &Report) -> Vec<Json> {
     let mut out = Vec::new();
-    let examples_pass = r.examples.iter().all(|e| e.verdict == Verdict::Pass);
     for e in &r.examples {
         let (kind, message) = match &e.verdict {
             Verdict::Pass => continue,
@@ -511,92 +899,100 @@ pub fn json_lines(r: &Report) -> Vec<Json> {
             Verdict::Error(m) => ("error", m),
         };
         let mut f = finding(kind, r, None, &e.inputs);
+        f["party"] = json!("performance");
         f["example"] = json!(e.index + 1);
         f["message"] = json!(message);
         out.push(with_outputs(f, e.expected.as_ref(), e.output.as_ref()));
     }
-    type Claim<'a> = (
-        usize,
-        String,
-        &'a PropVerdict,
-        &'a [Counterexample],
-        Option<&'a str>,
-        Option<&'a str>,
-    );
-    let claims: Vec<Claim<'_>> = r
-        .properties
-        .iter()
-        .map(|p| {
-            (
-                p.line,
-                p.text.clone(),
-                &p.verdict,
-                p.counterexamples.as_slice(),
-                p.suggest.as_deref(),
-                p.note.as_deref(),
-            )
-        })
-        .chain(r.frame.iter().map(|f| {
-            (
-                f.line,
-                format!(
-                    "frame {}: preserves {} by default",
-                    f.description,
-                    f.preserved.join(", ")
-                ),
-                &f.verdict,
-                f.counterexamples.as_slice(),
-                f.suggest.as_deref(),
-                f.note.as_deref(),
-            )
-        }))
-        .collect();
-    for (line, text, verdict, cex, suggest, note) in claims {
-        match verdict {
+    for p in &r.properties {
+        match &p.verdict {
             PropVerdict::Fail {
                 example, detail, ..
             } => {
                 let ex = &r.examples[*example];
-                let mut f = finding("property_failed", r, Some((line, &text)), &ex.inputs);
+                let mut f = finding("property_failed", r, Some((p.line, &p.text)), &ex.inputs);
+                f["party"] = json!("performance");
                 f["example"] = json!(example + 1);
                 f["message"] = json!(detail);
                 out.push(with_outputs(f, ex.expected.as_ref(), ex.output.as_ref()));
             }
             PropVerdict::Error(m) => {
-                let mut f = finding("error", r, Some((line, &text)), &[]);
+                let mut f = finding("error", r, Some((p.line, &p.text)), &[]);
+                f["party"] = json!("performance");
                 f["message"] = json!(m);
                 out.push(f);
             }
             _ => {}
         }
-        for c in cex {
-            let kind = if examples_pass && *verdict == PropVerdict::Pass {
-                "unsatisfiable_on"
-            } else {
-                "property_failed"
-            };
-            let mut f = finding(kind, r, Some((line, &text)), &c.inputs);
-            f["generated"] = json!(true);
-            if let Some(e) = &c.error {
-                f["message"] = json!(e);
-            }
-            if let Some(sg) = suggest {
-                f["suggest"] = json!(sg);
-            }
-            if let Some(n) = note {
-                f["note"] = json!(n);
-            }
-            out.push(with_outputs(f, None, Some(&c.output)));
+    }
+    for fr in &r.frame {
+        if let PropVerdict::Fail {
+            example, detail, ..
+        } = &fr.verdict
+        {
+            let ex = &r.examples[*example];
+            let text = format!(
+                "frame {}: preserves {} by default",
+                fr.description,
+                fr.preserved.join(", ")
+            );
+            let mut f = finding("property_failed", r, Some((fr.line, &text)), &ex.inputs);
+            f["party"] = json!("performance");
+            f["example"] = json!(example + 1);
+            f["message"] = json!(detail);
+            out.push(with_outputs(f, ex.expected.as_ref(), ex.output.as_ref()));
         }
     }
-    for (kind, list) in [
-        ("boundary", &r.generated_boundary),
-        ("raised", &r.generated_raised),
-        ("timeout", &r.generated_timeouts),
-        ("nondeterministic", &r.determinism.failures),
+    for (i, c) in r.causes.iter().enumerate() {
+        let kind = match c.party {
+            Party::Obligation => "unsatisfiable_on",
+            Party::Performance | Party::Undetermined => "property_failed",
+        };
+        let (line, _, text) = &c.clauses[0];
+        let mut f = finding(kind, r, Some((*line, text)), &c.witness.inputs);
+        f["party"] = json!(party_text(c.party));
+        f["cause"] = json!(i + 1);
+        f["generated"] = json!(true);
+        f["clauses"] = json!(
+            c.clauses
+                .iter()
+                .map(|(l, _, t)| json!({ "line": l, "text": t }))
+                .collect::<Vec<_>>()
+        );
+        f["inputs_failing"] = json!(c.inputs);
+        f["generated_inputs"] = json!(c.generated);
+        f["candidates_tried"] = json!(c.candidates_tried);
+        if let Some(e) = &c.witness.error {
+            f["message"] = json!(e);
+        }
+        if let Some(sg) = &c.suggest {
+            f["suggest"] = json!(sg);
+        }
+        if let Some(n) = &c.note {
+            f["note"] = json!(n);
+        }
+        if let Some(p) = &c.passing {
+            f["passing"] = to_json(p);
+        }
+        out.push(with_outputs(f, None, Some(&c.witness.output)));
+    }
+    for (kind, list, party) in [
+        (
+            "boundary",
+            &r.generated_boundary,
+            if r.boundary_suggest.is_some() {
+                "obligation"
+            } else {
+                "performance"
+            },
+        ),
+        ("raised", &r.generated_raised, "performance"),
+        ("timeout", &r.generated_timeouts, "performance"),
+        ("nondeterministic", &r.determinism.failures, "performance"),
     ] {
         for fl in list {
             let mut f = finding(kind, r, None, &fl.inputs);
+            f["party"] = json!(party);
             f["generated"] = json!(true);
             f["message"] = json!(fl.message);
             if kind == "boundary" {
@@ -617,22 +1013,26 @@ pub fn json_lines(r: &Report) -> Vec<Json> {
             .iter()
             .filter(|f| f.verdict == PropVerdict::Pass)
             .count();
+    let (obligation, performance) = party_summaries(r);
     let mut ev = json!({
         "kind": "evidence",
         "obligation": r.obligation,
         "obligation_hash": r.obligation_hash,
+        "verdict": if obligation.is_empty() && performance.is_empty() { "ACCEPTED" } else { "NOT ACCEPTED" },
+        "obligation_findings": obligation,
+        "performance_findings": performance,
         "passed": r.passed(),
         "strict_passed": r.strict_passed(),
         "types": { "example_inputs": r.example_inputs, "generated_inputs": r.generated_inputs, "outputs": r.runs, "boundary_failures": r.generated_boundary.len() },
         "examples": { "passed": r.examples.iter().filter(|e| e.verdict == Verdict::Pass).count(), "total": r.examples.len() },
-        "properties": { "passed": claims_pass, "total": claims_total, "runs": r.runs, "findings": r.claim_findings(),
+        "properties": { "passed": claims_pass, "total": claims_total, "runs": r.runs, "findings": r.claim_findings(), "causes": r.causes.len(),
             "each": r.properties.iter().map(|p| json!({ "line": p.line, "runs": p.runs, "findings": p.findings() })).collect::<Vec<_>>() },
         "determinism": { "matched": r.determinism.matched, "total": r.determinism.total },
         "totality": { "answered": (r.example_inputs + r.generated_inputs).saturating_sub(r.generated_timeouts.len()), "total": r.example_inputs + r.generated_inputs, "raised": r.generated_raised.len(), "timeout_seconds": r.timeout.as_secs_f64() },
         "purity": "unverified",
         "findings": r.findings(),
         "underdetermination": match &r.mutants {
-            Some(m) => json!({ "applicable": m.applicable(), "total": m.mutants.len(), "slipped": m.slipped().len(), "caught": m.caught(), "underdetermined_inputs": m.search.len(), "accepted": m.accepted().len(), "open": m.open().len() }),
+            Some(m) => json!({ "applicable": m.applicable(), "total": m.mutants.len(), "slipped": m.slipped().len(), "caught": m.caught(), "underdetermined_inputs": m.search.len(), "accepted": m.accepted().len(), "open": m.open().len(), "causes": underdetermined_groups(m).len() }),
             None => json!("not run"),
         },
         "accepts": r.accepts.iter().map(|a| json!({ "line": a.line, "text": a.text, "satisfied": a.satisfied, "dead": a.dead() })).collect::<Vec<_>>(),
@@ -655,6 +1055,7 @@ pub fn json_lines(r: &Report) -> Vec<Json> {
     }
     for a in r.accepts.iter().filter(|a| a.dead()) {
         let mut f = finding("dead_accept", r, Some((a.line, &a.text)), &[]);
+        f["party"] = json!("obligation");
         f["message"] = json!("holds on no example or generated input");
         out.push(f);
     }
@@ -1004,6 +1405,9 @@ pub fn mutants_json_lines(r: &MutantReport) -> Vec<Json> {
         }
         if let Some(i) = u.accepted_by {
             f["accept"] = json!(i);
+        }
+        if let Some(m) = u.same_as {
+            f["same_as"] = json!(m.name());
         }
         out.push(f);
     }

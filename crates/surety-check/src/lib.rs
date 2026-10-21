@@ -10,8 +10,8 @@ pub mod mutants;
 pub mod value;
 
 pub use checker::{
-    AcceptReport, Checker, Counterexample, Determinism, ExampleReport, Failure, FrameReport,
-    GenRun, Outcome, PropVerdict, PropertyReport, Report, Verdict,
+    AcceptReport, Cause, Checker, Counterexample, Determinism, ExampleReport, Failure, FrameReport,
+    GenRun, Outcome, Party, PropVerdict, PropertyReport, Report, Verdict,
 };
 pub use generate::{Bucket, Budget, Domain, Generated};
 pub use mutants::{Clause, Mutant, MutantReport, MutantRun, MutantVerdict, Underdetermined};

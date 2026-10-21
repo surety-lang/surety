@@ -26,7 +26,7 @@ Usage:
 Flags:
   --json          one JSON object per finding, then one summary object
   --strict        check: findings on generated inputs fail the check too
-  --full          mutants: the behaviour-first detail, not just the one-line view
+  --full          check: the bucket detail; mutants: the behaviour-first detail
   --budget <n>    generated inputs per obligation (default 500; 0 is slice 1 behaviour)
   --candidates <n>  output candidates the search tries per input (default 600)";
 
@@ -227,7 +227,7 @@ fn cmd_check(file: &Path, perf: Option<&Path>, flags: &Flags) -> ExitCode {
             if flags.json {
                 print!("{}", surety::render_json(&report));
             } else {
-                print!("{}", surety::render(&report));
+                print!("{}", surety::render_with(&report, flags.full));
             }
             let ok = if flags.strict {
                 report.strict_passed()

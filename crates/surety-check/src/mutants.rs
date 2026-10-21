@@ -601,6 +601,9 @@ pub struct Underdetermined {
     /// The index of the `accept` line this input satisfies, when one does:
     /// a deliberate non-decision, reported as accepted.
     pub accepted_by: Option<usize>,
+    /// A slipped mutant whose output on this input is one of the two: the
+    /// same hole, seen from the search.
+    pub same_as: Option<Mutant>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -732,17 +735,41 @@ fn permutations(xs: &[Value]) -> Vec<Vec<Value>> {
     out
 }
 
-/// Output candidates drawn from the input: when the output is a list (or
-/// `Ok` of one) whose element shape some input list has, every
-/// sub-multiset of those elements, smallest first, in every order while
-/// the pool is small enough for that to be cheap. A filter, a selection or
-/// a reordering has its answer here.
-pub fn drawn_candidates(out_ty: &Type, inputs: &[Value], scope: &Scope<'_>) -> Vec<Value> {
-    let (list_ty, wrap) = match out_ty {
-        Type::List(..) => (out_ty, false),
-        Type::Result(ok, _) if matches!(**ok, Type::List(..)) => (ok.as_ref(), true),
-        _ => return Vec::new(),
-    };
+/// Output candidates drawn from the input: when the output is a list, or a
+/// `Result` with a list on either side, every sub-multiset of the matching
+/// input lists' elements and of the named values of the element type,
+/// smallest first, in every order while the pool is small enough for that
+/// to be cheap. A filter, a selection, a reordering or an error list has
+/// its answer here.
+pub fn drawn_candidates(
+    out_ty: &Type,
+    inputs: &[Value],
+    scope: &Scope<'_>,
+    named: &[(Value, Type)],
+) -> Vec<Value> {
+    match out_ty {
+        Type::List(..) => drawn_list(out_ty, inputs, scope, named, None),
+        Type::Result(ok, err) => {
+            let mut out = Vec::new();
+            if matches!(**ok, Type::List(..)) {
+                out.extend(drawn_list(ok, inputs, scope, named, Some(true)));
+            }
+            if matches!(**err, Type::List(..)) {
+                out.extend(drawn_list(err, inputs, scope, named, Some(false)));
+            }
+            out
+        }
+        _ => Vec::new(),
+    }
+}
+
+fn drawn_list(
+    list_ty: &Type,
+    inputs: &[Value],
+    scope: &Scope<'_>,
+    named: &[(Value, Type)],
+    wrap: Option<bool>,
+) -> Vec<Value> {
     let Type::List(elem, _) = list_ty else {
         return Vec::new();
     };
@@ -752,6 +779,11 @@ pub fn drawn_candidates(out_ty: &Type, inputs: &[Value], scope: &Scope<'_>) -> V
             if same_shape(e, elem) {
                 pool.extend(xs.iter().cloned());
             }
+        }
+    }
+    for (v, t) in named {
+        if same_shape(t, elem) && !pool.contains(v) {
+            pool.push(v.clone());
         }
     }
     if pool.is_empty() || pool.len() > 8 {
@@ -778,7 +810,11 @@ pub fn drawn_candidates(out_ty: &Type, inputs: &[Value], scope: &Scope<'_>) -> V
         };
         for o in orderings {
             let v = Value::List(o);
-            out.push(if wrap { Value::Ok(Box::new(v)) } else { v });
+            out.push(match wrap {
+                Some(true) => Value::Ok(Box::new(v)),
+                Some(false) => Value::Err(Box::new(v)),
+                None => v,
+            });
         }
     }
     out
@@ -832,6 +868,71 @@ impl<'g> Checker<'g> {
         walk(&self.scope, e, 0)
     }
 
+    /// Every clause a candidate output is judged by: the properties, then
+    /// the frame rule's implicit ones.
+    pub fn clauses(&self) -> Vec<(Clause, Expr)> {
+        let fun = self.fun;
+        let mut clauses: Vec<(Clause, Expr)> = fun
+            .properties
+            .iter()
+            .map(|p| {
+                (
+                    Clause::Property {
+                        line: p.line,
+                        text: p.text.clone(),
+                    },
+                    p.expr.clone(),
+                )
+            })
+            .collect();
+        for pair in frame_pairs(&self.scope, fun) {
+            clauses.push((
+                Clause::Frame {
+                    line: pair.line,
+                    description: pair.description,
+                },
+                pair.implicit,
+            ));
+        }
+        clauses
+    }
+
+    /// An output that passes every clause on these inputs, if the
+    /// candidate search finds one, and how many candidates it tried. This
+    /// is how a generated-input failure is attributed: a passing output
+    /// exists and the performance did not produce it, or none does and the
+    /// obligation is unsatisfiable there.
+    pub fn find_passing(&mut self, inputs: &[Value]) -> (Option<Value>, usize) {
+        let cap = self.budget.search_candidates;
+        if cap == 0 {
+            return (None, 0);
+        }
+        let out_ty = self.output_type().clone();
+        let clauses = self.clauses();
+        let named = self.named_values_typed();
+        let mut typed: Vec<(&Value, &Type)> = inputs
+            .iter()
+            .zip(self.scope.inputs.iter().map(|(_, t)| t))
+            .collect();
+        typed.extend(named.iter().map(|(v, t)| (v, t)));
+        let domain = Domain::seeded(&typed);
+        let drawn = drawn_candidates(&out_ty, inputs, &self.scope, &named);
+        let mut tried = 0;
+        for cand in candidates(&out_ty, &domain, cap, drawn) {
+            tried += 1;
+            if from_json(&to_json(&cand), &out_ty).is_err() {
+                continue;
+            }
+            let all = clauses
+                .iter()
+                .all(|(_, e)| matches!(self.holds(e, inputs, &cand), Ok(true)));
+            if all {
+                return (Some(cand), tried);
+            }
+        }
+        (None, tried)
+    }
+
     /// The underdetermination check: the library against the obligation
     /// over the examples and the generated inputs, then the search.
     pub fn mutants(&mut self) -> MutantReport {
@@ -856,29 +957,7 @@ impl<'g> Checker<'g> {
             });
         }
         let out_ty = self.output_type().clone();
-        let fun = self.fun;
-        let mut clauses: Vec<(Clause, Expr)> = fun
-            .properties
-            .iter()
-            .map(|p| {
-                (
-                    Clause::Property {
-                        line: p.line,
-                        text: p.text.clone(),
-                    },
-                    p.expr.clone(),
-                )
-            })
-            .collect();
-        for pair in frame_pairs(&self.scope, fun) {
-            clauses.push((
-                Clause::Frame {
-                    line: pair.line,
-                    description: pair.description,
-                },
-                pair.implicit,
-            ));
-        }
+        let clauses = self.clauses();
         let unordered: Vec<Vec<Step>> = self.unordered().to_vec();
         let mut mutants = Vec::new();
         for m in LIBRARY {
@@ -961,7 +1040,27 @@ impl<'g> Checker<'g> {
                     .any(|r| r.kills.iter().any(|k| k.clause == *c))
             })
             .collect();
-        let (search, search_inputs, unevaluable) = self.search(&cases, &clauses, &unordered);
+        let (mut search, search_inputs, unevaluable) = self.search(&cases, &clauses, &unordered);
+        // An underdetermined input whose second output is what a slipped
+        // mutant returns there is the same hole, seen twice.
+        let slipped: Vec<Mutant> = mutants
+            .iter()
+            .filter(|m| m.verdict == MutantVerdict::Slipped)
+            .map(|m| m.mutant)
+            .collect();
+        for u in &mut search {
+            for &m in &slipped {
+                if let Some(v) = apply(m, &u.inputs, &self.scope, &self.plan) {
+                    if compare(&v, &u.a, &unordered).is_ok()
+                        || compare(&v, &u.b, &unordered).is_ok()
+                    {
+                        u.same_as = Some(m);
+                        break;
+                    }
+                }
+            }
+        }
+
         MutantReport {
             obligation: self.fun.name.clone(),
             obligation_hash: surety_syntax::normalize::canonical_file(self.graph, self.idx)
@@ -1034,7 +1133,7 @@ impl<'g> Checker<'g> {
                 .collect();
             typed.extend(named.iter().map(|(v, t)| (v, t)));
             let domain = Domain::seeded(&typed);
-            let drawn = drawn_candidates(&out_ty, &case.inputs, &self.scope);
+            let drawn = drawn_candidates(&out_ty, &case.inputs, &self.scope, &named);
             let mut passing: Vec<Value> = case.expected.iter().cloned().collect();
             for (tried, cand) in candidates(&out_ty, &domain, cap, drawn)
                 .into_iter()
@@ -1084,6 +1183,7 @@ impl<'g> Checker<'g> {
                         a_is_expected: case.expected.is_some(),
                         candidates_tried: tried,
                         accepted_by,
+                        same_as: None,
                     });
                     break;
                 }

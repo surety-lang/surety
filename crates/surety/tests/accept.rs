@@ -28,9 +28,19 @@ fn p5a_ties_are_accepted_and_pass_strict() {
     assert!(!m.search.is_empty(), "the ties are still found:\n{text}");
     assert_eq!(m.open().len(), 0, "every tie is covered:\n{text}");
     assert_eq!(m.accepted().len(), m.search.len());
-    assert!(text.contains("  ACCEPTED  in:"), "{text}");
+    assert!(
+        text.contains("  ACCEPTED  two outputs pass every clause; accept (line"),
+        "{text}"
+    );
     assert!(!text.contains("  UNDERDETERMINED"), "{text}");
-    assert!(text.contains(", open 0"), "{text}");
+    assert!(
+        text.contains("; 0 underdetermined inputs; 3 accepted"),
+        "{text}"
+    );
+    assert!(
+        text.starts_with("get_first_customer_orders  ACCEPTED  "),
+        "{text}"
+    );
     assert_eq!(r.accepts.len(), 1);
     assert!(r.accepts[0].satisfied > 0, "{text}");
     assert!(
@@ -65,7 +75,11 @@ fn without_the_accept_the_ties_are_open() {
     let m = r.mutants.as_ref().unwrap();
     assert!(!m.open().is_empty(), "{text}");
     assert!(m.accepted().is_empty());
-    assert!(text.contains("  UNDERDETERMINED  in:"), "{text}");
+    assert!(
+        text.contains("  UNDERDETERMINED  two outputs pass every clause"),
+        "{text}"
+    );
+    assert!(text.contains("underdetermined inputs"), "{text}");
     assert!(r.accepts.is_empty());
     assert!(r.passed() && !r.strict_passed(), "{text}");
 }
@@ -82,7 +96,11 @@ fn a_dead_accept_is_a_finding() {
     assert_eq!(r.accepts.len(), 1);
     assert!(r.accepts[0].dead(), "{text}");
     assert_eq!(r.dead_accepts(), 1);
-    assert!(text.contains("a dead accept"), "{text}");
+    assert!(text.contains("  DEAD ACCEPT  accept (line"), "{text}");
+    assert!(
+        text.starts_with("get_small_orders  NOT ACCEPTED  obligation: 1 dead accept"),
+        "{text}"
+    );
     assert!(
         r.passed() && !r.strict_passed(),
         "a dead accept fails strict:\n{text}"

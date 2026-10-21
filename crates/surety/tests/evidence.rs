@@ -125,7 +125,18 @@ fn p7_without_its_refinement_is_unsatisfiable_on_shared_ids() {
         Some("users: User[unique id]"),
         "{text}"
     );
-    assert!(text.contains("suggest users: User[unique id]"));
+    assert!(text.contains("closed by users: User[unique id]"), "{text}");
+    assert!(
+        text.starts_with("enrich_orders  NOT ACCEPTED  obligation: unsatisfiable on"),
+        "{text}"
+    );
+    assert!(
+        text.lines()
+            .next()
+            .unwrap()
+            .ends_with("performance: passes"),
+        "{text}"
+    );
     let json = surety::render_json(&r);
     assert!(json.contains("\"unsatisfiable_on\""), "{json}");
     assert!(
@@ -244,7 +255,11 @@ fn apply_diff_without_its_added_refinement_forces_a_non_unique_output() {
         "{text}"
     );
     assert!(
-        text.contains("suggest added: Item[unique sku] in type Diff"),
+        text.contains("closed by added: Item[unique sku] in type Diff"),
+        "{text}"
+    );
+    assert!(
+        text.contains("  UNSATISFIABLE ON  the output type:"),
         "{text}"
     );
     let json = surety::render_json(&r);
@@ -433,7 +448,13 @@ fn check_carries_the_mutant_verdict() {
     assert_eq!(m.slipped().len(), 0);
     let text = surety::render(&r);
     assert!(
-        text.contains("    underdetermination: 6 of 13 mutants apply; slipped 0; inputs with two passing outputs 0"),
+        text.contains(
+            "    underdetermination: 6 of 13 mutants apply; 0 slipped; 0 underdetermined inputs"
+        ),
+        "{text}"
+    );
+    assert!(
+        text.starts_with("get_small_orders  ACCEPTED  examples 2/2; 4 clauses clean over"),
         "{text}"
     );
     assert!(r.strict_passed(), "{text}");
@@ -447,7 +468,11 @@ fn check_carries_the_mutant_verdict() {
     let text = surety::render(&r);
     assert!(text.contains("  SLIPPED  empty:"), "{text}");
     assert!(text.contains("caught by example 1 only"), "{text}");
-    assert!(text.contains("; slipped 1;"), "{text}");
+    assert!(text.contains("; 1 slipped (empty); "), "{text}");
+    assert!(
+        text.starts_with("get_small_orders  NOT ACCEPTED  obligation: 1 mutant slipped (empty)"),
+        "{text}"
+    );
     assert_eq!(
         r.underdetermination_findings(),
         1 + r.mutants.as_ref().unwrap().search.len()

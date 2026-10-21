@@ -112,6 +112,48 @@ impl FrameReport {
     }
 }
 
+/// Whose problem a finding is.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Party {
+    /// No output could pass every clause on the input: the obligation is
+    /// unsatisfiable there.
+    Obligation,
+    /// An output that passes every clause exists and the performance did
+    /// not produce it.
+    Performance,
+    /// The search budget was zero, so neither was shown.
+    Undetermined,
+}
+
+/// Claims false on generated inputs, grouped by what explains them: the
+/// refinement that would close them, the note, or the first input.
+#[derive(Debug, Clone)]
+pub struct Cause {
+    pub party: Party,
+    /// `(line, label, text)` of every clause in the group.
+    pub clauses: Vec<(usize, String, String)>,
+    /// Distinct generated inputs on which some clause of the group failed.
+    pub inputs: usize,
+    pub generated: usize,
+    pub suggest: Option<String>,
+    pub note: Option<String>,
+    /// The first counterexample: the input and the performance's output.
+    pub witness: Counterexample,
+    /// For the performance's: an output that passes every clause there.
+    pub passing: Option<Value>,
+    pub candidates_tried: usize,
+}
+
+impl Cause {
+    pub fn label(&self) -> String {
+        self.clauses
+            .iter()
+            .map(|(_, l, _)| l.clone())
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
+}
+
 /// A generated input the performance did not handle; the message says how.
 #[derive(Debug, Clone)]
 pub struct Failure {
@@ -164,6 +206,8 @@ pub struct Report {
     pub mutants: Option<MutantReport>,
     /// Each `accept` line and how many inputs satisfied it.
     pub accepts: Vec<AcceptReport>,
+    /// Claims false on generated inputs, grouped by cause and attributed.
+    pub causes: Vec<Cause>,
 }
 
 /// One `accept` line: the inputs on which the obligation deliberately
@@ -610,6 +654,7 @@ impl<'g> Checker<'g> {
             }
             report.counterexamples = cex;
         }
+        let causes = self.group_causes(&properties, &frame, examples_pass);
         let determinism = self.check_determinism();
         let (inspection, inspection_error) = match surety_py::inspect(&self.performance) {
             Ok(i) => (Some(i), None),
@@ -675,7 +720,120 @@ impl<'g> Checker<'g> {
             inspection_error,
             mutants,
             accepts,
+            causes,
         }
+    }
+
+    /// Group the claims' generated counterexamples by cause and say whose
+    /// problem each group is.
+    fn group_causes(
+        &mut self,
+        properties: &[PropertyReport],
+        frame: &[FrameReport],
+        examples_pass: bool,
+    ) -> Vec<Cause> {
+        struct Item {
+            line: usize,
+            label: String,
+            text: String,
+            binding_pass: bool,
+            cex: Vec<Counterexample>,
+            suggest: Option<String>,
+            note: Option<String>,
+        }
+        let mut items: Vec<Item> = Vec::new();
+        for p in properties {
+            if !p.counterexamples.is_empty() {
+                items.push(Item {
+                    line: p.line,
+                    label: format!("property (line {})", p.line),
+                    text: p.text.clone(),
+                    binding_pass: p.verdict == PropVerdict::Pass,
+                    cex: p.counterexamples.clone(),
+                    suggest: p.suggest.clone(),
+                    note: p.note.clone(),
+                });
+            }
+        }
+        for f in frame {
+            if !f.counterexamples.is_empty() {
+                items.push(Item {
+                    line: f.line,
+                    label: format!("frame {}", f.description),
+                    text: format!(
+                        "frame {}: preserves {} by default",
+                        f.description,
+                        f.preserved.join(", ")
+                    ),
+                    binding_pass: f.verdict == PropVerdict::Pass,
+                    cex: f.counterexamples.clone(),
+                    suggest: f.suggest.clone(),
+                    note: f.note.clone(),
+                });
+            }
+        }
+        let generated = self.generated.len();
+        let mut groups: Vec<(String, Vec<usize>)> = Vec::new();
+        for (i, it) in items.iter().enumerate() {
+            let key = it
+                .suggest
+                .clone()
+                .or_else(|| it.note.clone())
+                .unwrap_or_else(|| crate::generate::key_of(&it.cex[0].inputs));
+            match groups.iter_mut().find(|(k, _)| *k == key) {
+                Some((_, members)) => members.push(i),
+                None => groups.push((key, vec![i])),
+            }
+        }
+        let mut causes = Vec::new();
+        for (_, members) in groups {
+            let first = &items[members[0]];
+            let mut seen: Vec<String> = Vec::new();
+            for &m in &members {
+                for c in &items[m].cex {
+                    let k = crate::generate::key_of(&c.inputs);
+                    if !seen.contains(&k) {
+                        seen.push(k);
+                    }
+                }
+            }
+            let witness = first.cex[0].clone();
+            let diagnosed = first.suggest.is_some() || first.note.is_some();
+            let binding_clean = examples_pass && members.iter().all(|&m| items[m].binding_pass);
+            let (party, passing, tried) = if !binding_clean {
+                (Party::Performance, None, 0)
+            } else if self.budget.search_candidates == 0 {
+                (
+                    if diagnosed {
+                        Party::Obligation
+                    } else {
+                        Party::Undetermined
+                    },
+                    None,
+                    0,
+                )
+            } else {
+                match self.find_passing(&witness.inputs) {
+                    (Some(v), n) => (Party::Performance, Some(v), n),
+                    (None, n) => (Party::Obligation, None, n),
+                }
+            };
+            causes.push(Cause {
+                party,
+                clauses: members
+                    .iter()
+                    .map(|&m| (items[m].line, items[m].label.clone(), items[m].text.clone()))
+                    .collect(),
+                inputs: seen.len(),
+                generated,
+                suggest: first.suggest.clone(),
+                note: first.note.clone(),
+                witness,
+                passing,
+                candidates_tried: tried,
+            });
+        }
+        causes
     }
 
     /// Whether an `accept` holds on an input tuple. It ranges over the

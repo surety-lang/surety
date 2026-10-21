@@ -6,7 +6,7 @@
 mod common;
 
 use std::fs;
-use std::io::{BufReader, Write};
+use std::io::BufReader;
 use std::path::Path;
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 
@@ -79,7 +79,10 @@ impl Lsp {
         loop {
             let msg = self.read();
             if msg["method"] == "textDocument/publishDiagnostics" && msg["params"]["uri"] == uri {
-                return msg["params"]["diagnostics"].as_array().cloned().unwrap_or_default();
+                return msg["params"]["diagnostics"]
+                    .as_array()
+                    .cloned()
+                    .unwrap_or_default();
             }
         }
     }
@@ -93,7 +96,10 @@ impl Lsp {
         loop {
             let msg = self.read();
             if msg["method"] == "textDocument/publishDiagnostics" && msg["params"]["uri"] == uri {
-                return msg["params"]["diagnostics"].as_array().cloned().unwrap_or_default();
+                return msg["params"]["diagnostics"]
+                    .as_array()
+                    .cloned()
+                    .unwrap_or_default();
             }
         }
     }
@@ -122,10 +128,20 @@ fn every_bad_fixture_gets_parses_diagnostic_and_the_corpus_gets_none() {
         let kind = parts.next().unwrap();
         let line: u64 = parts.next().unwrap().parse().unwrap();
         let diagnostics = lsp.open(&path);
-        assert_eq!(diagnostics.len(), 1, "{}: one diagnostic, as parse prints one error", path.display());
+        assert_eq!(
+            diagnostics.len(),
+            1,
+            "{}: one diagnostic, as parse prints one error",
+            path.display()
+        );
         let d = &diagnostics[0];
         assert_eq!(d["code"], kind, "{}: the kind", path.display());
-        assert_eq!(d["range"]["start"]["line"].as_u64().unwrap() + 1, line, "{}: the line", path.display());
+        assert_eq!(
+            d["range"]["start"]["line"].as_u64().unwrap() + 1,
+            line,
+            "{}: the line",
+            path.display()
+        );
         assert_eq!(d["severity"], 1);
         assert_eq!(d["source"], "surety");
         assert!(d["message"].as_str().is_some_and(|m| !m.is_empty()));
@@ -146,13 +162,155 @@ fn a_change_reparses_against_the_siblings_on_disk() {
     let path = common::corpus_dir().join("p14.sur");
     assert!(lsp.open(&path).is_empty());
     // Unsaved text: a reference to a type the siblings do not define.
-    let text = fs::read_to_string(&path).unwrap().replace("old: Item[unique sku]", "old: Itm[unique sku]");
+    let text = fs::read_to_string(&path)
+        .unwrap()
+        .replace("old: Item[unique sku]", "old: Itm[unique sku]");
     let diagnostics = lsp.change(&path, &text);
     assert_eq!(diagnostics.len(), 1);
     assert_eq!(diagnostics[0]["code"], "unknown_type");
-    assert_eq!(diagnostics[0]["range"]["start"]["line"], 0, "the signature is line 1");
+    assert_eq!(
+        diagnostics[0]["range"]["start"]["line"], 0,
+        "the signature is line 1"
+    );
     // Back to the saved text: clean again, and the siblings still resolve `Item`.
     let diagnostics = lsp.change(&path, &fs::read_to_string(&path).unwrap());
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    lsp.stop();
+}
+
+/// The 0-based line and character of the first occurrence of `needle`.
+fn position_of(text: &str, needle: &str) -> (usize, usize) {
+    for (n, line) in text.lines().enumerate() {
+        if let Some(c) = line.find(needle) {
+            return (n, line[..c].chars().count());
+        }
+    }
+    panic!("{needle:?} is not in the text");
+}
+
+impl Lsp {
+    fn start_with_graph() -> Lsp {
+        let graph = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../graph");
+        let mut child = Command::new(env!("CARGO_BIN_EXE_surety"))
+            .arg("lsp")
+            .arg("--graph")
+            .arg(&graph)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::inherit())
+            .spawn()
+            .expect("surety lsp starts");
+        let stdin = child.stdin.take().unwrap();
+        let stdout = BufReader::new(child.stdout.take().unwrap());
+        let mut lsp = Lsp {
+            child,
+            stdin,
+            stdout,
+            next_id: 1,
+        };
+        lsp.request("initialize", json!({ "capabilities": {} }));
+        lsp.notify("initialized", json!({}));
+        lsp
+    }
+
+    fn at(&mut self, method: &str, path: &Path, needle: &str) -> Json {
+        let uri = surety_lsp::path_to_uri(&fs::canonicalize(path).unwrap());
+        let text = fs::read_to_string(path).unwrap();
+        let (line, character) = position_of(&text, needle);
+        let reply = self.request(
+            method,
+            json!({ "textDocument": { "uri": uri }, "position": { "line": line, "character": character } }),
+        );
+        reply["result"].clone()
+    }
+}
+
+#[test]
+fn names_resolve_and_hover_says_what_a_thing_is() {
+    let mut lsp = Lsp::start_with_graph();
+    let p5b = common::corpus_dir().join("p5b.sur");
+    let p14 = common::corpus_dir().join("p14.sur");
+    let p3 = common::corpus_dir().join("p3.sur");
+    for p in [&p5b, &p14, &p3] {
+        assert!(lsp.open(p).is_empty());
+    }
+
+    // Go to definition on `Order` in p5b's signature lands on the type.
+    let def = lsp.at("textDocument/definition", &p5b, "Order[]");
+    let uri = surety_lsp::path_to_uri(&fs::canonicalize(&p5b).unwrap());
+    assert_eq!(def["uri"], uri);
+    assert_eq!(def["range"]["start"]["line"], 0, "type Order is line 1");
+
+    // On `apply_diff` in p14's property, across the directory, on apply_diff's signature.
+    let def = lsp.at("textDocument/definition", &p14, "apply_diff(old, out)");
+    let apply = common::corpus_dir().join("apply_diff.sur");
+    assert_eq!(
+        def["uri"],
+        surety_lsp::path_to_uri(&fs::canonicalize(&apply).unwrap())
+    );
+    let apply_text = fs::read_to_string(&apply).unwrap();
+    let (sig_line, _) = position_of(&apply_text, "apply_diff(old: ");
+    assert_eq!(def["range"]["start"]["line"], sig_line);
+
+    // Hover on a property line shows the sentence above it.
+    let hover = lsp.at("textDocument/hover", &p3, "exactly_one g in out:");
+    let value = hover["contents"]["value"].as_str().unwrap_or_default();
+    assert!(
+        value.contains("there is exactly one group with that email"),
+        "the sentence above the property: {value}"
+    );
+
+    // Hover on a sibling obligation shows its signature and, with the
+    // committed graph, its state.
+    let hover = lsp.at("textDocument/hover", &p14, "apply_diff(old, out)");
+    let value = hover["contents"]["value"].as_str().unwrap_or_default();
+    assert!(value.contains("apply_diff(old: "), "{value}");
+    assert!(value.contains("in `apply_diff.sur`"), "{value}");
+    assert!(value.contains("state: **verified**"), "{value}");
+
+    // Hover on a type shows its declaration.
+    let hover = lsp.at("textDocument/hover", &p5b, "Order[]");
+    let value = hover["contents"]["value"].as_str().unwrap_or_default();
+    assert!(
+        value.contains("type Order = { amount: Int, customer_email: Text }"),
+        "{value}"
+    );
+
+    // Symbols: the type, the obligation, its properties by sentence, its examples.
+    let uri3 = surety_lsp::path_to_uri(&fs::canonicalize(&p3).unwrap());
+    let symbols = lsp.request(
+        "textDocument/documentSymbol",
+        json!({ "textDocument": { "uri": uri3 } }),
+    );
+    let list = symbols["result"].as_array().unwrap();
+    let names: Vec<&str> = list.iter().filter_map(|s| s["name"].as_str()).collect();
+    assert!(
+        names.contains(&"Order") && names.contains(&"OrderGroup"),
+        "{names:?}"
+    );
+    let fun = list
+        .iter()
+        .find(|s| {
+            s["name"]
+                .as_str()
+                .is_some_and(|n| n.starts_with("group_by_customer("))
+        })
+        .unwrap();
+    let children: Vec<&str> = fun["children"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|c| c["name"].as_str())
+        .collect();
+    assert!(
+        children
+            .iter()
+            .any(|c| c.starts_with("For every distinct customer_email")),
+        "{children:?}"
+    );
+    assert!(
+        children.contains(&"example 1") && children.contains(&"example 2"),
+        "{children:?}"
+    );
     lsp.stop();
 }

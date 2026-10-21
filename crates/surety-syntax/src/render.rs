@@ -185,6 +185,26 @@ impl Printer {
     }
 }
 
+/// One expression as Surety text, binder names as written.
+pub fn expr(e: &Expr) -> String {
+    let mut p = Printer {
+        fresh: false,
+        counter: 0,
+        scope: Vec::new(),
+    };
+    p.expr(e)
+}
+
+/// An abbreviation as Surety text.
+pub fn abbrev(a: &Abbrev) -> String {
+    let mut p = Printer {
+        fresh: false,
+        counter: 0,
+        scope: Vec::new(),
+    };
+    p.abbrev(a)
+}
+
 enum Item<'a> {
     Abbrev(&'a Abbrev),
     Property(&'a Property),

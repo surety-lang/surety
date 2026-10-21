@@ -52,7 +52,7 @@ Every layer is judged against these. A feature that violates one does not ship, 
 
 Four layers and a graph beside them. The obligation never changes shape when the target does; the checker is target-agnostic because it only sees values crossing the sandbox boundary; targets are plugins.
 
-*[diagram, in the live doc: architecture · obligation, checker, three targets, one graph]*
+&#91;embedded content: architecture · obligation, checker, three targets, one graph\]
 
 **Interfaces between layers**
 
@@ -65,6 +65,8 @@ Four layers and a graph beside them. The obligation never changes shape when the
 **What a target supplies.** Four things, and nothing else: a sandbox runner, a boundary validator, an AST normalizer for the performance hash, and an evidence-kind profile (the table in the Evidence kinds section).
 
 **Checker queries, v0.** Type and totality checks apply to the obligation. Against a performance: examples run, properties are tested with generated inputs, determinism is tested by running twice. Against the obligation alone, with no performance present: the **underdetermination check**. A library of mutant performances (return empty; return the input unchanged; drop one element; duplicate one; append a fabricated one; swap two adjacent elements; satisfy each clause independently) is run against the obligation. Any mutant that passes is reported with the clauses it slipped through. This is adversarial review pointed at the spec, and it is what makes the spec layer workable for an author who is not a senior engineer.
+
+**Underdetermination, defined (2026-10-21).** An input is underdetermined when two outputs that differ under the obligation's order claims both satisfy every clause. The search draws candidate outputs from the inputs first (every sub-multiset of a matching input list), then from the output type, because a filter's or a selection's answers come from its input and sampling never lands on them. A mutant has slipped when no clause is false on any input it applies to and every output it produced passed the boundary; the type can catch a mutant too. A slipping mutant or an underdetermined input is a finding. On generated inputs, a false claim, an output that fails the boundary, a raise, a timeout, and a second run that differs are all findings rather than failures, because the obligation itself can force a boundary failure (a diff whose lists repeat a key); examples and the claims over them stay binding, and `--strict` makes every finding binding. The report says which party a finding belongs to: a performance that is wrong, or an obligation that no output could satisfy on that input, with the refinement that closes it when one exists.
 
 ## Layers and vocabulary
 
@@ -95,6 +97,8 @@ def top_customers : List Order -> List Summary
     in:  [{customer: "a", amount: 60}, {customer: "a", amount: 50}, {customer: "b", amount: 10}]
     out: [{customer: "a", total: 110}]
 ```
+
+**The property fragment as of 2026-10-21.** Consolidated from eleven obligations and fourteen claim shapes; the full rule list is in the catch-up note and the decision notes, and this is the shape of it. A quantifier head has five slots, each at most once: `all|any|none|exactly_one <binder> [leftover] in <list> [where <cond>]: <body> [else <body>]`; a body runs to the end of the line or is the indented block under it, so a quantifier is always the last operand on a line; binders never leave their quantifier; a pattern in the binder slot (`Ok(p)`, `Err(errs)`, `_`) selects a side of a sum type. Binders range over *occurrences*: `==`, `in`, and the list relations compare values, `before` compares positions, and `leftover` assigns each output element the earliest matching occurrence, so a dedupe obligation is true on duplicates. One list relation underneath the family: `drawn_from` (sub-multiset); `same_order_as` is it plus order (the subsequence relation), `same_elements_as` is it both ways, `unordered` is the explicit no-claim, `sorted_by` takes a lexicographic key, `unique` is whole-list. Connectives `and or not -> <->` with conventional precedence; built-ins `sum len min max count flatten`; broadcast (`out.id` is a list of ids). A precondition that fits on one list or field is a refinement in the brackets (`Item[unique sku]`, `Score[0..3]`), checked at the boundary; one that relates two things is an error case in a `Result`. The frame rule: when a property pairs an output record with an input record, same-named fields are equal unless stated. `accept <boolean over inputs>` marks a deliberate non-decision, in the hash, reported ACCEPTED, a finding if it never fires. Prose above a property is optional and rendered; `#` is a sentence a human chose to pin, `//` is a comment.
 
 **What the model writes.** A performance in the declared target for each open obligation. The checker runs it against every clause and emits evidence. The human reads the evidence, and opens the performance only when the evidence reports a residual.
 
@@ -165,9 +169,11 @@ The model is the author of performances. Under v2 it writes the declared target 
 
 A change is an obligation delta that ends as two hashes in the graph (obligation, performance) with evidence pinned to both. The human touches it twice: at the obligation and at the residuals.
 
-*[diagram, in the live doc: lifecycle of a change · 7 steps, 2 decisions, 2 loops]*
+&#91;embedded content: lifecycle of a change · 7 steps, 2 decisions, 2 loops\]
 
 The inner loop (regenerate on a counterexample) is cheap and runs without a human; the outer loop (amend the obligation) is where human tokens go. The mutant library runs at the first step, before any performance exists, so a weak obligation is caught before the model spends a token on it.
+
+**Acceptance gate (2026-10-21).** An obligation enters the graph only after `check`'s generated tier and `mutants` have run on it against at least one passing performance and the author has answered every finding: a fix, a refinement, or an `accept` line. The mutant library is the first step of a change in the flow above; this makes it a gate on acceptance rather than a step. Reading is not a check; running is.
 
 **Coverage and finality are separate.** An obligation may be partial in what it covers; it is never partial in what it states. What the obligation says is fixed before generation starts. The model's job of surfacing gaps ("you did not say what happens on an empty list") happens before the first stroke, never during; amendments come back as a new spec delta.
 
@@ -250,6 +256,8 @@ v0 is the obligation language, the checker, and the graph, over pure data transf
 | Projection | Evidence table by kind, residuals, mutant report, behavioral diff. Source view on demand |
 | Sandbox | Empty import set, no filesystem, network, or clock; seeded randomness; fixed hash seed; time and memory caps; determinism check |
 
+**Boundary contract, amended 2026-10-21.** `Time` crosses the Python boundary as a comparable value (a UTC `datetime`), not as RFC 3339 text; the closed-loop run showed a performance writing its own 45-line parser when it was text. `Id` is an opaque identity, `str` in Python, equality only; `UUID` stays a format refinement for when the format matters. Inputs are validated at the boundary too, refinements included, so a generated input never fails it; an output that fails it on a generated input is a finding, not a failure. Accepted non-decisions are `accept` lines in the obligation; there is no separate list to maintain.
+
 **Deliberately out of v0**
 
 - Effects and capabilities beyond the all-or-nothing boundary. The evidence-kind slot exists; nothing populates it until v1.
@@ -270,6 +278,8 @@ Three experiments gate the project, two first-month checks gate the Python targe
 | 1 | **Context audit.** Instrument real agent sessions on an existing codebase. Break context down: first reads, re-reads, tool output, history, docs | Tokens per accepted change; re-read ratio; share of context that is verifiable by tooling | Re-reads and tool output are not the dominant cost |
 | 2 | **Obligation substitution.** For a subset of functions, write obligations and serve those to callers instead of source. Same tasks, same model | Delta in tokens per accepted change; delta in defect rate | No token reduction, or defects rise |
 | 4 | **Residual review.** Give reviewers only the projection (evidence, residuals, mutant report, behavioral diff) for v0 changes. Compare to source review | Defects caught; time per review; how often reviewers open source anyway | Reviewers open source on most changes, or miss defects source review catches |
+
+**Status, 2026-10-21.** The first gate under v2 is the closed-loop run, which replaced v1's experiment 3: a model reads the obligations and writes Python; `check` runs it. Its mechanical half ran on 21 October: claude-opus-5-5 wrote a passing performance for all eleven obligations zero-shot, one round, 71 seconds, about 18k tokens. Its reviewer half, whether the evidence table replaces reading for a person, was first judged "not yet, by design" on reports that carried only example results, and 1 of 3 on a second read of reports carrying run counts, slack, imports, determinism and shape, with both no's correctly attributable to obligation holes rather than the performance. Slice 2's own kill criterion (stop extending the detector if it finds nothing beyond the predicted case; rewrite the corpus if most obligations report many kangaroos) landed on the first side: five obligations had holes, all closed by one rule each, and the corpus now reports zero findings and passes strict, with the caveat that the library is blind on transform-shaped obligations until the skeleton family and its successors exist. Experiment 1 ran on 21 October over 230 sessions and 67.7k turns: not killed. Reading is about 29% of an agent's context and the largest category, most of it through the shell; re-reads are 80% of all file reads and between 10% and 23% of context; test and build output is 1.4%; cache reads are 40 times new input. The token thesis stands with its mechanism corrected: re-reading happens through `cat` and `grep`, not a read tool. Experiment 2 stays as written, aimed at the reading share, one project for one week. Experiment 4 waits on the projection.
 
 **First-month checks on the Python target**
 
@@ -295,7 +305,9 @@ The spec layer is the risk that kills the project; the rest delay it.
 
 | Risk | Why it matters | Mitigation |
 | --- | --- | --- |
-| Humans won't write specs | 4GLs, model-driven development, and Dafny all stalled here. The first day of writing obligations by hand confirmed the cost is real | The model drafts the obligation and the human reviews; examples are hand-written and cheap; the underdetermination check tells the author when a spec is too weak, so the adversarial skill is not required of them; v0 picks a domain where properties are natural to state |
+| Specs are unsafe without the check (renamed 2026-10-21 from "humans won't write specs") | 4GLs, model-driven development, and Dafny stalled on humans writing specs. The first corpus showed something narrower: humans can write them (eleven obligations in two days), but a correct sentence sat above an incorrect property for a day and two readers missed it. The detector found it on its first run. 1 of 11 obligations by the language's author carried a silent hole. The risk is workflow, not skill, and it is cheaper. | An obligation is accepted only after check's generated tier and mutants have run on it and every finding is answered: a fix, a refinement on a type, or an accept line. Reading is not a check; running is. The model may draft the obligation and the human reviews; examples stay hand-written and cheap; v0 keeps a domain where properties are natural to state. |
+| The mutant library is blind on transforms (added 2026-10-21) | The slice 2 library builds wrong performances from the input's shape, so on an obligation whose output has a shape no input has (group, flatten, join, diff) only the empty mutant applies and a clean result is blindness, not cleanliness. Problems 9 to 22 are mostly that shape. | Report an applicability line beside every rate. The skeleton family built from the frame pairs is the first operator for transforms; the next mutates a computed field plausibly. Target on problems 9 to 22: at most 3 of 13 with a slipping mutant or a missing refinement on first run, 0 after one fix pass; 8 or more of 13 reporting only empty applicable means the search grows before the graph. |
+| Part of the context cost is harness waste (added 2026-10-21) | Experiment 1 found that most re-reading goes through the shell. A context-aware harness that returned "unchanged since turn 12" instead of the file would shrink that bucket without any language, so the economics argument has a competing explanation. | Say so. The obligation wins only on reading-to-understand, not reading-to-re-find, and the audit cannot separate the two. Experiment 2 is designed to: obligations served instead of source on one project for a week, measured per change cycle. |
 | The model drafts both halves | A model-drafted obligation is shaped by what the model finds easy to satisfy, and a plausible drafted spec can lull a reviewer worse than code does | The mutant library is the first defense; the second is that examples are always human-written, since they are the one layer the model cannot bend toward itself |
 | Goodhart on the checker | Every unstated property is a degree of freedom the model will use in whatever way is easiest | Make it visible rather than pretend it is gone: the evidence table shows which clauses constrain, the mutant report shows the slack |
 | Sandbox leaks | Enforced purity is only as good as the sandbox, and Python sandboxes have histories | Choose the runner for isolation first; adversarial test in the first month; treat a confirmed leak as the core target's trigger arriving early |
@@ -306,6 +318,7 @@ The spec layer is the risk that kills the project; the rest delay it.
 | Checker cost | Property testing has real latency; a slow oracle breaks the loop | Tiered: boundary types instantly, examples in seconds, properties and mutants asynchronously; the model proceeds on the fast tier |
 | Unpatchable density | Whole-definition generation means a small obligation change forces a full regeneration | Keep definitions small and connect them through the graph |
 | Reads as a retreat | "We decided not to build the language" can sound like the thesis failed | The thesis was never the syntax; say so, and keep the trigger list public |
+| Scope creep toward a code-context product | A spec language and checker over existing code is nearer "tooling over existing languages" than v1 was | Reread the prior engagement's clause with this framing before any code; the category (nearer Hypothesis or Dafny than documentation) is defensible but must be checked |
 | Reading code stays good enough | The stable end state may be humans who read code fluently without writing it, because code is the best bridge between intent and deterministic behavior we have. If that holds, the projection never earns their trust and the evidence table is a curiosity beside the source view | This is what experiment 4 tests, and it is a different failure from "humans won't write specs." Keep source one query away so the design does not depend on winning the argument; measure source-open rate from the first session; and make the projection show what reading cannot (the mutant report, the behavioral diff), so it is additive to reading rather than a replacement someone has to accept |
 
 **Open questions**
@@ -315,6 +328,7 @@ The spec layer is the risk that kills the project; the rest delay it.
 - [ ] Does the spec language need its own surface syntax beyond the `.sur` grammar, or is one grammar enough for human and model readers?
 - [ ] Who merges: can the checker auto-merge when the residual set and the mutant report are both empty, or does a human always approve?
 - [ ] Objectives. Every obligation so far is a constraint. Some real specifications are objectives (the valid output that minimizes X). An `optimize` clause is outside v0, and property testing cannot confirm optimality, so admitting it later means a new evidence kind or an honest "not checkable" status.
+- [ ] Contract scope for the author: how far does a prior engagement restrict building this? Read the clause before any code is written.
 - [ ] Trailing commas, casing of primitives, the two meanings of `in`: the small grammar decisions the corpus made by accident, to be made on purpose in the consolidation pass.
 
 ## Prior art
@@ -355,3 +369,14 @@ Sources: [Pel (arXiv)](https://arxiv.org/pdf/2505.13453) · [SPELL (Zenodo)](htt
 | Risks | 6 | 12 |
 
 v1 is preserved as a separate document and is not edited further.
+
+**Changelog within v2**
+
+| Date | Change |
+| --- | --- |
+| 2026-10-21 | Validation plan: status paragraph with the closed-loop run (11 of 11 zero-shot), both reviewer reads, slice 2's kill-criterion outcome, and experiment 1's result; the token thesis restated to match the mechanism (re-reading through the shell). |
+| 2026-10-21 | Architecture, checker queries: underdetermination defined; boundary failures on generated inputs are findings; `--strict`; the report names which party a finding belongs to. |
+| 2026-10-21 | Data flow: the acceptance gate (check and mutants before an obligation enters the graph). |
+| 2026-10-21 | Layers: the property fragment as consolidated from the corpus; occurrence semantics for binders; the list-relation family; refinements in brackets; preconditions relating two things are error cases; `accept`. |
+| 2026-10-21 | v0 scope: boundary contract amended (`Time` as a comparable value, `Id`, input validation, `accept` as the accepted list). |
+| 2026-10-21 | Risks: "humans won't write specs" renamed "specs are unsafe without the check" with the 1-of-11 number; two rows added, the library's blindness on transforms and harness waste as a competing explanation for the context cost. |

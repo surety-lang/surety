@@ -187,10 +187,18 @@ impl Domain {
         }
     }
 
-    /// Every literal in a property or abbreviation body, untyped.
+    /// Every literal in a property or abbreviation body, untyped. An
+    /// integer literal brings its two neighbours, so a threshold the
+    /// obligation names is crossed from both sides even when no example
+    /// crosses it: a draft has no examples, and `amount <= 100` with inputs
+    /// drawn from 0, 1, 2 and 100 never sees 101.
     pub fn add_expr(&mut self, e: &Expr) {
         e.walk(&mut |sub| match sub {
-            Expr::Int(i) => push_unique(&mut self.ints, *i),
+            Expr::Int(i) => {
+                push_unique(&mut self.ints, *i);
+                push_unique(&mut self.ints, i.saturating_sub(1));
+                push_unique(&mut self.ints, i.saturating_add(1));
+            }
             Expr::Float(f) => push_float(&mut self.floats, *f),
             Expr::Text(s) => self.push_text(s),
             _ => {}

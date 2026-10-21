@@ -139,11 +139,14 @@ fn small_buckets_are_enumerated_exhaustively() {
         "the empty list is an example and is not repeated"
     );
     let b1 = generated.buckets.iter().find(|b| b.lengths == [1]).unwrap();
-    assert!(b1.exhaustive, "32 one-element lists fit the bucket");
-    assert_eq!(b1.taken, 32);
+    // P2's integers: the base 0, 1, 2; its literal 100 with its neighbours
+    // 99 and 101; the example amounts 4, 42143, 52 and 99 (99 twice, once);
+    // nine in all, times four texts.
+    assert!(b1.exhaustive, "36 one-element lists fit the bucket");
+    assert_eq!(b1.taken, 36);
     let b2 = generated.buckets.iter().find(|b| b.lengths == [2]).unwrap();
     assert!(!b2.exhaustive);
-    assert_eq!(b2.space, 32 * 32);
+    assert_eq!(b2.space, 36 * 36);
     assert!(
         b2.taken > 100,
         "the quota unused by small buckets carries forward: {}",

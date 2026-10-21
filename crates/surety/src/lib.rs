@@ -359,6 +359,12 @@ fn claim_line(
     findings: usize,
     cause: Option<usize>,
 ) {
+    // No example to run a claim on is not a finding: with generated runs
+    // the claim is evidenced like any other, and "skip" means no runs at all.
+    let verdict = match verdict {
+        PropVerdict::Skipped if runs > 0 => &PropVerdict::Pass,
+        v => v,
+    };
     match verdict {
         PropVerdict::Pass if findings == 0 => {
             s.push_str(&format!("  pass  {label}  ({runs} runs, 0 findings)\n"))
@@ -650,11 +656,15 @@ pub fn render_evidence_with(r: &Report, full: bool) -> String {
     let with_findings = r
         .properties
         .iter()
-        .filter(|p| p.findings() > 0 || p.verdict != PropVerdict::Pass)
+        .filter(|p| {
+            p.findings() > 0 || !matches!(p.verdict, PropVerdict::Pass | PropVerdict::Skipped)
+        })
         .count()
         + r.frame
             .iter()
-            .filter(|f| f.findings() > 0 || f.verdict != PropVerdict::Pass)
+            .filter(|f| {
+                f.findings() > 0 || !matches!(f.verdict, PropVerdict::Pass | PropVerdict::Skipped)
+            })
             .count();
     let calls = r.example_inputs + r.generated_inputs;
     let timeouts = r.generated_timeouts.len();
@@ -976,11 +986,11 @@ pub fn json_lines(r: &Report) -> Vec<Json> {
     let claims_pass = r
         .properties
         .iter()
-        .filter(|p| p.verdict == PropVerdict::Pass)
+        .filter(|p| matches!(p.verdict, PropVerdict::Pass | PropVerdict::Skipped))
         .count()
         + r.frame
             .iter()
-            .filter(|f| f.verdict == PropVerdict::Pass)
+            .filter(|f| matches!(f.verdict, PropVerdict::Pass | PropVerdict::Skipped))
             .count();
     let (obligation, performance) = party_summaries(r);
     let mut ev = json!({

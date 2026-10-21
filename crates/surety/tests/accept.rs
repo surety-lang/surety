@@ -89,7 +89,9 @@ fn a_dead_accept_is_a_finding() {
     let r = common::check_copy(
         "p2",
         "\tout same_order_as orders\n",
-        "\tout same_order_as orders\n\taccept any o in orders: o.amount < 0\n",
+        // A contradiction: dead under any domain, since the domain brings
+        // every integer literal's neighbours and `< 0` alone would fire on -1.
+        "\tout same_order_as orders\n\taccept any o in orders: o.amount < 0 and o.amount > 0\n",
         &[],
     );
     let text = surety::render(&r);

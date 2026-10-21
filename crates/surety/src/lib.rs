@@ -160,7 +160,7 @@ fn render_claim(s: &mut String, example_runs: usize, c: &ClaimView<'_>) {
     let label = &c.label;
     match c.verdict {
         PropVerdict::Pass if c.cex.is_empty() => {
-            s.push_str(&format!("  pass  {label}  ({} runs)\n", c.runs))
+            s.push_str(&format!("  pass  {label}  ({} runs, 0 findings)\n", c.runs))
         }
         PropVerdict::Pass => {
             let first = &c.cex[0];
@@ -300,7 +300,16 @@ pub fn render_evidence(r: &Report) -> String {
             ));
         }
     }
-    s.push_str("    underdetermination: not run (surety mutants)\n");
+    match &r.mutants {
+        Some(m) => s.push_str(&format!(
+            "    underdetermination: {} of {} mutants apply; slipped {}; inputs with two passing outputs {}\n",
+            m.applicable(),
+            m.mutants.len(),
+            m.slipped().len(),
+            m.search.len()
+        )),
+        None => s.push_str("    underdetermination: not run (surety mutants)\n"),
+    }
     s.push_str(&format!(
         "    obligation:       {}\n    performance:      {}\n",
         r.obligation_hash,
@@ -401,6 +410,14 @@ pub fn render(report: &Report) -> String {
             sur_inputs(&f.inputs),
             f.message
         ));
+    }
+    if let Some(m) = &report.mutants {
+        for run in m.slipped() {
+            s.push_str(&format!("  SLIPPED  {}\n", slipped_line(run)));
+        }
+        for u in &m.search {
+            s.push_str(&format!("  UNDERDETERMINED  {}\n", underdetermined_line(u)));
+        }
     }
     s.push_str(&render_evidence(report));
     s
@@ -571,7 +588,11 @@ pub fn json_lines(r: &Report) -> Vec<Json> {
         "determinism": { "matched": r.determinism.matched, "total": r.determinism.total },
         "totality": { "answered": (r.example_inputs + r.generated_inputs).saturating_sub(r.generated_timeouts.len()), "total": r.example_inputs + r.generated_inputs, "raised": r.generated_raised.len(), "timeout_seconds": r.timeout.as_secs_f64() },
         "purity": "unverified",
-        "underdetermination": "not run",
+        "findings": r.findings(),
+        "underdetermination": match &r.mutants {
+            Some(m) => json!({ "applicable": m.applicable(), "total": m.mutants.len(), "slipped": m.slipped().len(), "caught": m.caught(), "underdetermined_inputs": m.search.len() }),
+            None => json!("not run"),
+        },
         "generated": r.buckets.iter().map(|b| json!({ "lengths": b.lengths, "taken": b.taken, "space": b.space.to_string(), "exhaustive": b.exhaustive })).collect::<Vec<_>>(),
     });
     if let Some(i) = &r.inspection {
@@ -581,6 +602,13 @@ pub fn json_lines(r: &Report) -> Vec<Json> {
         ev["shape"] = json!({ "lines": i.lines, "functions": i.functions });
     } else if let Some(e) = &r.inspection_error {
         ev["inspection_error"] = json!(last_line(e));
+    }
+    if let Some(m) = &r.mutants {
+        out.extend(
+            mutants_json_lines(m)
+                .into_iter()
+                .filter(|j| j["kind"] == "mutant_slipped" || j["kind"] == "underdetermined"),
+        );
     }
     out.push(ev);
     out
@@ -673,6 +701,38 @@ fn not_applicable_reason(m: surety_check::Mutant) -> &'static str {
     }
 }
 
+/// One line for a slipping mutant: what it does, what it slipped through,
+/// whether an example caught it, and the input that shows it.
+fn slipped_line(m: &MutantRun) -> String {
+    let shown = m
+        .shown
+        .as_ref()
+        .map(|sh| format!("; in: {}", short(&sur_inputs(&sh.inputs), 80)))
+        .unwrap_or_default();
+    format!(
+        "{}: {}; through {} clause{} ({}); {}{shown}",
+        m.mutant.name(),
+        m.mutant.describe(),
+        m.slipped.len(),
+        if m.slipped.len() == 1 { "" } else { "s" },
+        clause_lines(&m.slipped),
+        example_catch_text(m)
+    )
+}
+
+/// One line for an input on which two outputs pass every clause.
+fn underdetermined_line(u: &surety_check::Underdetermined) -> String {
+    format!(
+        "in: {}: two outputs pass every clause{}",
+        short(&sur_inputs(&u.inputs), 80),
+        if u.a_is_expected {
+            " (one is the example's)"
+        } else {
+            ""
+        }
+    )
+}
+
 /// The default view: one line per obligation, one per slipping mutant, one
 /// per underdetermined input. `--full` adds the behaviour-first detail.
 pub fn render_mutants(r: &MutantReport, full: bool) -> String {
@@ -690,31 +750,10 @@ pub fn render_mutants(r: &MutantReport, full: bool) -> String {
         r.search.len()
     ));
     for m in &slipped {
-        let shown = m
-            .shown
-            .as_ref()
-            .map(|sh| format!("; in: {}", short(&sur_inputs(&sh.inputs), 80)))
-            .unwrap_or_default();
-        s.push_str(&format!(
-            "  slipped  {}: {}; through {} clause{} ({}); {}{shown}\n",
-            m.mutant.name(),
-            m.mutant.describe(),
-            m.slipped.len(),
-            if m.slipped.len() == 1 { "" } else { "s" },
-            clause_lines(&m.slipped),
-            example_catch_text(m)
-        ));
+        s.push_str(&format!("  slipped  {}\n", slipped_line(m)));
     }
     for u in &r.search {
-        s.push_str(&format!(
-            "  underdetermined  in: {}: two outputs pass every clause{}\n",
-            short(&sur_inputs(&u.inputs), 80),
-            if u.a_is_expected {
-                " (one is the example's)"
-            } else {
-                ""
-            }
-        ));
+        s.push_str(&format!("  underdetermined  {}\n", underdetermined_line(u)));
     }
     if !full {
         return s;

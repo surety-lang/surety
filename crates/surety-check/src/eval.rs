@@ -8,6 +8,7 @@
 //! first occurrence when no `leftover` is in scope.
 
 use std::path::PathBuf;
+use std::rc::Rc;
 
 use surety_syntax::parser::BUILTINS;
 use surety_syntax::{BinOp, Dir, Expr, Function, QKind, Quantifier, RelOp, Side, Type};
@@ -19,7 +20,9 @@ use crate::value::{Value, from_json, from_json_at, from_json_untyped, to_json};
 /// position of this occurrence in it.
 #[derive(Debug, Clone)]
 pub struct Occurrence {
-    pub list: Vec<Value>,
+    /// Shared by every binding over the same evaluation of the list, so a
+    /// binding costs nothing to clone.
+    pub list: Rc<[Value]>,
     pub position: usize,
 }
 
@@ -34,10 +37,10 @@ pub struct Binding {
 /// (`out`), the occurrence of `L` it was assigned, and the positions removed.
 #[derive(Debug, Clone)]
 pub struct Leftover {
-    pub list: Vec<Value>,
-    pub reference: Vec<Value>,
-    pub assigned: Vec<Option<usize>>,
-    pub removed: Vec<usize>,
+    pub list: Rc<[Value]>,
+    pub reference: Rc<[Value]>,
+    pub assigned: Rc<[Option<usize>]>,
+    pub removed: Rc<[usize]>,
 }
 
 /// What names mean while a property is evaluated for one example run.
@@ -114,10 +117,10 @@ pub fn leftover_positions(
 /// earliest occurrence of its value that `leftover` removed, or its first
 /// occurrence when no `leftover` over that list is in scope.
 fn position_of(operand: &Expr, value: &Value, list: &[Value], env: &Env<'_>) -> Option<usize> {
-    let leftover = env.leftovers.iter().rev().find(|lo| lo.list == list);
+    let leftover = env.leftovers.iter().rev().find(|lo| &*lo.list == list);
     if let Expr::Name(n, _) = operand {
         if let Some(occ) = env.binding(n).and_then(|b| b.occurrence.as_ref()) {
-            if occ.list == list {
+            if &*occ.list == list {
                 return Some(occ.position);
             }
             if let Some(lo) = leftover {
@@ -551,16 +554,17 @@ impl<'g> Checker<'g> {
             other => vec![other],
         };
         let mut positions: Vec<usize> = (0..elements.len()).collect();
+        let shared: Rc<[Value]> = Rc::from(elements.as_slice());
         let mut scope = env.clone();
         if q.leftover {
             let taken = as_list(env.out, "`leftover` (out)")?;
             let (assigned, removed, remaining) = leftover_positions(&elements, taken);
             positions = remaining;
             scope.leftovers.push(Leftover {
-                list: elements.clone(),
-                reference: taken.to_vec(),
-                assigned,
-                removed,
+                list: shared.clone(),
+                reference: Rc::from(taken),
+                assigned: Rc::from(assigned),
+                removed: Rc::from(removed),
             });
         }
         let total = positions.len();
@@ -573,13 +577,19 @@ impl<'g> Checker<'g> {
                 (None, el) => Some((p, el)),
             })
             .collect();
-        fn bind<'a>(q: &Quantifier, env: &Env<'a>, list: &[Value], p: usize, v: &Value) -> Env<'a> {
+        fn bind<'a>(
+            q: &Quantifier,
+            env: &Env<'a>,
+            list: &Rc<[Value]>,
+            p: usize,
+            v: &Value,
+        ) -> Env<'a> {
             match &q.binder.name {
                 Some(n) => env.bind(
                     n,
                     v.clone(),
                     Some(Occurrence {
-                        list: list.to_vec(),
+                        list: list.clone(),
                         position: p,
                     }),
                 ),
@@ -600,7 +610,7 @@ impl<'g> Checker<'g> {
         for (p, v) in matched {
             let keep = match &q.where_ {
                 Some(w) => {
-                    let inner = bind(q, &scope, &elements, p, &v);
+                    let inner = bind(q, &scope, &shared, p, &v);
                     self.eval_bool(w, &inner)?
                 }
                 None => true,
@@ -616,7 +626,7 @@ impl<'g> Checker<'g> {
         }
         let mut results = Vec::with_capacity(domain.len());
         for (p, v) in &domain {
-            let inner = bind(q, &scope, &elements, *p, v);
+            let inner = bind(q, &scope, &shared, *p, v);
             results.push(self.eval_bool(body, &inner)?);
         }
         let hits = results.iter().filter(|r| **r).count();

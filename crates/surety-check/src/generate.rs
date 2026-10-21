@@ -26,6 +26,9 @@ pub struct Budget {
     pub search_inputs: usize,
     /// Output candidates the search tries per input.
     pub search_candidates: usize,
+    /// Whether `check` runs the underdetermination check too and carries
+    /// its verdict in the report.
+    pub mutants: bool,
 }
 
 impl Default for Budget {
@@ -33,7 +36,8 @@ impl Default for Budget {
         Budget {
             generated: 500,
             search_inputs: 8,
-            search_candidates: 2000,
+            search_candidates: 600,
+            mutants: true,
         }
     }
 }
@@ -45,6 +49,7 @@ impl Budget {
             generated: 0,
             search_inputs: 0,
             search_candidates: 0,
+            mutants: false,
         }
     }
 }

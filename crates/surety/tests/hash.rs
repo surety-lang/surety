@@ -71,8 +71,8 @@ fn the_obligation_hash_in_a_report_is_the_canonical_one() {
             Checker::new(&graph, idx, &perf, &common::corpus_dir(), surety::TIMEOUT).unwrap();
         c.budget = Budget {
             generated: 20,
-            search_inputs: 0,
-            search_candidates: 0,
+            mutants: false,
+            ..Budget::default()
         };
         let report = c.check();
         let canonical = canonical_file(&graph, idx).unwrap().hash;

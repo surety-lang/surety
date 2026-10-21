@@ -395,3 +395,80 @@ fn a_zero_budget_is_slice_one() {
         assert_eq!(p.findings(), 0);
     }
 }
+
+/// Slice 3, report-reading fix 1: every pass line says how many runs and
+/// that nothing was found, so "0 findings" is stated rather than implied.
+#[test]
+fn pass_lines_carry_the_findings_count() {
+    let r = check("p2", Budget::default());
+    let text = surety::render(&r);
+    for p in &r.properties {
+        let line = format!(
+            "property (line {}): {}  ({} runs, 0 findings)",
+            p.line, p.text, p.runs
+        );
+        assert!(text.contains(&line), "{line:?} not in:\n{text}");
+    }
+    assert!(
+        !text.contains(" runs)\n"),
+        "no pass line without a findings count:\n{text}"
+    );
+    let r = check("p7", Budget::default());
+    let text = surety::render(&r);
+    for f in &r.frame {
+        assert!(
+            text.contains(&format!("({} runs, 0 findings)", f.runs)),
+            "{text}"
+        );
+    }
+}
+
+/// Slice 3, report-reading fix 2: `check` runs the underdetermination check
+/// and carries its verdict, so one report says what the properties leave
+/// open. A slipping mutant is a finding there, binding under `--strict`.
+#[test]
+fn check_carries_the_mutant_verdict() {
+    let r = check("p2", Budget::default());
+    let m = r.mutants.as_ref().expect("the budget runs the mutants");
+    assert_eq!(m.slipped().len(), 0);
+    let text = surety::render(&r);
+    assert!(
+        text.contains("    underdetermination: 6 of 7 mutants apply; slipped 0; inputs with two passing outputs 0"),
+        "{text}"
+    );
+    assert!(r.strict_passed(), "{text}");
+
+    let r = check_copy(
+        "p2",
+        "\tall o leftover in orders: o.amount > 100\n",
+        "",
+        &[],
+    );
+    let text = surety::render(&r);
+    assert!(text.contains("  SLIPPED  empty:"), "{text}");
+    assert!(text.contains("caught by example 1 only"), "{text}");
+    assert!(text.contains("; slipped 1;"), "{text}");
+    assert_eq!(
+        r.underdetermination_findings(),
+        1 + r.mutants.as_ref().unwrap().search.len()
+    );
+    assert!(
+        r.passed() && !r.strict_passed(),
+        "a slipping mutant is a finding under --strict"
+    );
+    let json = surety::render_json(&r);
+    let slipped_at = json
+        .find("\"kind\":\"mutant_slipped\"")
+        .expect("a mutant_slipped object");
+    let evidence_at = json.find("\"kind\":\"evidence\"").unwrap();
+    assert!(slipped_at < evidence_at, "findings come before the record");
+    assert!(json.contains("\"underdetermination\":{"), "{json}");
+    assert!(
+        !json.contains("\"kind\":\"mutant_caught\""),
+        "caught mutants belong to surety mutants, not check"
+    );
+
+    let r = check("p2", Budget::none());
+    assert!(r.mutants.is_none());
+    assert!(surety::render(&r).contains("underdetermination: not run"));
+}

@@ -17,6 +17,7 @@ use surety_syntax::{BinOp, Decl, Example, Expr, Function, Graph, Refinement, Typ
 use crate::eval::Env;
 use crate::examples::{Step, compare, fill_rest, unordered_paths};
 use crate::generate::{Bucket, Budget, Domain, Generated, generate};
+use crate::mutants::MutantReport;
 use crate::value::{BoundaryError, Value, from_json, from_literal, to_json};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -158,6 +159,9 @@ pub struct Report {
     pub timeout: Duration,
     pub inspection: Option<Inspection>,
     pub inspection_error: Option<String>,
+    /// The underdetermination check, when the budget ran it: the mutant
+    /// library against the obligation alone, and the search.
+    pub mutants: Option<MutantReport>,
 }
 
 impl Report {
@@ -181,6 +185,16 @@ impl Report {
             + self.generated_raised.len()
             + self.generated_timeouts.len()
             + self.determinism.failures.len()
+            + self.underdetermination_findings()
+    }
+
+    /// Mutants that slipped through the properties, and inputs on which
+    /// two outputs pass every clause.
+    pub fn underdetermination_findings(&self) -> usize {
+        self.mutants
+            .as_ref()
+            .map(|m| m.slipped().len() + m.search.len())
+            .unwrap_or(0)
     }
 
     pub fn claim_findings(&self) -> usize {
@@ -600,6 +614,11 @@ impl<'g> Checker<'g> {
         } else {
             None
         };
+        let mutants = if self.budget.mutants {
+            Some(self.mutants())
+        } else {
+            None
+        };
         Report {
             obligation: self.fun.name.clone(),
             obligation_hash,
@@ -620,6 +639,7 @@ impl<'g> Checker<'g> {
             timeout: self.timeout,
             inspection,
             inspection_error,
+            mutants,
         }
     }
 

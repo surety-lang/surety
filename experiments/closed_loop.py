@@ -291,6 +291,7 @@ def main() -> int:
                 summary_bits = (f"  runs={ev.get('properties', {}).get('runs', '?')}"
                                 f" findings={ev.get('properties', {}).get('findings', '?')}"
                                 f" det={ev.get('determinism', {}).get('matched', '?')}/{ev.get('determinism', {}).get('total', '?')}"
+                                f" slipped={ev['underdetermination'].get('slipped', '?') if isinstance(ev.get('underdetermination'), dict) else '-'}"
                                 f" imports={','.join(ev.get('imports', [])) or 'none'}"
                                 f" lines={ev.get('shape', {}).get('lines', '?')}")
             print(f"{name} round {attempt}: {verdict}  pass={counts['pass']} fail={counts['fail']} error={counts['error']} boundary={counts['boundary']}{summary_bits}  {seconds}s  in={usage['input']} out={usage['output']}")

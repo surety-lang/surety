@@ -31,6 +31,7 @@ fn small() -> Budget {
         generated: 60,
         search_inputs: 4,
         search_candidates: 300,
+        mutants: true,
     }
 }
 

@@ -28,7 +28,7 @@ Flags:
   --strict        check: findings on generated inputs fail the check too
   --full          mutants: the behaviour-first detail, not just the one-line view
   --budget <n>    generated inputs per obligation (default 500; 0 is slice 1 behaviour)
-  --candidates <n>  mutants: output candidates the search tries per input (default 2000)";
+  --candidates <n>  output candidates the search tries per input (default 600)";
 
 #[derive(Default)]
 struct Flags {

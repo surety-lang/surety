@@ -1,0 +1,5 @@
+def combine(c):
+    first = c["first_name"]
+    last = c["last_name"]
+    parts = [p for p in (first, last) if p != ""]
+    return {"name": " ".join(parts), "email": c["email"]}

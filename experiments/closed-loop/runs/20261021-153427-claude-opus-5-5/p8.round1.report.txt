@@ -1,0 +1,33 @@
+validate_signup  ACCEPTED  examples 12/12; 7 clauses clean over 512 runs; 3 of 13 mutants apply, none slipped
+  pass  example 1 (line 44)
+  pass  example 2 (line 47)
+  pass  example 3 (line 50)
+  pass  example 4 (line 53)
+  pass  example 5 (line 56)
+  pass  example 6 (line 59)
+  pass  example 7 (line 62, "age lower boundary, 12 fails")
+  pass  example 8 (line 64, "age lower boundary, 13 passes")
+  pass  example 9 (line 68, "age upper boundary, 120 passes")
+  pass  example 10 (line 72, "age upper boundary, 121 fails")
+  pass  example 11 (line 76, "password boundary, 11 characters fails")
+  pass  example 12 (line 80, "password boundary, 12 characters passes")
+  pass  property (line 29): checks <-> exactly_one Ok(_) in out  (512 runs, 0 findings)
+  pass  property (line 32): all Ok(p_o) in out: p_o == p  (512 runs, 0 findings)
+  pass  property (line 34): all Err(errs) in out: email_error in errs <-> not well_formed_email(p.email)  (512 runs, 0 findings)
+  pass  property (line 36): all Err(errs) in out: age_error in errs <-> not valid_age(p.age)  (512 runs, 0 findings)
+  pass  property (line 38): all Err(errs) in out: password_error in errs <-> not valid_pass(p.password)  (512 runs, 0 findings)
+  pass  property (line 40): all Err(errs) in out: errs drawn_from valid_errors  (512 runs, 0 findings)
+  pass  property (line 42): all Err(errs) in out: errs unordered  (512 runs, 0 findings)
+  graph reference: well_formed_email -> p8.py
+  evidence
+    types:            validated at the boundary; 12 example inputs, 500 generated inputs, 512 outputs
+    examples:         12/12
+    properties:       7 of 7 clean over 512 runs
+    determinism:      512/512, each input run twice and compared under the order claims
+    totality:         512/512 answered within 10s
+    purity:           unverified (no sandbox in this slice); imports: none
+    shape:            55 lines, 7 functions; dependencies: none
+    underdetermination: 3 of 13 mutants apply; 0 slipped; 0 underdetermined inputs
+    obligation:       b7f1698c634e7b4246073f32da76bb1bd36573ad54d80b151752038891360210
+    performance:      6e60279a733194bc2bc366fed6ee74b96761bd3ae3a52f6819a27f6f4d81230c
+    generated:        500 inputs over the record's fields, sampled

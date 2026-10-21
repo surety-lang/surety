@@ -1,0 +1,19 @@
+get_small_orders  ACCEPTED  examples 2/2; 4 clauses clean over 502 runs; 6 of 13 mutants apply, none slipped
+  pass  example 1 (line 9)
+  pass  example 2 (line 12)
+  pass  property (line 4): all o in out: o in orders  (502 runs, 0 findings)
+  pass  property (line 5): all o in out: o.amount <= 100  (502 runs, 0 findings)
+  pass  property (line 6): all o leftover in orders: o.amount > 100  (502 runs, 0 findings)
+  pass  property (line 7): out same_order_as orders  (502 runs, 0 findings)
+  evidence
+    types:            validated at the boundary; 2 example inputs, 500 generated inputs, 502 outputs
+    examples:         2/2
+    properties:       4 of 4 clean over 502 runs
+    determinism:      502/502, each input run twice and compared under the order claims
+    totality:         502/502 answered within 10s
+    purity:           unverified (no sandbox in this slice); imports: none
+    shape:            2 lines, 1 functions; dependencies: none
+    underdetermination: 6 of 13 mutants apply; 0 slipped; 0 underdetermined inputs
+    obligation:       cca5e41f224b66dadb58cdc452542b34d2b44857e2a4fc207d8b860c8169237e
+    performance:      0c702f19579c91c7ef9101c1b1a2c4574ad0e35f839ab5d83ba9c23b92f08631
+    generated:        500 inputs: lists of length 0 to 4 over 1 list input, 5 length combinations, 2 enumerated whole, 3 sampled

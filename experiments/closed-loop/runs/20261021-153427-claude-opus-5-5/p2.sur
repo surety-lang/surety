@@ -1,0 +1,14 @@
+type Order = {amount: Int, customer_email: Text}
+get_small_orders(orders: Order[]) -> Order[]
+	note "keep orders at amount 100 or lower"
+	all o in out: o in orders
+	all o in out: o.amount <= 100
+	all o leftover in orders: o.amount > 100
+	out same_order_as orders
+	
+	e:
+		in: [{amount: 4, customer_email: "test@test.com"}, {amount: 42143, customer_email: "test@test.com"}, {amount: 52, customer_email: "test@test.com"}, {amount: 99, customer_email: "test@test.com"}, {amount: 100, customer_email: "test@test.com"}] 
+		out: [{amount: 4, ... }, {amount: 52, ... }, {amount: 99, ... }, {amount: 100, ...}] 
+	e:
+		in: []
+		out: []

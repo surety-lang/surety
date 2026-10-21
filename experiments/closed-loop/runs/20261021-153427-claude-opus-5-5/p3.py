@@ -1,0 +1,18 @@
+def group_by_customer(orders):
+    groups = {}
+    order_keys = []
+    for o in orders:
+        email = o["customer_email"]
+        if email not in groups:
+            groups[email] = []
+            order_keys.append(email)
+        groups[email].append({"amount": o["amount"], "customer_email": email})
+    result = []
+    for email in order_keys:
+        items = groups[email]
+        result.append({
+            "customer_email": email,
+            "orders": items,
+            "total_amount": sum(i["amount"] for i in items),
+        })
+    return result

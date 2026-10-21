@@ -1,0 +1,34 @@
+get_first_customer_orders  ACCEPTED  examples 3/3; 5 clauses clean over 503 runs; 6 of 13 mutants apply, none slipped
+  pass  example 1 (line 23)
+  pass  example 2 (line 31)
+  pass  example 3 (line 34)
+  pass  property (line 4): all o in orders: o.customer_email in out.customer_email  (503 runs, 0 findings)
+  pass  property (line 5): unique out.customer_email  (503 runs, 0 findings)
+  pass  property (line 7): all o in out: all l_o leftover in orders where o.customer_email == l_o.customer_email: o.ordered_at <= l_o.ordered_at  (503 runs, 0 findings)
+  pass  property (line 11): out drawn_from orders  (503 runs, 0 findings)
+  pass  property (line 12): out unordered  (503 runs, 0 findings)
+  ACCEPTED  two outputs pass every clause; accept (line 15)
+        in: [{amount: 0, customer_email: "b", ordered_at: "2026-10-20T14:19:01Z"}, {amount: 0, customer_email: "a", ordered_at: "2026-10-20T14:19:01Z"}, {amount: 0, customer_email: "b", ordered_at: "2025-09-19T14:19:01Z"}, {amount: 22, customer_email: "a", ordered_at: "2026-10-20T14:19:01Z"}]
+        out: [{amount: 0, customer_email: "a", ordered_at: "2026-10-20T14:19:01Z"}, {amount: 0, customer_email: "b", ordered_at: "2025-09-19T14:19:01Z"}]    # passes every clause
+        out: [{amount: 0, customer_email: "b", ordered_at: "2025-09-19T14:19:01Z"}, {amount: 22, customer_email: "a", ordered_at: "2026-10-20T14:19:01Z"}]    # also passes every clause
+  ACCEPTED  two outputs pass every clause; accept (line 15)
+        in: [{amount: 2, customer_email: "j@test.com", ordered_at: "2026-10-19T14:19:01Z"}, {amount: 42, customer_email: "", ordered_at: "2026-10-19T14:19:01Z"}, {amount: 42, customer_email: "j@test.com", ordered_at: "2026-10-19T14:19:01Z"}, {amount: 4, customer_email: "arj@abctest.com", ordered_at: "2026-10-19T14:19:01Z"}]
+        out: [{amount: 2, customer_email: "j@test.com", ordered_at: "2026-10-19T14:19:01Z"}, {amount: 42, customer_email: "", ordered_at: "2026-10-19T14:19:01Z"}, {amount: 4, customer_email: "arj@abctest.com", ordered_at: "2026-10-19T14:19:01Z"}]    # passes every clause
+        out: [{amount: 42, customer_email: "", ordered_at: "2026-10-19T14:19:01Z"}, {amount: 42, customer_email: "j@test.com", ordered_at: "2026-10-19T14:19:01Z"}, {amount: 4, customer_email: "arj@abctest.com", ordered_at: "2026-10-19T14:19:01Z"}]    # also passes every clause
+  ACCEPTED  two outputs pass every clause; accept (line 15)
+        in: [{amount: 42, customer_email: "b", ordered_at: "2026-09-19T14:19:01Z"}, {amount: 4, customer_email: "b", ordered_at: "2026-09-19T14:19:01Z"}, {amount: 1, customer_email: "arj@abctest.com", ordered_at: "2026-10-19T14:19:01Z"}, {amount: 1, customer_email: "arj@abctest.com", ordered_at: "2026-09-19T14:19:01Z"}]
+        out: [{amount: 42, customer_email: "b", ordered_at: "2026-09-19T14:19:01Z"}, {amount: 1, customer_email: "arj@abctest.com", ordered_at: "2026-09-19T14:19:01Z"}]    # passes every clause
+        out: [{amount: 4, customer_email: "b", ordered_at: "2026-09-19T14:19:01Z"}, {amount: 1, customer_email: "arj@abctest.com", ordered_at: "2026-09-19T14:19:01Z"}]    # also passes every clause
+  evidence
+    types:            validated at the boundary; 3 example inputs, 500 generated inputs, 503 outputs
+    examples:         3/3
+    properties:       5 of 5 clean over 503 runs
+    determinism:      503/503, each input run twice and compared under the order claims
+    totality:         503/503 answered within 10s
+    purity:           unverified (no sandbox in this slice); imports: none
+    shape:            18 lines, 1 functions; dependencies: none
+    underdetermination: 6 of 13 mutants apply; 0 slipped; 0 underdetermined inputs; 3 accepted
+    accepts:          1; line 15 fires on 38 inputs
+    obligation:       b771e47272e621410914b10eaf4a2d3ea7a1055a0d9034b255bb0cfbb5174984
+    performance:      dbd5d2036bedfe5d14f2c621149c70e8f4d8e3dd9cb1c5eedead7619c76ddc88
+    generated:        500 inputs: lists of length 0 to 4 over 1 list input, 5 length combinations, 2 enumerated whole, 3 sampled

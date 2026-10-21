@@ -1,0 +1,18 @@
+combine  ACCEPTED  examples 2/2; 3 clauses clean over 502 runs; 2 of 13 mutants apply, none slipped
+  pass  example 1 (line 8)
+  pass  example 2 (line 11)
+  pass  property (line 6): c.first_name in out.name  (502 runs, 0 findings)
+  pass  property (line 7): c.last_name in out.name  (502 runs, 0 findings)
+  pass  frame out ~ c (single record input): preserves email by default  (502 runs, 0 findings)
+  evidence
+    types:            validated at the boundary; 2 example inputs, 500 generated inputs, 502 outputs
+    examples:         2/2
+    properties:       3 of 3 clean over 502 runs
+    determinism:      502/502, each input run twice and compared under the order claims
+    totality:         502/502 answered within 10s
+    purity:           unverified (no sandbox in this slice); imports: none
+    shape:            5 lines, 1 functions; dependencies: none
+    underdetermination: 2 of 13 mutants apply; 0 slipped; 0 underdetermined inputs
+    obligation:       32bf862c1995eda7885362a67b4941470ee2da13f84dc24832a4c1cdbef56983
+    performance:      bd36384ed843d00e8f7aba61e1a1e15da71a5b785a52c8b64d9872b574b1e4cf
+    generated:        500 inputs over the record's fields, sampled

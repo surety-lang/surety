@@ -1,0 +1,36 @@
+apply_diff  ACCEPTED  examples 8/8; 15 clauses clean over 508 runs; 13 of 13 mutants apply, none slipped
+  pass  example 1 (line 91, "one of each kind; A untouched")
+  pass  example 2 (line 109, "empty diff is the identity")
+  pass  example 3 (line 114)
+  pass  example 4 (line 118, "removed sku not in old")
+  pass  example 5 (line 123, "changed sku not in old")
+  pass  example 6 (line 128, "added sku already in old")
+  pass  example 7 (line 133, "a sku in both removed and changed")
+  pass  example 8 (line 139, "two disagreements, both reported")
+  pass  property (line 42): checks <-> exactly_one Ok(_) in out  (508 runs, 0 findings)
+  pass  property (line 44): all Err(errs) in out: missing_removed_sku_err in errs <-> not removed_ok  (508 runs, 0 findings)
+  pass  property (line 46): all Err(errs) in out: missing_changed_sku_err in errs <-> not changed_ok  (508 runs, 0 findings)
+  pass  property (line 48): all Err(errs) in out: added_already_present_sku_err in errs <-> not added_ok  (508 runs, 0 findings)
+  pass  property (line 50): all Err(errs) in out: conflicting_sku_err in errs <-> not disjoint  (508 runs, 0 findings)
+  pass  property (line 53): all Err(errs) in out: errs drawn_from valid_errors  (508 runs, 0 findings)
+  pass  property (line 55): all Err(errs) in out: errs unordered  (508 runs, 0 findings)
+  pass  property (line 59): all Ok(res) in out: all i in diff.added: i in res  (508 runs, 0 findings)
+  pass  property (line 64): all Ok(res) in out: all sk in diff.removed.sku: sk not in res.sku  (508 runs, 0 findings)
+  pass  property (line 69): all Ok(res) in out: all c in diff.changed: exactly_one i in res where i.sku == c.sku: i.qty == c.new_qty  (508 runs, 0 findings)
+  pass  property (line 75): all Ok(res) in out: all i_o in old where ( i_o.sku not in diff.removed.sku and i_o.sku not in diff.changed.sku ): i_o in res  (508 runs, 0 findings)
+  pass  property (line 83): all Ok(res) in out: all sk in res.sku: sk in old.sku or sk in diff.added.sku  (508 runs, 0 findings)
+  pass  property (line 88): all Ok(res) in out: unique res.sku  (508 runs, 0 findings)
+  pass  property (line 89): all Ok(res) in out: res unordered  (508 runs, 0 findings)
+  pass  frame c ~ i (line 71): preserves  by default  (508 runs, 0 findings)
+  evidence
+    types:            validated at the boundary; 8 example inputs, 500 generated inputs, 508 outputs
+    examples:         8/8
+    properties:       15 of 15 clean over 508 runs
+    determinism:      508/508, each input run twice and compared under the order claims
+    totality:         508/508 answered within 10s
+    purity:           unverified (no sandbox in this slice); imports: none
+    shape:            47 lines, 1 functions; dependencies: none
+    underdetermination: 13 of 13 mutants apply; 0 slipped; 0 underdetermined inputs
+    obligation:       b3c015158aa499ce82010bb986c59aa66363da9a36ee1dc48547d599caf55ab8
+    performance:      86b21f8ac512d004d9974816bbd8a191af6090c3ca0373e7bf49c60bfd93d8e7
+    generated:        500 inputs: lists of length 0 to 4 over 1 list input, 5 length combinations, 0 enumerated whole, 5 sampled

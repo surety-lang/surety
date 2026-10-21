@@ -5,16 +5,28 @@
   "version": "0.1.0",
   "publisher": "surety-lang",
   "license": "MIT OR Apache-2.0",
-  "repository": { "type": "git", "url": "https://github.com/surety-lang/surety" },
-  "engines": { "vscode": "^1.90.0" },
-  "categories": ["Programming Languages"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/surety-lang/surety"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
   "main": "./out/src/extension.js",
   "contributes": {
     "languages": [
       {
         "id": "surety",
-        "aliases": ["Surety", "surety"],
-        "extensions": [".sur"],
+        "aliases": [
+          "Surety",
+          "surety"
+        ],
+        "extensions": [
+          ".sur"
+        ],
         "configuration": "./language-configuration.json"
       }
     ],
@@ -37,14 +49,39 @@
           "type": "string",
           "default": "",
           "description": "The graph directory a hover on a sibling obligation reads its state from. Empty: no state."
+        },
+        "surety.checkOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run the checker when a .sur file is saved: check when a performance sits beside it, mutants when none does."
+        },
+        "surety.python": {
+          "type": "string",
+          "default": "python3",
+          "description": "The interpreter the Draft command runs experiments/draft.py with."
         }
       }
-    }
+    },
+    "commands": [
+      {
+        "command": "surety.check",
+        "title": "Surety: Check (run the checker against the performance beside the file)"
+      },
+      {
+        "command": "surety.mutants",
+        "title": "Surety: Mutants (the underdetermination check, no performance needed)"
+      },
+      {
+        "command": "surety.draft",
+        "title": "Surety: Draft the property lines under the sentences"
+      }
+    ]
   },
   "scripts": {
     "compile": "tsc -p ./",
     "watch": "tsc -w -p ./",
-    "test:grammar": "node ./out/test/grammar.test.js"
+    "test:grammar": "node ./out/test/grammar.test.js",
+    "test:extension": "node ./out/test/runTest.js"
   },
   "dependencies": {
     "vscode-languageclient": "^9.0.1"
@@ -54,6 +91,9 @@
     "@types/vscode": "^1.90.0",
     "typescript": "^5.6.0",
     "vscode-oniguruma": "^2.0.1",
-    "vscode-textmate": "^9.1.0"
+    "vscode-textmate": "^9.1.0",
+    "@vscode/test-electron": "^3.1.0",
+    "mocha": "^10.8.2",
+    "@types/mocha": "^10.0.9"
   }
 }

@@ -33,6 +33,11 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: editors/vscode/package-lock.json
+      - name: Install the pinned toolchain and build the binary the extension runs
+        run: rustup toolchain install --profile minimal && cargo build -p surety
+        working-directory: .
+      - run: sudo apt-get install -y xvfb
       - run: npm ci
       - run: npm run compile
       - run: npm run test:grammar
+      - run: xvfb-run -a npm run test:extension

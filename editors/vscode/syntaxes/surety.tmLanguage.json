@@ -79,14 +79,14 @@
       "name": "comment.line.double-slash.surety"
     },
     "sentence": {
-      "comment": "A # line is a sentence pinned to the property beneath it, not a comment.",
+      "comment": "A # line is a sentence pinned to the property beneath it: documentation, muted like a comment, in italics so it is not a // comment at a glance.",
       "match": "^(\\s*)(#)(.*)$",
       "captures": {
         "2": {
-          "name": "punctuation.definition.sentence.surety"
+          "name": "punctuation.definition.comment.sentence.surety"
         },
         "3": {
-          "name": "markup.italic.sentence.surety string.unquoted.sentence.surety"
+          "name": "markup.italic.sentence.surety comment.block.documentation.sentence.surety"
         }
       }
     },

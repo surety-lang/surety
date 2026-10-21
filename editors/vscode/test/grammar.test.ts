@@ -50,11 +50,13 @@ async function main(): Promise<void> {
             const trimmed = line.trim();
             if (trimmed.startsWith('#')) {
                 sentences += 1;
+                // A sentence is documentation: muted like a comment, italic, and
+                // never the line-comment scope a // line carries.
                 for (const t of result.tokens) {
-                    assert.ok(!t.scopes.some(s => s.includes('comment')),
-                        `${where}: a # line is a sentence, not a comment: ${t.scopes}`);
+                    assert.ok(!t.scopes.some(s => s.startsWith('comment.line')),
+                        `${where}: a # line is a sentence, not a // comment: ${t.scopes}`);
                 }
-                assert.ok(result.tokens.some(t => t.scopes.some(s => s.startsWith('string.unquoted.sentence'))),
+                assert.ok(result.tokens.some(t => t.scopes.some(s => s.startsWith('comment.block.documentation.sentence'))),
                     `${where}: the sentence carries its scope`);
                 assert.ok(result.tokens.some(t => t.scopes.some(s => s.startsWith('markup.italic'))),
                     `${where}: the sentence is set in italics`);

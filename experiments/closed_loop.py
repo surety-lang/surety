@@ -13,7 +13,8 @@ off the report by a person.
 
 Credentials come from the Anthropic SDK's own resolution (ANTHROPIC_API_KEY,
 ANTHROPIC_AUTH_TOKEN, or an `ant auth login` profile). Nothing here reads a
-key. Each run writes to experiments/closed-loop/runs/<stamp>-<model>/:
+key. An organization-level key (one not scoped to a workspace) also needs the
+workspace to bill: pass --workspace or set ANTHROPIC_WORKSPACE_ID. Each run writes to experiments/closed-loop/runs/<stamp>-<model>/:
 the copied .sur files, one .py per obligation, the raw model replies, the
 check reports, and summary.md / summary.json. A dry run writes under target/.
 """
@@ -23,6 +24,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import os
 import pathlib
 import re
 import subprocess
@@ -171,9 +173,8 @@ def tally(report: str) -> dict:
     return counts
 
 
-def call_model(client, model: str, effort: str, messages: list, fallbacks: bool):
-    import anthropic  # noqa: F401  (the client is already constructed)
-
+def call_model(client, model: str, effort: str, messages: list, fallbacks: bool, workspace: str | None):
+    headers: dict[str, str] = {}
     kwargs = dict(
         model=model,
         max_tokens=32000,
@@ -184,8 +185,13 @@ def call_model(client, model: str, effort: str, messages: list, fallbacks: bool)
     )
     if fallbacks:
         # Server-side fallback on a safety refusal; opt out with --no-fallbacks.
-        kwargs["extra_headers"] = {"anthropic-beta": "server-side-fallback-2026-07-01"}
+        headers["anthropic-beta"] = "server-side-fallback-2026-07-01"
         kwargs["extra_body"] = {"fallbacks": "default"}
+    if workspace:
+        # An organization-level key must say which workspace a request bills to.
+        headers["anthropic-workspace-id"] = workspace
+    if headers:
+        kwargs["extra_headers"] = headers
     with client.messages.stream(**kwargs) as stream:
         return stream.get_final_message()
 
@@ -200,6 +206,8 @@ def main() -> int:
     ap.add_argument("--corpus", default=str(CORPUS))
     ap.add_argument("--dry-run", action="store_true", help="write prompts, call no model")
     ap.add_argument("--no-fallbacks", action="store_true", help="do not request server-side refusal fallbacks")
+    ap.add_argument("--workspace", default=os.environ.get("ANTHROPIC_WORKSPACE_ID"),
+                    help="workspace id for an organization-level key (default: $ANTHROPIC_WORKSPACE_ID)")
     args = ap.parse_args()
 
     corpus = pathlib.Path(args.corpus)
@@ -236,7 +244,7 @@ def main() -> int:
         for attempt in range(1, args.rounds + 1):
             t0 = time.time()
             try:
-                msg = call_model(client, args.model, args.effort, messages, not args.no_fallbacks)
+                msg = call_model(client, args.model, args.effort, messages, not args.no_fallbacks, args.workspace)
             except Exception as e:  # noqa: BLE001  (recorded, the run goes on)
                 entry["attempts"].append({"round": attempt, "error": f"{type(e).__name__}: {e}"})
                 print(f"{name} round {attempt}: API error {type(e).__name__}: {e}")

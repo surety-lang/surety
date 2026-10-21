@@ -5,6 +5,10 @@ file in between and the examples never.
     python3 experiments/draft.py sentences <problem.md> [--types <file.sur>] --out <name>.sur
     python3 experiments/draft.py lines <name>.sur
 
+Both stages take `--withhold <name>` (repeatable): a corpus obligation kept out
+of the prompt by its file stem, so a draft against a solved problem does not
+see the author's answer.
+
 `sentences` hands the model the problem's prose, the author's types if any,
 and the public docs and corpus, and takes back the types it had to add (each
 under a `// drafted` line, so the author reads them first), the signature,
@@ -95,11 +99,15 @@ def read(p: pathlib.Path) -> str:
     return p.read_text(encoding="utf-8")
 
 
-def corpus_text() -> str:
+def corpus_text(withhold: list[str]) -> str:
+    """The corpus, minus the obligations withheld by stem: the draft against a
+    solved problem must not be shown the author's answer."""
     parts = []
     for f in sorted(CORPUS.glob("*.sur")):
+        if f.stem in withhold:
+            continue
         parts.append(f"`{f.name}`:\n\n```\n{read(f)}```")
-    return "The corpus, eleven obligations written by hand:\n\n" + "\n\n".join(parts)
+    return f"The corpus, {len(parts)} obligations written by hand:\n\n" + "\n\n".join(parts)
 
 
 def docs_text() -> str:
@@ -250,7 +258,7 @@ def cmd_sentences(args: argparse.Namespace) -> int:
     if types:
         parts.append(f"The author's types, to use verbatim and unmarked:\n\n```\n{types}```")
     parts.append(docs_text())
-    parts.append(corpus_text())
+    parts.append(corpus_text(args.withhold))
     parts.append("Write the first stage for this problem: the types you had to add, the signature, and the sentences.")
     prompt = "\n\n".join(p for p in parts if p)
     d = run_dir("sentences")
@@ -304,7 +312,7 @@ def cmd_lines(args: argparse.Namespace) -> int:
     surety = find_surety(args.surety)
     header = [f"The obligation, with its author's sentences:\n\n```\n{original}```",
               "The sentences with no property line beneath them, one line each wanted:\n\n" + "\n".join(f"# {s}" for s in todo),
-              docs_text(), corpus_text()]
+              docs_text(), corpus_text(args.withhold)]
     prompt = "\n\n".join(p for p in header if p)
     text = original
     reach: list[str] = []
@@ -360,6 +368,8 @@ def main() -> int:
         p.add_argument("--effort", default="high", choices=["low", "medium", "high", "xhigh", "max"])
         p.add_argument("--surety", help="checker binary (default: build target/release/surety first)")
         p.add_argument("--workspace", default=os.environ.get("ANTHROPIC_WORKSPACE_ID"))
+        p.add_argument("--withhold", action="append", default=[], metavar="NAME",
+                       help="keep this corpus obligation out of the prompt, by file stem (p2); repeatable")
         if name == "sentences":
             p.add_argument("problem", help="the problem's prose, a markdown or text file")
             p.add_argument("--types", help="the author's types, a .sur file, used verbatim")

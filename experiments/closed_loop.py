@@ -17,6 +17,9 @@ key. An organization-level key (one not scoped to a workspace) also needs the
 workspace to bill: pass --workspace or set ANTHROPIC_WORKSPACE_ID. Each run writes to experiments/closed-loop/runs/<stamp>-<model>/:
 the copied .sur files, one .py per obligation, the raw model replies, the
 check reports, and summary.md / summary.json. A dry run writes under target/.
+The checker is built from the working tree before each run (cargo build
+--release) unless --surety names a binary, and the summary records the commit
+it was built from, so a run never silently uses a stale binary.
 """
 
 from __future__ import annotations
@@ -146,6 +149,17 @@ def extract_module(reply: str) -> str | None:
     return m.group(1) if m else None
 
 
+def checker_identity(surety: pathlib.Path) -> dict:
+    """Which checker ran: the working tree's commit (+dirty when crates/ has
+    uncommitted changes) and the binary's build time."""
+    git = lambda *a: subprocess.run(["git", *a], cwd=ROOT, capture_output=True, text=True).stdout.strip()  # noqa: E731
+    commit = git("rev-parse", "--short", "HEAD") or "unknown"
+    if git("status", "--porcelain", "--", "crates"):
+        commit += "+dirty"
+    built = dt.datetime.fromtimestamp(surety.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S") if surety.exists() else ""
+    return {"commit": commit, "binary": str(surety.relative_to(ROOT)) if surety.is_relative_to(ROOT) else str(surety), "built": built}
+
+
 def run_check(surety: pathlib.Path, sur: pathlib.Path, perf: pathlib.Path) -> tuple[int, str, dict]:
     """The text report for a person, and the evidence object from the JSON
     channel (one object per finding, then one of kind `evidence`)."""
@@ -216,7 +230,7 @@ def main() -> int:
     ap.add_argument("--rounds", type=int, default=1, help="attempts per obligation; failures are fed back")
     ap.add_argument("--model", default=MODEL)
     ap.add_argument("--effort", default="high", choices=["low", "medium", "high", "xhigh", "max"])
-    ap.add_argument("--surety", default=str(ROOT / "target" / "release" / "surety"))
+    ap.add_argument("--surety", help="checker binary (default: build target/release/surety from the working tree first)")
     ap.add_argument("--corpus", default=str(CORPUS))
     ap.add_argument("--dry-run", action="store_true", help="write prompts, call no model")
     ap.add_argument("--no-fallbacks", action="store_true", help="do not request server-side refusal fallbacks")
@@ -225,7 +239,14 @@ def main() -> int:
     args = ap.parse_args()
 
     corpus = pathlib.Path(args.corpus)
-    surety = pathlib.Path(args.surety)
+    if args.surety:
+        surety = pathlib.Path(args.surety)
+    else:
+        surety = ROOT / "target" / "release" / "surety"
+        if subprocess.run(["cargo", "build", "--release", "-q", "-p", "surety"], cwd=ROOT).returncode:
+            print("cargo build --release failed; the run needs the checker at the working tree's state", file=sys.stderr)
+            return 2
+    checker = checker_identity(surety)
     names = args.only.split(",") if args.only else ORDER
     stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
     base = ROOT / "target" / "closed-loop" if args.dry_run else RUNS
@@ -242,10 +263,10 @@ def main() -> int:
 
         client = anthropic.Anthropic()
     if not args.dry_run and not surety.exists():
-        print(f"no surety binary at {surety}; run cargo build --release", file=sys.stderr)
+        print(f"no surety binary at {surety}", file=sys.stderr)
         return 2
 
-    summary = {"model": args.model, "effort": args.effort, "rounds": args.rounds, "started": stamp, "obligations": []}
+    summary = {"model": args.model, "effort": args.effort, "rounds": args.rounds, "started": stamp, "checker": checker, "obligations": []}
     for name in names:
         prompt, meta = build_prompt(name, corpus)
         (run_dir / f"{name}.prompt.md").write_text(prompt, encoding="utf-8")
@@ -303,7 +324,8 @@ def main() -> int:
         entry["passed"] = bool(entry["attempts"]) and entry["attempts"][-1].get("exit") == 0
 
     (run_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
-    lines = [f"# Closed-loop run {stamp}", "", f"model `{args.model}`, effort `{args.effort}`, rounds {args.rounds}", "",
+    lines = [f"# Closed-loop run {stamp}", "", f"model `{args.model}`, effort `{args.effort}`, rounds {args.rounds}",
+             f"checker commit `{checker['commit']}`, binary `{checker['binary']}` built {checker['built']}", "",
              "| Obligation | Result | Round | Pass | Fail | Error | Boundary | Runs | Findings | Determinism | Imports | Lines | Seconds | Tokens in/out | First killer |",
              "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
     passed = 0

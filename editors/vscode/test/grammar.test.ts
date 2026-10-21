@@ -56,6 +56,8 @@ async function main(): Promise<void> {
                 }
                 assert.ok(result.tokens.some(t => t.scopes.some(s => s.startsWith('string.unquoted.sentence'))),
                     `${where}: the sentence carries its scope`);
+                assert.ok(result.tokens.some(t => t.scopes.some(s => s.startsWith('markup.italic'))),
+                    `${where}: the sentence is set in italics`);
             }
             if (trimmed.startsWith('//')) {
                 comments += 1;
@@ -68,8 +70,17 @@ async function main(): Promise<void> {
                 tokens += 1;
                 assert.ok(t.scopes.length > 1, `${where}: '${word}' has only source.surety`);
                 const scope = t.scopes[t.scopes.length - 1];
-                if (keywords.has(word)) {
+                if (word === 'type') {
+                    assert.ok(scope.startsWith('storage.type'), `${where}: 'type' is ${scope}`);
+                } else if (word === 'out' && !line.slice(t.endIndex).startsWith(':')) {
+                    assert.ok(scope.startsWith('variable.language'), `${where}: 'out' is ${scope}`);
+                } else if (keywords.has(word)) {
                     assert.ok(scope.startsWith('keyword.'), `${where}: keyword '${word}' is ${scope}`);
+                    if (['in', 'and', 'or', 'not', 'before', 'unordered', 'sorted_by', 'same_order_as', 'same_elements_as', 'drawn_from', 'asc', 'desc'].includes(word) && !line.slice(t.endIndex).startsWith(':')) {
+                        assert.ok(scope.startsWith('keyword.operator.wordlike'), `${where}: word operator '${word}' is ${scope}, which themes leave plain`);
+                    }
+                } else if (/^[a-z_][A-Za-z0-9_]*$/.test(word) && !builtins.has(word) && line.slice(t.endIndex).trimStart().startsWith('(') && !/^\s*(e|in|out)\s*:/.test(line)) {
+                    assert.ok(scope.startsWith('entity.name.function'), `${where}: call '${word}' is ${scope}`);
                 } else if (builtins.has(word) && line.slice(t.endIndex).trimStart().startsWith('(')) {
                     assert.ok(scope.startsWith('support.function'), `${where}: builtin '${word}' is ${scope}`);
                 } else if (primitives.has(word)) {

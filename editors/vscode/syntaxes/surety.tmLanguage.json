@@ -2,26 +2,76 @@
   "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
   "name": "Surety",
   "scopeName": "source.surety",
-  "fileTypes": ["sur"],
+  "fileTypes": [
+    "sur"
+  ],
   "patterns": [
-    { "include": "#comment" },
-    { "include": "#sentence" },
-    { "include": "#type-declaration" },
-    { "include": "#labels" },
-    { "include": "#builtin" },
-    { "include": "#signature" },
-    { "include": "#string" },
-    { "include": "#number" },
-    { "include": "#quantifier" },
-    { "include": "#word-operator" },
-    { "include": "#note" },
-    { "include": "#constant" },
-    { "include": "#primitive-type" },
-    { "include": "#type-name" },
-    { "include": "#operator" },
-    { "include": "#field" },
-    { "include": "#identifier" },
-    { "include": "#punctuation" }
+    {
+      "include": "#comment"
+    },
+    {
+      "include": "#sentence"
+    },
+    {
+      "include": "#type-declaration"
+    },
+    {
+      "include": "#named-value"
+    },
+    {
+      "include": "#labels"
+    },
+    {
+      "include": "#builtin"
+    },
+    {
+      "include": "#signature"
+    },
+    {
+      "include": "#string"
+    },
+    {
+      "include": "#number"
+    },
+    {
+      "include": "#quantifier"
+    },
+    {
+      "include": "#clause"
+    },
+    {
+      "include": "#word-operator"
+    },
+    {
+      "include": "#note"
+    },
+    {
+      "include": "#constant"
+    },
+    {
+      "include": "#out"
+    },
+    {
+      "include": "#primitive-type"
+    },
+    {
+      "include": "#type-name"
+    },
+    {
+      "include": "#call"
+    },
+    {
+      "include": "#operator"
+    },
+    {
+      "include": "#field"
+    },
+    {
+      "include": "#identifier"
+    },
+    {
+      "include": "#punctuation"
+    }
   ],
   "repository": {
     "comment": {
@@ -32,15 +82,23 @@
       "comment": "A # line is a sentence pinned to the property beneath it, not a comment.",
       "match": "^(\\s*)(#)(.*)$",
       "captures": {
-        "2": { "name": "punctuation.definition.sentence.surety" },
-        "3": { "name": "string.unquoted.sentence.surety" }
+        "2": {
+          "name": "punctuation.definition.sentence.surety"
+        },
+        "3": {
+          "name": "markup.italic.sentence.surety string.unquoted.sentence.surety"
+        }
       }
     },
     "type-declaration": {
       "match": "^(type)\\s+([A-Z][A-Za-z0-9_]*)",
       "captures": {
-        "1": { "name": "keyword.other.type.surety" },
-        "2": { "name": "entity.name.type.declaration.surety" }
+        "1": {
+          "name": "storage.type.surety"
+        },
+        "2": {
+          "name": "entity.name.type.declaration.surety"
+        }
       }
     },
     "labels": {
@@ -49,27 +107,43 @@
         {
           "match": "^\\s*(e)(:)",
           "captures": {
-            "1": { "name": "keyword.other.example.surety" },
-            "2": { "name": "punctuation.separator.surety" }
+            "1": {
+              "name": "keyword.control.example.surety"
+            },
+            "2": {
+              "name": "punctuation.separator.surety"
+            }
           }
         },
         {
           "match": "\\b(in|out)(:)",
           "captures": {
-            "1": { "name": "keyword.other.label.surety" },
-            "2": { "name": "punctuation.separator.surety" }
+            "1": {
+              "name": "keyword.other.label.surety"
+            },
+            "2": {
+              "name": "punctuation.separator.surety"
+            }
           }
         },
         {
           "match": "^\\s*(accept)\\b",
-          "captures": { "1": { "name": "keyword.other.accept.surety" } }
+          "captures": {
+            "1": {
+              "name": "keyword.control.accept.surety"
+            }
+          }
         }
       ]
     },
     "signature": {
       "comment": "An obligation's name, a named predicate or an abbreviation: a name at the start of a line followed by ( or =.",
       "match": "^\\s*(?!(?:sum|len|min|max|count|flatten|all|any|none|exactly_one|not|unique|accept|note|type)\\b)([a-z_][A-Za-z0-9_]*)(?=\\s*(\\(|=[^=]))",
-      "captures": { "1": { "name": "entity.name.function.surety" } }
+      "captures": {
+        "1": {
+          "name": "entity.name.function.surety"
+        }
+      }
     },
     "string": {
       "match": "\"[^\"]*\"",
@@ -84,8 +158,9 @@
       "name": "keyword.control.quantifier.surety"
     },
     "word-operator": {
-      "match": "\\b(in|where|else|and|or|not|leftover|before|unordered|unique|sorted_by|same_order_as|same_elements_as|drawn_from|asc|desc)\\b",
-      "name": "keyword.operator.word.surety"
+      "comment": "Operators spelled as words; themes colour keyword.operator.wordlike where they leave keyword.operator plain.",
+      "match": "\\b(in|and|or|not|before|unordered|sorted_by|same_order_as|same_elements_as|drawn_from|asc|desc)\\b",
+      "name": "keyword.operator.wordlike.surety"
     },
     "note": {
       "match": "\\b(note)\\b",
@@ -109,22 +184,50 @@
     },
     "operator": {
       "match": "<->|->|==|!=|<=|>=|<|>|=|\\.\\.\\.|\\.\\.",
-      "name": "keyword.operator.surety"
+      "name": "keyword.operator.comparison.surety"
     },
     "field": {
       "match": "(\\.)([a-z_][A-Za-z0-9_]*)",
       "captures": {
-        "1": { "name": "punctuation.accessor.surety" },
-        "2": { "name": "variable.other.member.surety" }
+        "1": {
+          "name": "punctuation.accessor.surety"
+        },
+        "2": {
+          "name": "variable.other.property.surety"
+        }
       }
     },
     "identifier": {
       "match": "\\b[a-z_][A-Za-z0-9_]*\\b",
-      "name": "variable.other.surety"
+      "name": "variable.other.readwrite.surety"
     },
     "punctuation": {
       "match": "[\\[\\]{}(),:]",
       "name": "punctuation.surety"
+    },
+    "named-value": {
+      "comment": "A named value: a name at the start of a line, then a colon and a type.",
+      "match": "^([a-z_][A-Za-z0-9_]*)(?=\\s*:\\s*[A-Z])",
+      "captures": {
+        "1": {
+          "name": "variable.other.constant.surety"
+        }
+      }
+    },
+    "clause": {
+      "comment": "The parts of a claim: the filter, the fallback, the leftover binder, and the whole-list prefix.",
+      "match": "\\b(where|else|leftover|unique)\\b",
+      "name": "keyword.control.clause.surety"
+    },
+    "out": {
+      "comment": "The output, the one name every claim is about.",
+      "match": "\\bout\\b",
+      "name": "variable.language.out.surety"
+    },
+    "call": {
+      "comment": "A graph reference or an abbreviation applied: a name before (.",
+      "match": "\\b([a-z_][A-Za-z0-9_]*)(?=\\s*\\()",
+      "name": "entity.name.function.call.surety"
     }
   }
 }

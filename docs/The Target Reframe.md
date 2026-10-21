@@ -2,8 +2,6 @@
 
 Oct 19, 2026 · @Bennett Dixon
 
-> Live copy (with diagram): https://claude.ai/artifact/PvPuCCDBA66K4VirkRL3x2 . This markdown was exported 2026-10-21; the diagram did not export and is noted inline.
-
 A decision record. Surety is the spec; the model writes the implementation in any target language, Python to start, Surety's own core eventually and only when a named trigger fires.
 
 ## Decision

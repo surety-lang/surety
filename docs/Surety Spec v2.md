@@ -2,8 +2,6 @@
 
 Oct 19, 2026 · @Bennett Dixon
 
-> Live copy (with diagrams): Claude Doc "Surety Spec v2". This markdown was exported 2026-10-21; the two diagrams did not export and are noted inline.
-
 Supersedes v1 (2026-10-18). v1 is preserved unchanged. The difference is the target reframe: Surety is the obligation language, the checker, and the graph; performances are written by the model in a target language, Python first, with Surety's own core deferred to named triggers.
 
 ## BLUF

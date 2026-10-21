@@ -4,3 +4,5 @@
 # internal docs
 /surety-docs/
 __pycache__/
+
+.l6e/

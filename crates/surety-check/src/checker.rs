@@ -162,6 +162,25 @@ pub struct Report {
     /// The underdetermination check, when the budget ran it: the mutant
     /// library against the obligation alone, and the search.
     pub mutants: Option<MutantReport>,
+    /// Each `accept` line and how many inputs satisfied it.
+    pub accepts: Vec<AcceptReport>,
+}
+
+/// One `accept` line: the inputs on which the obligation deliberately
+/// admits more than one output, and how many of the inputs the check ran
+/// satisfied it. None is a dead accept, which is a finding: a predicate
+/// that never fires cannot silence the check.
+#[derive(Debug, Clone)]
+pub struct AcceptReport {
+    pub line: usize,
+    pub text: String,
+    pub satisfied: usize,
+}
+
+impl AcceptReport {
+    pub fn dead(&self) -> bool {
+        self.satisfied == 0
+    }
 }
 
 impl Report {
@@ -186,15 +205,20 @@ impl Report {
             + self.generated_timeouts.len()
             + self.determinism.failures.len()
             + self.underdetermination_findings()
+            + self.dead_accepts()
     }
 
     /// Mutants that slipped through the properties, and inputs on which
-    /// two outputs pass every clause.
+    /// two outputs pass every clause that no `accept` covers.
     pub fn underdetermination_findings(&self) -> usize {
         self.mutants
             .as_ref()
-            .map(|m| m.slipped().len() + m.search.len())
+            .map(|m| m.slipped().len() + m.open().len())
             .unwrap_or(0)
+    }
+
+    pub fn dead_accepts(&self) -> usize {
+        self.accepts.iter().filter(|a| a.dead()).count()
     }
 
     pub fn claim_findings(&self) -> usize {
@@ -515,6 +539,9 @@ impl<'g> Checker<'g> {
         for p in &self.fun.properties {
             d.add_expr(&p.expr);
         }
+        for a in &self.fun.accepts {
+            d.add_expr(&a.expr);
+        }
         d.finish();
         d
     }
@@ -619,6 +646,7 @@ impl<'g> Checker<'g> {
         } else {
             None
         };
+        let accepts = self.check_accepts();
         Report {
             obligation: self.fun.name.clone(),
             obligation_hash,
@@ -640,7 +668,36 @@ impl<'g> Checker<'g> {
             inspection,
             inspection_error,
             mutants,
+            accepts,
         }
+    }
+
+    /// Whether an `accept` holds on an input tuple. It ranges over the
+    /// inputs alone, so `out` is a placeholder.
+    pub fn accepts_input(&mut self, accept: &Expr, inputs: &[Value]) -> bool {
+        matches!(self.holds(accept, inputs, &Value::None), Ok(true))
+    }
+
+    /// Every `accept` line against the example inputs and the generated
+    /// inputs: how many it fires on.
+    fn check_accepts(&mut self) -> Vec<AcceptReport> {
+        let fun = self.fun;
+        let mut inputs: Vec<Vec<Value>> = self.example_input_set();
+        inputs.extend(self.generated.iter().map(|g| g.inputs.clone()));
+        fun.accepts
+            .iter()
+            .map(|a| {
+                let satisfied = inputs
+                    .iter()
+                    .filter(|i| self.accepts_input(&a.expr, i))
+                    .count();
+                AcceptReport {
+                    line: a.line,
+                    text: a.text.clone(),
+                    satisfied,
+                }
+            })
+            .collect()
     }
 
     /// Run the performance on every generated input.

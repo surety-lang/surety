@@ -267,6 +267,30 @@ impl Graph {
                 ));
             }
         }
+        for a in &f.accepts {
+            if a.expr.mentions("out") {
+                return Err(Error::new(
+                    ErrorKind::TypeError,
+                    a.line,
+                    "`accept` ranges over the inputs; `out` is not allowed in it",
+                ));
+            }
+            if !f.inputs.iter().any(|(n, _)| a.expr.mentions(n)) {
+                return Err(Error::new(
+                    ErrorKind::TypeError,
+                    a.line,
+                    "`accept` must name an input: a predicate that is always true is refused",
+                ));
+            }
+            let ty = scope.infer(&a.expr, a.line)?;
+            if !matches!(ty, Type::Bool | Type::Unknown) {
+                return Err(Error::new(
+                    ErrorKind::TypeError,
+                    a.line,
+                    format!("`accept` must be a Bool over the inputs, this one is {ty}"),
+                ));
+            }
+        }
         for e in &f.examples {
             scope.check_example_in(&e.input, e.line)?;
             scope.check_literal_type(&e.output, scope.output.as_ref().unwrap(), e.line)?;

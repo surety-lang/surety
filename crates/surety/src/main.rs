@@ -157,10 +157,11 @@ fn cmd_parse(files: &[&str]) -> ExitCode {
                 Ok(()) => {
                     for f in graph.functions_in(idx) {
                         println!(
-                            "{}: ok {} props={} examples={} abbrevs={} pins={}",
+                            "{}: ok {} props={} accepts={} examples={} abbrevs={} pins={}",
                             path.display(),
                             f.name,
                             f.properties.len(),
+                            f.accepts.len(),
                             f.examples.len(),
                             f.abbrevs.len(),
                             graph.file(idx).pins.len()

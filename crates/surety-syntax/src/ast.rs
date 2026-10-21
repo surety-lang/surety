@@ -70,6 +70,10 @@ pub struct Function {
     pub note: Option<String>,
     pub abbrevs: Vec<Abbrev>,
     pub properties: Vec<Property>,
+    /// `accept <boolean over the inputs>` lines: the inputs on which the
+    /// obligation deliberately admits more than one output. Hashed with the
+    /// properties; never a claim about `out`.
+    pub accepts: Vec<Property>,
     pub examples: Vec<Example>,
 }
 

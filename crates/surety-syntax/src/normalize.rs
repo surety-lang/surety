@@ -61,6 +61,24 @@ pub fn canonical_function(graph: &Graph, idx: usize, f: &Function) -> Result<Str
         s.push_str(&p);
     }
     s.push(')');
+    // Accepts are part of the obligation and of its hash; the section is
+    // printed only when there are some, so an obligation without them
+    // hashes as it did before `accept` existed.
+    if !f.accepts.is_empty() {
+        let mut accepts = Vec::new();
+        for a in &f.accepts {
+            let mut env = Env::new(&scope);
+            accepts.push(env.print(&a.expr)?);
+        }
+        accepts.sort();
+        accepts.dedup();
+        s.push_str(" (accepts");
+        for a in accepts {
+            s.push(' ');
+            s.push_str(&a);
+        }
+        s.push(')');
+    }
     let mut examples = Vec::new();
     for e in &f.examples {
         let mut env = Env::new(&scope);

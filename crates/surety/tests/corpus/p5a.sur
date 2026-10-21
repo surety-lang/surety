@@ -10,6 +10,9 @@ get_first_customer_orders(orders: Order[]) -> Order[]
 			
 	out drawn_from orders
 	out unordered
+
+	# Two orders with the same email and the same ordered_at: either may be kept. Decided, not forgotten.
+	accept any a in orders: any b in orders where b != a and b.customer_email == a.customer_email: b.ordered_at == a.ordered_at
 	
 	
 	// `unordered` isn’t saying something about the elements

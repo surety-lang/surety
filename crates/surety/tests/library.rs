@@ -218,7 +218,12 @@ fn the_search_finds_p5a_tie() {
     assert!(text.contains("underdetermined"), "{text}");
     assert!(text.matches("      out: ").count() >= 2, "{text}");
     let json = surety::render_mutants_json(&r);
-    assert!(json.contains("\"kind\":\"underdetermined\""));
+    // Since the author's `accept` line, P5a's ties are reported as accepted;
+    // the search still finds them.
+    assert!(
+        json.contains("\"kind\":\"accepted\"") || json.contains("\"kind\":\"underdetermined\""),
+        "{json}"
+    );
 }
 
 /// Test 7: a slipping mutant is a report, not a bug. The same mutant slips

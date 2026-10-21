@@ -301,14 +301,34 @@ pub fn render_evidence(r: &Report) -> String {
         }
     }
     match &r.mutants {
-        Some(m) => s.push_str(&format!(
-            "    underdetermination: {} of {} mutants apply; slipped {}; inputs with two passing outputs {}\n",
-            m.applicable(),
-            m.mutants.len(),
-            m.slipped().len(),
-            m.search.len()
-        )),
+        Some(m) => {
+            let accepted = m.accepted().len();
+            s.push_str(&format!(
+                "    underdetermination: {} of {} mutants apply; slipped {}; inputs with two passing outputs {}{}\n",
+                m.applicable(),
+                m.mutants.len(),
+                m.slipped().len(),
+                m.search.len(),
+                if accepted == 0 {
+                    String::new()
+                } else {
+                    format!(", accepted {accepted}, open {}", m.open().len())
+                }
+            ));
+        }
         None => s.push_str("    underdetermination: not run (surety mutants)\n"),
+    }
+    if !r.accepts.is_empty() {
+        let parts: Vec<String> = r
+            .accepts
+            .iter()
+            .map(|a| format!("line {} fires on {} inputs", a.line, a.satisfied))
+            .collect();
+        s.push_str(&format!(
+            "    accepts:          {}; {}\n",
+            r.accepts.len(),
+            parts.join(", ")
+        ));
     }
     s.push_str(&format!(
         "    obligation:       {}\n    performance:      {}\n",
@@ -416,11 +436,33 @@ pub fn render(report: &Report) -> String {
             s.push_str(&format!("  SLIPPED  {}\n", slipped_line(run)));
         }
         for u in &m.search {
-            s.push_str(&format!("  UNDERDETERMINED  {}\n", underdetermined_line(u)));
+            s.push_str(&underdetermined_report_line(u, &report.accepts));
         }
+    }
+    for a in report.accepts.iter().filter(|a| a.dead()) {
+        s.push_str(&format!(
+            "  FINDING  accept (line {}): {} holds on no example or generated input: a dead accept\n",
+            a.line, a.text
+        ));
     }
     s.push_str(&render_evidence(report));
     s
+}
+
+/// An underdetermined input as a report line: ACCEPTED when an `accept`
+/// covers it, UNDERDETERMINED otherwise.
+fn underdetermined_report_line(
+    u: &surety_check::Underdetermined,
+    accepts: &[surety_check::AcceptReport],
+) -> String {
+    match u.accepted_by {
+        Some(i) => format!(
+            "  ACCEPTED  {}; accept (line {})\n",
+            underdetermined_line(u),
+            accepts.get(i).map(|a| a.line).unwrap_or(0)
+        ),
+        None => format!("  UNDERDETERMINED  {}\n", underdetermined_line(u)),
+    }
 }
 
 fn input_json(inputs: &[Value]) -> Json {
@@ -590,9 +632,10 @@ pub fn json_lines(r: &Report) -> Vec<Json> {
         "purity": "unverified",
         "findings": r.findings(),
         "underdetermination": match &r.mutants {
-            Some(m) => json!({ "applicable": m.applicable(), "total": m.mutants.len(), "slipped": m.slipped().len(), "caught": m.caught(), "underdetermined_inputs": m.search.len() }),
+            Some(m) => json!({ "applicable": m.applicable(), "total": m.mutants.len(), "slipped": m.slipped().len(), "caught": m.caught(), "underdetermined_inputs": m.search.len(), "accepted": m.accepted().len(), "open": m.open().len() }),
             None => json!("not run"),
         },
+        "accepts": r.accepts.iter().map(|a| json!({ "line": a.line, "text": a.text, "satisfied": a.satisfied, "dead": a.dead() })).collect::<Vec<_>>(),
         "generated": r.buckets.iter().map(|b| json!({ "lengths": b.lengths, "taken": b.taken, "space": b.space.to_string(), "exhaustive": b.exhaustive })).collect::<Vec<_>>(),
     });
     if let Some(i) = &r.inspection {
@@ -604,11 +647,16 @@ pub fn json_lines(r: &Report) -> Vec<Json> {
         ev["inspection_error"] = json!(last_line(e));
     }
     if let Some(m) = &r.mutants {
-        out.extend(
-            mutants_json_lines(m)
-                .into_iter()
-                .filter(|j| j["kind"] == "mutant_slipped" || j["kind"] == "underdetermined"),
-        );
+        out.extend(mutants_json_lines(m).into_iter().filter(|j| {
+            j["kind"] == "mutant_slipped"
+                || j["kind"] == "underdetermined"
+                || j["kind"] == "accepted"
+        }));
+    }
+    for a in r.accepts.iter().filter(|a| a.dead()) {
+        let mut f = finding("dead_accept", r, Some((a.line, &a.text)), &[]);
+        f["message"] = json!("holds on no example or generated input");
+        out.push(f);
     }
     out.push(ev);
     out
@@ -739,7 +787,7 @@ pub fn render_mutants(r: &MutantReport, full: bool) -> String {
     let mut s = String::new();
     let slipped = r.slipped();
     s.push_str(&format!(
-        "{}  inputs {}+{}  mutants {} of {} apply  slipped {}  caught {}  underdetermined {}\n",
+        "{}  inputs {}+{}  mutants {} of {} apply  slipped {}  caught {}  underdetermined {}{}\n",
         r.obligation,
         r.example_inputs,
         r.generated_inputs,
@@ -747,13 +795,21 @@ pub fn render_mutants(r: &MutantReport, full: bool) -> String {
         r.mutants.len(),
         slipped.len(),
         r.caught(),
-        r.search.len()
+        r.open().len(),
+        if r.accepted().is_empty() {
+            String::new()
+        } else {
+            format!("  accepted {}", r.accepted().len())
+        }
     ));
     for m in &slipped {
         s.push_str(&format!("  slipped  {}\n", slipped_line(m)));
     }
     for u in &r.search {
-        s.push_str(&format!("  underdetermined  {}\n", underdetermined_line(u)));
+        match u.accepted_by {
+            Some(_) => s.push_str(&format!("  accepted  {}\n", underdetermined_line(u))),
+            None => s.push_str(&format!("  underdetermined  {}\n", underdetermined_line(u))),
+        }
     }
     if !full {
         return s;
@@ -789,7 +845,12 @@ pub fn render_mutants(r: &MutantReport, full: bool) -> String {
         }
     }
     for u in &r.search {
-        s.push_str("  underdetermined: two outputs pass every clause\n    e:\n");
+        s.push_str(match u.accepted_by {
+            Some(_) => {
+                "  accepted: two outputs pass every clause, and an `accept` line says so\n    e:\n"
+            }
+            None => "  underdetermined: two outputs pass every clause\n    e:\n",
+        });
         s.push_str(&format!("      in: {}\n", sur_inputs(&u.inputs)));
         s.push_str(&format!(
             "      out: {}    # {}\n",
@@ -927,7 +988,7 @@ pub fn mutants_json_lines(r: &MutantReport) -> Vec<Json> {
     }
     for u in &r.search {
         let mut f = json!({
-            "kind": "underdetermined",
+            "kind": if u.accepted_by.is_some() { "accepted" } else { "underdetermined" },
             "obligation": r.obligation,
             "obligation_hash": r.obligation_hash,
             "inputs": input_json(&u.inputs),
@@ -937,6 +998,9 @@ pub fn mutants_json_lines(r: &MutantReport) -> Vec<Json> {
         });
         if let Some(n) = u.example {
             f["example"] = json!(n);
+        }
+        if let Some(i) = u.accepted_by {
+            f["accept"] = json!(i);
         }
         out.push(f);
     }
@@ -948,6 +1012,7 @@ pub fn mutants_json_lines(r: &MutantReport) -> Vec<Json> {
         "generated_inputs": r.generated_inputs,
         "mutants": { "total": r.mutants.len(), "applicable": r.applicable(), "slipped": r.slipped().len(), "caught": r.caught() },
         "underdetermined_inputs": r.search.len(),
+        "accepted_inputs": r.accepted().len(),
         "underdetermined": r.underdetermined(),
         "uncaught": r.uncaught.iter().map(clause_json).collect::<Vec<_>>(),
         "unevaluable": r.unevaluable.iter().map(|(c, e)| { let mut j = clause_json(c); j["message"] = json!(last_line(e)); j }).collect::<Vec<_>>(),

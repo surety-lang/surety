@@ -33,6 +33,7 @@ const RESERVED: &[&str] = &[
     "None",
     "Ok",
     "Err",
+    "accept",
 ];
 
 pub fn is_reserved(name: &str) -> bool {
@@ -257,6 +258,7 @@ fn parse_decl(item: &Item, pins: &mut Vec<Pin>) -> Result<Decl, Error> {
                 note: None,
                 abbrevs: Vec::new(),
                 properties: Vec::new(),
+                accepts: Vec::new(),
                 examples: Vec::new(),
             };
             parse_body(&mut fun, &item.children, pins)?;
@@ -400,6 +402,20 @@ fn parse_body(fun: &mut Function, items: &[Item], pins: &mut Vec<Pin>) -> Result
                 params,
                 body,
                 line,
+            });
+            i += 1;
+            continue;
+        }
+        if first.is_ident("accept") {
+            if toks.len() == 1 && it.children.is_empty() {
+                return Err(syntax(line, "`accept` needs a Bool over the inputs"));
+            }
+            let expr = parse_expr(&toks[1..], &it.children, Ctx::Property, line)?;
+            fun.accepts.push(Property {
+                expr,
+                line,
+                sentence: it.line.sentence.clone(),
+                text: source_text(it),
             });
             i += 1;
             continue;

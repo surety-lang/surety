@@ -332,6 +332,9 @@ pub struct Underdetermined {
     /// `a` is the example's expected output.
     pub a_is_expected: bool,
     pub candidates_tried: usize,
+    /// The index of the `accept` line this input satisfies, when one does:
+    /// a deliberate non-decision, reported as accepted.
+    pub accepted_by: Option<usize>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -374,10 +377,27 @@ impl MutantReport {
             .count()
     }
 
+    /// Underdetermined inputs no `accept` covers.
+    pub fn open(&self) -> Vec<&Underdetermined> {
+        self.search
+            .iter()
+            .filter(|u| u.accepted_by.is_none())
+            .collect()
+    }
+
+    /// Underdetermined inputs an `accept` covers: decided, not forgotten.
+    pub fn accepted(&self) -> Vec<&Underdetermined> {
+        self.search
+            .iter()
+            .filter(|u| u.accepted_by.is_some())
+            .collect()
+    }
+
     /// The underdetermination rate's numerator for this obligation: a
-    /// slipping mutant or an input with two passing outputs.
+    /// slipping mutant or an input with two passing outputs that no
+    /// `accept` covers.
     pub fn underdetermined(&self) -> bool {
-        !self.slipped().is_empty() || !self.search.is_empty()
+        !self.slipped().is_empty() || !self.open().is_empty()
     }
 
     pub fn run(&self, m: Mutant) -> Option<&MutantRun> {
@@ -785,6 +805,11 @@ impl<'g> Checker<'g> {
                 }
                 passing.push(cand);
                 if passing.len() >= 2 {
+                    let fun = self.fun;
+                    let accepted_by = fun
+                        .accepts
+                        .iter()
+                        .position(|a| self.accepts_input(&a.expr, &case.inputs));
                     findings.push(Underdetermined {
                         inputs: case.inputs.clone(),
                         example: case.example,
@@ -792,6 +817,7 @@ impl<'g> Checker<'g> {
                         b: passing[1].clone(),
                         a_is_expected: case.expected.is_some(),
                         candidates_tried: tried,
+                        accepted_by,
                     });
                     break;
                 }

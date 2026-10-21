@@ -27,7 +27,11 @@
         "extensions": [
           ".sur"
         ],
-        "configuration": "./language-configuration.json"
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./icons/surety-light.svg",
+          "dark": "./icons/surety-dark.svg"
+        }
       }
     ],
     "grammars": [

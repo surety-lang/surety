@@ -4,6 +4,7 @@ members = [
     "crates/surety-check",
     "crates/surety-py",
     "crates/surety-graph",
+    "crates/surety-lsp",
     "crates/surety",
 ]
 resolver = "3"

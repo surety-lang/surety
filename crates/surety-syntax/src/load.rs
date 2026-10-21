@@ -19,14 +19,23 @@ pub fn stem(p: &Path) -> String {
 /// alone; siblings that do not parse are skipped, since they are not this
 /// file's problem.
 pub fn load_with_siblings(file: &Path) -> Result<(Graph, usize), Vec<(PathBuf, Error)>> {
-    let dir = file.parent().unwrap_or(Path::new("."));
     let text = fs::read_to_string(file).map_err(|e| {
         vec![(
             file.to_path_buf(),
             Error::new(ErrorKind::Syntax, 0, e.to_string()),
         )]
     })?;
-    let own = parse(&text).map_err(|e| vec![(file.to_path_buf(), e)])?;
+    load_with_siblings_text(file, &text)
+}
+
+/// The same, with the file's text given rather than read: what an editor
+/// holds unsaved, parsed against the siblings on disk.
+pub fn load_with_siblings_text(
+    file: &Path,
+    text: &str,
+) -> Result<(Graph, usize), Vec<(PathBuf, Error)>> {
+    let dir = file.parent().unwrap_or(Path::new("."));
+    let own = parse(text).map_err(|e| vec![(file.to_path_buf(), e)])?;
     let own_stem = stem(file);
     let mut files = vec![(own_stem.clone(), own)];
     if let Ok(rd) = fs::read_dir(dir) {

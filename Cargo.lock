@@ -152,6 +152,7 @@ dependencies = [
  "serde_json",
  "surety-check",
  "surety-graph",
+ "surety-lsp",
  "surety-py",
  "surety-syntax",
 ]
@@ -173,6 +174,15 @@ dependencies = [
  "sha2",
  "surety-check",
  "surety-py",
+ "surety-syntax",
+]
+
+[[package]]
+name = "surety-lsp"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "surety-graph",
  "surety-syntax",
 ]
 

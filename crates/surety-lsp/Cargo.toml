@@ -1,0 +1,15 @@
+[package]
+name = "surety-lsp"
+version = "0.1.0"
+description = "Surety language server: diagnostics equal to parse's, hover, definition and symbols, over stdio"
+publish = false
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[dependencies]
+surety-syntax = { path = "../surety-syntax" }
+surety-graph = { path = "../surety-graph" }
+serde_json.workspace = true

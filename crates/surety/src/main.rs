@@ -32,6 +32,9 @@ Usage:
                                         requires its evidence byte-identical
   surety render <file.sur>              the file printed back from its syntax tree; --fresh-names
                                         renames every binder, which must not change the hash
+  surety lsp                            the language server over stdio: diagnostics equal to parse's
+                                        on every change, hover, definition, symbols; --graph for
+                                        the state of a sibling obligation on hover
   surety diff <file.sur> <old.py> <new.py>
                                         the behavioural diff: both performances on the obligation's
                                         examples and generated inputs, and the inputs on which their
@@ -152,6 +155,13 @@ fn main() -> ExitCode {
         ["status"] => cmd_status(&flags),
         ["verify"] => cmd_verify(&flags),
         ["render", file] => cmd_render(Path::new(file), &flags),
+        ["lsp"] => match surety_lsp::run(flags.graph.as_ref().map(PathBuf::from)) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("surety lsp: {e}");
+                ExitCode::from(2)
+            }
+        },
         ["diff", file, old, new] => {
             cmd_diff(Path::new(file), Path::new(old), Path::new(new), &flags)
         }

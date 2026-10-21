@@ -16,5 +16,6 @@ homepage.workspace = true
 surety-syntax = { path = "../surety-syntax" }
 surety-check = { path = "../surety-check" }
 surety-graph = { path = "../surety-graph" }
+surety-lsp = { path = "../surety-lsp" }
 surety-py = { path = "../surety-py" }
 serde_json.workspace = true

@@ -12,6 +12,7 @@ use surety_check::{
     Bucket, Budget, Cause, Checker, Class, DiffReport, Difference, Outcome, Party, PropVerdict,
     Report, Value, Verdict,
 };
+use surety_graph::{NodeView, PinState, Pinned, Rendered, State, StatusRow, Verification};
 use surety_syntax::{Error, Graph, parse};
 
 /// Per-call timeout for a performance.
@@ -56,42 +57,7 @@ pub fn load_dir(dir: &Path) -> Result<Graph, Vec<(PathBuf, Error)>> {
     }
 }
 
-pub fn stem(p: &Path) -> String {
-    p.file_stem()
-        .map(|s| s.to_string_lossy().into_owned())
-        .unwrap_or_default()
-}
-
-/// Load the directory holding `file` as a graph and return the index of
-/// `file` in it. If `file` does not parse, the error is returned alone.
-pub fn load_with_siblings(file: &Path) -> Result<(Graph, usize), Vec<(PathBuf, Error)>> {
-    let dir = file.parent().unwrap_or(Path::new("."));
-    let text = fs::read_to_string(file).map_err(|e| {
-        vec![(
-            file.to_path_buf(),
-            Error::new(surety_syntax::ErrorKind::Syntax, 0, e.to_string()),
-        )]
-    })?;
-    let own = parse(&text).map_err(|e| vec![(file.to_path_buf(), e)])?;
-    let own_stem = stem(file);
-    let mut files = vec![(own_stem.clone(), own)];
-    if let Ok(rd) = fs::read_dir(dir) {
-        let mut paths: Vec<PathBuf> = rd
-            .filter_map(|e| e.ok().map(|e| e.path()))
-            .filter(|p| p.extension().is_some_and(|x| x == "sur") && stem(p) != own_stem)
-            .collect();
-        paths.sort();
-        for p in paths {
-            // Siblings that do not parse are skipped: they are not this file's problem.
-            if let Ok(t) = fs::read_to_string(&p) {
-                if let Ok(f) = parse(&t) {
-                    files.push((stem(&p), f));
-                }
-            }
-        }
-    }
-    Ok((Graph::new(files), 0))
-}
+pub use surety_syntax::load::{load_with_siblings, stem};
 
 fn errors_text(errs: Vec<(PathBuf, Error)>) -> String {
     errs.iter()
@@ -1661,4 +1627,229 @@ pub fn render_diff_json(r: &DiffReport) -> String {
         s.push('\n');
     }
     s
+}
+
+// ---- the graph: pin, show, status, verify ----
+
+/// What a record keeps of a report: its verdict line and its `--json` lines.
+pub fn rendered(report: &Report) -> Rendered {
+    Rendered {
+        verdict: verdict_line(report),
+        lines: json_lines(report),
+    }
+}
+
+pub fn pin_line(p: &Pinned) -> String {
+    let unchanged = if p.wrote { "" } else { " (unchanged)" };
+    match &p.performance {
+        Some(h) => format!(
+            "pinned {} {} python {}: {}{unchanged}",
+            p.name,
+            p.obligation,
+            h,
+            p.state.word()
+        ),
+        None => format!(
+            "pinned {} {}: {}{unchanged}",
+            p.name,
+            p.obligation,
+            PinState::Open.word()
+        ),
+    }
+}
+
+pub fn pin_json(p: &Pinned) -> Json {
+    json!({
+        "kind": "pinned",
+        "name": p.name,
+        "obligation": p.obligation,
+        "target": "python",
+        "performance": p.performance,
+        "state": p.state.word(),
+        "wrote": p.wrote,
+    })
+}
+
+fn hop_text(hop: &[(String, State)]) -> String {
+    if hop.is_empty() {
+        return "none".to_string();
+    }
+    hop.iter()
+        .map(|(n, s)| format!("{n} ({})", s.word()))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+/// A node as `show` prints it: the model's query, for a reader.
+pub fn render_show(v: &NodeView) -> String {
+    let mut s = String::new();
+    let name = v
+        .names
+        .first()
+        .cloned()
+        .unwrap_or_else(|| "(unnamed)".to_string());
+    s.push_str(&format!(
+        "{name}  {}  {}\n",
+        v.state.word().to_uppercase(),
+        v.hash
+    ));
+    for other in v.names.iter().skip(1) {
+        s.push_str(&format!("  also named: {other}\n"));
+    }
+    if let Some(src) = &v.source {
+        s.push_str(&format!("  source: {src}\n"));
+    }
+    if let Some(n) = &v.note {
+        s.push_str(&format!("  note: {n}\n"));
+    }
+    for sent in &v.sentences {
+        s.push_str(&format!("  # {sent}\n"));
+    }
+    s.push_str(&format!(
+        "  presentations: {}\n",
+        if v.presentations.is_empty() {
+            "none".to_string()
+        } else {
+            v.presentations.join(", ")
+        }
+    ));
+    if v.performances.is_empty() {
+        s.push_str("  performances: none (open)\n");
+    }
+    for p in &v.performances {
+        s.push_str(&format!(
+            "  {} {}  {}\n        {}\n",
+            p.target,
+            p.hash,
+            if p.verified { "verified" } else { "findings" },
+            p.verdict
+        ));
+    }
+    s.push_str(&format!("  calls: {}\n", hop_text(&v.callees)));
+    s.push_str(&format!("  called by: {}\n", hop_text(&v.callers)));
+    if !v.uses.is_empty() {
+        s.push_str(&format!("  uses types from: {}\n", hop_text(&v.uses)));
+    }
+    s
+}
+
+fn hop_json(hop: &[(String, State)]) -> Json {
+    Json::Array(
+        hop.iter()
+            .map(|(n, s)| json!({ "name": n, "state": s.key() }))
+            .collect(),
+    )
+}
+
+pub fn show_json(v: &NodeView) -> Json {
+    json!({
+        "kind": "node",
+        "name": v.names.first(),
+        "names": v.names,
+        "hash": v.hash,
+        "state": v.state.key(),
+        "source": v.source,
+        "note": v.note,
+        "sentences": v.sentences,
+        "comments": v.comments,
+        "presentations": v.presentations,
+        "performances": v.performances.iter().map(|p| json!({
+            "target": p.target, "hash": p.hash,
+            "state": if p.verified { "verified" } else { "findings" },
+            "verdict": p.verdict,
+        })).collect::<Vec<_>>(),
+        "calls": hop_json(&v.callees),
+        "called_by": hop_json(&v.callers),
+        "uses_types_from": hop_json(&v.uses),
+    })
+}
+
+pub fn render_status(rows: &[StatusRow]) -> String {
+    let mut s = String::new();
+    let mut counts = std::collections::BTreeMap::new();
+    for r in rows {
+        *counts.entry(r.state.key()).or_insert(0usize) += 1;
+        s.push_str(&format!(
+            "{:<9} {}  {}  {}\n",
+            r.state.key(),
+            r.name,
+            r.hash.get(..12).unwrap_or(&r.hash),
+            r.source
+        ));
+        if let State::Stale { now } = &r.state {
+            s.push_str(&format!("          now {now}\n"));
+        }
+    }
+    let summary: Vec<String> = ["verified", "findings", "open", "stale", "missing"]
+        .iter()
+        .filter_map(|k| counts.get(k).map(|n| format!("{n} {k}")))
+        .collect();
+    s.push_str(&format!(
+        "{} name{}: {}\n",
+        rows.len(),
+        if rows.len() == 1 { "" } else { "s" },
+        if summary.is_empty() {
+            "none".to_string()
+        } else {
+            summary.join(", ")
+        }
+    ));
+    s
+}
+
+pub fn status_json(rows: &[StatusRow]) -> Vec<Json> {
+    rows.iter()
+        .map(|r| {
+            let mut j = json!({
+                "kind": "name", "name": r.name, "obligation": r.hash,
+                "source": r.source, "state": r.state.key(),
+            });
+            if let State::Stale { now } = &r.state {
+                j["now"] = json!(now);
+            }
+            j
+        })
+        .collect()
+}
+
+pub fn render_verify(vs: &[Verification], rerun: bool) -> String {
+    let mut s = String::new();
+    let mut failed = 0;
+    for v in vs {
+        let node = v.node.get(..12).unwrap_or(&v.node);
+        let perf = v.performance.get(..12).unwrap_or(&v.performance);
+        match &v.result {
+            Ok(()) => s.push_str(&format!("ok    {}  {node}  python {perf}\n", v.name)),
+            Err(e) => {
+                failed += 1;
+                s.push_str(&format!("FAIL  {}  {node}  python {perf}: {e}\n", v.name));
+            }
+        }
+    }
+    s.push_str(&format!(
+        "{} of {} record{} {}{}\n",
+        vs.len() - failed,
+        vs.len(),
+        if vs.len() == 1 { "" } else { "s" },
+        if rerun { "reproduced" } else { "admitted" },
+        if failed > 0 {
+            format!("; {failed} failed")
+        } else {
+            String::new()
+        }
+    ));
+    s
+}
+
+pub fn verify_json(vs: &[Verification]) -> Vec<Json> {
+    vs.iter()
+        .map(|v| {
+            json!({
+                "kind": "record", "name": v.name, "obligation": v.node, "target": "python",
+                "performance": v.performance,
+                "ok": v.result.is_ok(),
+                "error": v.result.as_ref().err(),
+            })
+        })
+        .collect()
 }

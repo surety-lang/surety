@@ -21,6 +21,17 @@ Usage:
                                         the obligation alone, over the same inputs, and the search
                                         for inputs with two passing outputs; a performance next to
                                         the file is used only where a property calls the obligation
+  surety pin <file.sur> [<perf.py>]     check and pin: the node, the performance and the record go
+                                        into the graph; with no performance, the obligation alone
+                                        (open). Siblings a property calls must be pinned first
+  surety show <name | hash>             a node: its state, its prose, its presentations, its
+                                        performances with their records, and one hop each way
+  surety status                         every name in the namespace with its state; stale where
+                                        the source file now hashes to something else
+  surety verify                         the kernel over every record; --rerun checks each again and
+                                        requires its evidence byte-identical
+  surety render <file.sur>              the file printed back from its syntax tree; --fresh-names
+                                        renames every binder, which must not change the hash
   surety diff <file.sur> <old.py> <new.py>
                                         the behavioural diff: both performances on the obligation's
                                         examples and generated inputs, and the inputs on which their
@@ -35,7 +46,10 @@ Flags:
   --full          check: the bucket detail; mutants: the behaviour-first detail; diff: every
                   difference, not the first three
   --budget <n>    generated inputs per obligation (default 500; 0 is slice 1 behaviour)
-  --candidates <n>  output candidates the search tries per input (default 600)";
+  --candidates <n>  output candidates the search tries per input (default 600)
+  --graph <dir>   the graph directory (default: graph)
+  --rerun         verify: re-run every record's check
+  --fresh-names   render: binders renamed in order of appearance";
 
 #[derive(Default)]
 struct Flags {
@@ -44,6 +58,9 @@ struct Flags {
     full: bool,
     budget: Option<usize>,
     candidates: Option<usize>,
+    graph: Option<String>,
+    rerun: bool,
+    fresh_names: bool,
 }
 
 impl Flags {
@@ -76,6 +93,18 @@ fn main() -> ExitCode {
                     Some(n) => flags.budget = Some(n),
                     None => {
                         eprintln!("--budget needs a number");
+                        return ExitCode::from(2);
+                    }
+                }
+            }
+            "--rerun" => flags.rerun = true,
+            "--fresh-names" => flags.fresh_names = true,
+            "--graph" => {
+                i += 1;
+                match args.get(i) {
+                    Some(d) => flags.graph = Some(d.clone()),
+                    None => {
+                        eprintln!("--graph needs a directory");
                         return ExitCode::from(2);
                     }
                 }
@@ -117,6 +146,12 @@ fn main() -> ExitCode {
         ["check", file] => cmd_check(Path::new(file), None, &flags),
         ["check", file, perf] => cmd_check(Path::new(file), Some(Path::new(perf)), &flags),
         ["mutants", files @ ..] if !files.is_empty() => cmd_mutants(files, &flags),
+        ["pin", file] => cmd_pin(Path::new(file), None, &flags),
+        ["pin", file, perf] => cmd_pin(Path::new(file), Some(Path::new(perf)), &flags),
+        ["show", key] => cmd_show(key, &flags),
+        ["status"] => cmd_status(&flags),
+        ["verify"] => cmd_verify(&flags),
+        ["render", file] => cmd_render(Path::new(file), &flags),
         ["diff", file, old, new] => {
             cmd_diff(Path::new(file), Path::new(old), Path::new(new), &flags)
         }
@@ -308,6 +343,133 @@ fn cmd_diff(file: &Path, old: &Path, new: &Path, flags: &Flags) -> ExitCode {
         }
         Err(e) => {
             eprintln!("{e}");
+            ExitCode::from(2)
+        }
+    }
+}
+
+fn store(flags: &Flags) -> surety_graph::Store {
+    surety_graph::Store::open(Path::new(flags.graph.as_deref().unwrap_or("graph")))
+}
+
+fn cmd_pin(file: &Path, perf: Option<&Path>, flags: &Flags) -> ExitCode {
+    let store = store(flags);
+    match surety_graph::pin(
+        &store,
+        file,
+        perf,
+        flags.budget(),
+        surety::TIMEOUT,
+        surety::rendered,
+    ) {
+        Ok(pinned) => {
+            if flags.json {
+                if let Some(r) = &pinned.report {
+                    print!("{}", surety::render_json(r));
+                }
+                println!("{}", surety::pin_json(&pinned));
+            } else {
+                if let Some(r) = &pinned.report {
+                    print!("{}", surety::render_with(r, flags.full));
+                }
+                println!("{}", surety::pin_line(&pinned));
+            }
+            match pinned.state {
+                surety_graph::PinState::Findings => ExitCode::from(1),
+                _ => ExitCode::SUCCESS,
+            }
+        }
+        Err(e) => {
+            eprintln!("{e}");
+            ExitCode::from(2)
+        }
+    }
+}
+
+fn cmd_show(key: &str, flags: &Flags) -> ExitCode {
+    match surety_graph::show(&store(flags), key) {
+        Ok(view) => {
+            if flags.json {
+                println!("{}", surety::show_json(&view));
+            } else {
+                print!("{}", surety::render_show(&view));
+            }
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            eprintln!("{e}");
+            ExitCode::from(2)
+        }
+    }
+}
+
+fn cmd_status(flags: &Flags) -> ExitCode {
+    match surety_graph::status(&store(flags)) {
+        Ok(rows) => {
+            if flags.json {
+                for j in surety::status_json(&rows) {
+                    println!("{j}");
+                }
+            } else {
+                print!("{}", surety::render_status(&rows));
+            }
+            let moved = rows.iter().any(|r| {
+                matches!(
+                    r.state,
+                    surety_graph::State::Stale { .. } | surety_graph::State::Missing
+                )
+            });
+            if moved {
+                ExitCode::from(1)
+            } else {
+                ExitCode::SUCCESS
+            }
+        }
+        Err(e) => {
+            eprintln!("{e}");
+            ExitCode::from(2)
+        }
+    }
+}
+
+fn cmd_verify(flags: &Flags) -> ExitCode {
+    match surety_graph::verify(&store(flags), flags.rerun, surety::rendered) {
+        Ok(vs) => {
+            if flags.json {
+                for j in surety::verify_json(&vs) {
+                    println!("{j}");
+                }
+            } else {
+                print!("{}", surety::render_verify(&vs, flags.rerun));
+            }
+            if vs.iter().all(|v| v.result.is_ok()) {
+                ExitCode::SUCCESS
+            } else {
+                ExitCode::from(1)
+            }
+        }
+        Err(e) => {
+            eprintln!("{e}");
+            ExitCode::from(2)
+        }
+    }
+}
+
+fn cmd_render(file: &Path, flags: &Flags) -> ExitCode {
+    let text = match fs::read_to_string(file) {
+        Ok(t) => t,
+        Err(e) => {
+            eprintln!("cannot read {}: {e}", file.display());
+            return ExitCode::from(2);
+        }
+    };
+    match surety_syntax::parse(&text) {
+        Ok(f) => {
+            print!("{}", surety_syntax::render::file(&f, flags.fresh_names));
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            eprintln!("{}: {e}", file.display());
             ExitCode::from(2)
         }
     }

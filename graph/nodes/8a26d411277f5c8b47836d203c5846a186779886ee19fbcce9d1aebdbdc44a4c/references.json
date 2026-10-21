@@ -1,0 +1,9 @@
+{
+  "calls": [
+    "apply_diff"
+  ],
+  "types": [
+    "apply_diff",
+    "validate_signup"
+  ]
+}

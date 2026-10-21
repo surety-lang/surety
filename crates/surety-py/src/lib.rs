@@ -342,6 +342,18 @@ pub struct Inspection {
 }
 
 /// Inspect a performance module without running it.
+/// The interpreter's version, for a record's provenance.
+pub fn python_version() -> Result<String, RunError> {
+    let python = std::env::var("SURETY_PYTHON").unwrap_or_else(|_| "python3".to_string());
+    let out = Command::new(&python)
+        .arg("-I")
+        .arg("-c")
+        .arg("import sys; print('%d.%d.%d' % sys.version_info[:3])")
+        .output()
+        .map_err(|e| RunError::Spawn(format!("{python}: {e}")))?;
+    Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
+}
+
 pub fn inspect(path: &Path) -> Result<Inspection, RunError> {
     let python = std::env::var("SURETY_PYTHON").unwrap_or_else(|_| "python3".to_string());
     let out = Command::new(&python)

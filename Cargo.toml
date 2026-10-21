@@ -3,6 +3,7 @@ members = [
     "crates/surety-syntax",
     "crates/surety-check",
     "crates/surety-py",
+    "crates/surety-graph",
     "crates/surety",
 ]
 resolver = "3"

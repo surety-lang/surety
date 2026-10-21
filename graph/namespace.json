@@ -1,0 +1,46 @@
+{
+  "apply_diff": {
+    "obligation": "b3c015158aa499ce82010bb986c59aa66363da9a36ee1dc48547d599caf55ab8",
+    "source": "crates/surety/tests/corpus/apply_diff.sur"
+  },
+  "combine": {
+    "obligation": "32bf862c1995eda7885362a67b4941470ee2da13f84dc24832a4c1cdbef56983",
+    "source": "crates/surety/tests/corpus/p1.sur"
+  },
+  "enrich_orders": {
+    "obligation": "68dc03f953feb8a92484aa29eec45cb37d8d0e7389340dd057dd45bef610a951",
+    "source": "crates/surety/tests/corpus/p7.sur"
+  },
+  "flatten_order": {
+    "obligation": "150131328a400b324de692005af855135d96915582d15624b2568174b51ce0f5",
+    "source": "crates/surety/tests/corpus/p6.sur"
+  },
+  "get_first_customer_orders": {
+    "obligation": "b771e47272e621410914b10eaf4a2d3ea7a1055a0d9034b255bb0cfbb5174984",
+    "source": "crates/surety/tests/corpus/p5a.sur"
+  },
+  "get_first_occurrence_per_email": {
+    "obligation": "1b6448c4bcdb3fad751847661297fb7c328a254ebda1902a86dcc0251c9b7247",
+    "source": "crates/surety/tests/corpus/p5b.sur"
+  },
+  "get_small_orders": {
+    "obligation": "cca5e41f224b66dadb58cdc452542b34d2b44857e2a4fc207d8b860c8169237e",
+    "source": "crates/surety/tests/corpus/p2.sur"
+  },
+  "group_by_customer": {
+    "obligation": "e5dcff838def52522007d9783eddb69385cc7a52fb36099c87adbf5b6ad3be65",
+    "source": "crates/surety/tests/corpus/p3.sur"
+  },
+  "snapshot_diff": {
+    "obligation": "8a26d411277f5c8b47836d203c5846a186779886ee19fbcce9d1aebdbdc44a4c",
+    "source": "crates/surety/tests/corpus/p14.sur"
+  },
+  "top_three_scores": {
+    "obligation": "6bd0d12503a190350a468c049338c308777098cf6ccc9ff6e1ca4adfe993fa68",
+    "source": "crates/surety/tests/corpus/p4.sur"
+  },
+  "validate_signup": {
+    "obligation": "b7f1698c634e7b4246073f32da76bb1bd36573ad54d80b151752038891360210",
+    "source": "crates/surety/tests/corpus/p8.sur"
+  }
+}

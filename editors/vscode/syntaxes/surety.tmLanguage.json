@@ -1,0 +1,130 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Surety",
+  "scopeName": "source.surety",
+  "fileTypes": ["sur"],
+  "patterns": [
+    { "include": "#comment" },
+    { "include": "#sentence" },
+    { "include": "#type-declaration" },
+    { "include": "#labels" },
+    { "include": "#builtin" },
+    { "include": "#signature" },
+    { "include": "#string" },
+    { "include": "#number" },
+    { "include": "#quantifier" },
+    { "include": "#word-operator" },
+    { "include": "#note" },
+    { "include": "#constant" },
+    { "include": "#primitive-type" },
+    { "include": "#type-name" },
+    { "include": "#operator" },
+    { "include": "#field" },
+    { "include": "#identifier" },
+    { "include": "#punctuation" }
+  ],
+  "repository": {
+    "comment": {
+      "match": "^\\s*(//).*$",
+      "name": "comment.line.double-slash.surety"
+    },
+    "sentence": {
+      "comment": "A # line is a sentence pinned to the property beneath it, not a comment.",
+      "match": "^(\\s*)(#)(.*)$",
+      "captures": {
+        "2": { "name": "punctuation.definition.sentence.surety" },
+        "3": { "name": "string.unquoted.sentence.surety" }
+      }
+    },
+    "type-declaration": {
+      "match": "^(type)\\s+([A-Z][A-Za-z0-9_]*)",
+      "captures": {
+        "1": { "name": "keyword.other.type.surety" },
+        "2": { "name": "entity.name.type.declaration.surety" }
+      }
+    },
+    "labels": {
+      "comment": "e:, in:, out: and accept open the example and acceptance slots.",
+      "patterns": [
+        {
+          "match": "^\\s*(e)(:)",
+          "captures": {
+            "1": { "name": "keyword.other.example.surety" },
+            "2": { "name": "punctuation.separator.surety" }
+          }
+        },
+        {
+          "match": "\\b(in|out)(:)",
+          "captures": {
+            "1": { "name": "keyword.other.label.surety" },
+            "2": { "name": "punctuation.separator.surety" }
+          }
+        },
+        {
+          "match": "^\\s*(accept)\\b",
+          "captures": { "1": { "name": "keyword.other.accept.surety" } }
+        }
+      ]
+    },
+    "signature": {
+      "comment": "An obligation's name, a named predicate or an abbreviation: a name at the start of a line followed by ( or =.",
+      "match": "^\\s*(?!(?:sum|len|min|max|count|flatten|all|any|none|exactly_one|not|unique|accept|note|type)\\b)([a-z_][A-Za-z0-9_]*)(?=\\s*(\\(|=[^=]))",
+      "captures": { "1": { "name": "entity.name.function.surety" } }
+    },
+    "string": {
+      "match": "\"[^\"]*\"",
+      "name": "string.quoted.double.surety"
+    },
+    "number": {
+      "match": "(?<![A-Za-z0-9_])-?\\d+(\\.\\d+)?\\b",
+      "name": "constant.numeric.surety"
+    },
+    "quantifier": {
+      "match": "\\b(all|any|none|exactly_one)\\b",
+      "name": "keyword.control.quantifier.surety"
+    },
+    "word-operator": {
+      "match": "\\b(in|where|else|and|or|not|leftover|before|unordered|unique|sorted_by|same_order_as|same_elements_as|drawn_from|asc|desc)\\b",
+      "name": "keyword.operator.word.surety"
+    },
+    "note": {
+      "match": "\\b(note)\\b",
+      "name": "keyword.other.note.surety"
+    },
+    "builtin": {
+      "match": "\\b(sum|len|min|max|count|flatten)\\b(?=\\s*\\()",
+      "name": "support.function.builtin.surety"
+    },
+    "constant": {
+      "match": "\\b(None|Ok|Err|true|false)\\b",
+      "name": "constant.language.surety"
+    },
+    "primitive-type": {
+      "match": "\\b(Int|Float|Text|Bool|Id|Time|UUID|Option|Result)\\b",
+      "name": "support.type.primitive.surety"
+    },
+    "type-name": {
+      "match": "\\b[A-Z][A-Za-z0-9_]*\\b",
+      "name": "entity.name.type.surety"
+    },
+    "operator": {
+      "match": "<->|->|==|!=|<=|>=|<|>|=|\\.\\.\\.|\\.\\.",
+      "name": "keyword.operator.surety"
+    },
+    "field": {
+      "match": "(\\.)([a-z_][A-Za-z0-9_]*)",
+      "captures": {
+        "1": { "name": "punctuation.accessor.surety" },
+        "2": { "name": "variable.other.member.surety" }
+      }
+    },
+    "identifier": {
+      "match": "\\b[a-z_][A-Za-z0-9_]*\\b",
+      "name": "variable.other.surety"
+    },
+    "punctuation": {
+      "match": "[\\[\\]{}(),:]",
+      "name": "punctuation.surety"
+    }
+  }
+}

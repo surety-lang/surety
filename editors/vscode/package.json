@@ -1,0 +1,59 @@
+{
+  "name": "surety",
+  "displayName": "Surety",
+  "description": "Obligations in Surety: diagnostics as you type, names that resolve, the verdict on save",
+  "version": "0.1.0",
+  "publisher": "surety-lang",
+  "license": "MIT OR Apache-2.0",
+  "repository": { "type": "git", "url": "https://github.com/surety-lang/surety" },
+  "engines": { "vscode": "^1.90.0" },
+  "categories": ["Programming Languages"],
+  "main": "./out/src/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "surety",
+        "aliases": ["Surety", "surety"],
+        "extensions": [".sur"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "surety",
+        "scopeName": "source.surety",
+        "path": "./syntaxes/surety.tmLanguage.json"
+      }
+    ],
+    "configuration": {
+      "title": "Surety",
+      "properties": {
+        "surety.path": {
+          "type": "string",
+          "default": "surety",
+          "description": "The surety binary the extension runs: `surety lsp` for the server, `surety check` and `surety mutants` on save."
+        },
+        "surety.graph": {
+          "type": "string",
+          "default": "",
+          "description": "The graph directory a hover on a sibling obligation reads its state from. Empty: no state."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -w -p ./",
+    "test:grammar": "node ./out/test/grammar.test.js"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/vscode": "^1.90.0",
+    "typescript": "^5.6.0",
+    "vscode-oniguruma": "^2.0.1",
+    "vscode-textmate": "^9.1.0"
+  }
+}

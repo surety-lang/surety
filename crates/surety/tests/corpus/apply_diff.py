@@ -10,6 +10,10 @@ ADDED_PRESENT = {
     "code": "e1-added-present-sku",
     "display": "Item in diff.added already present in old",
 }
+CONFLICTING = {
+    "code": "e1-conflicting-sku",
+    "display": "A sku is in both diff.removed and diff.changed",
+}
 
 
 def apply_diff(old, diff):
@@ -21,6 +25,9 @@ def apply_diff(old, diff):
         errors.append(MISSING_CHANGED)
     if any(a["sku"] in old_skus for a in diff["added"]):
         errors.append(ADDED_PRESENT)
+    removed_skus = {r["sku"] for r in diff["removed"]}
+    if any(c["sku"] in removed_skus for c in diff["changed"]):
+        errors.append(CONFLICTING)
     if errors:
         return {"err": errors}
     removed = {r["sku"] for r in diff["removed"]}

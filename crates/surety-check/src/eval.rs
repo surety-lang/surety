@@ -1,4 +1,11 @@
 //! The property evaluator: brute force over example-sized inputs.
+//!
+//! Binders range over occurrences (the binders decision, 2026-10-21): a
+//! name bound by `in L` or `leftover in L` carries its position in `L`.
+//! `==`, `in` and every list relation compare values; only `before`
+//! compares positions, and an operand that is not an occurrence of the
+//! list stands for the occurrence `leftover` assigned to its value, or its
+//! first occurrence when no `leftover` is in scope.
 
 use std::path::PathBuf;
 
@@ -8,13 +15,39 @@ use surety_syntax::{BinOp, Dir, Expr, Function, QKind, Quantifier, RelOp, Side, 
 use crate::checker::Checker;
 use crate::value::{Value, from_json, from_json_at, from_json_untyped, to_json};
 
+/// Where a binder's value came from: the list it ranges over and the
+/// position of this occurrence in it.
+#[derive(Debug, Clone)]
+pub struct Occurrence {
+    pub list: Vec<Value>,
+    pub position: usize,
+}
+
+#[derive(Debug, Clone)]
+pub struct Binding {
+    pub name: String,
+    pub value: Value,
+    pub occurrence: Option<Occurrence>,
+}
+
+/// A `leftover in L` in scope: for each element of the list it subtracted
+/// (`out`), the occurrence of `L` it was assigned, and the positions removed.
+#[derive(Debug, Clone)]
+pub struct Leftover {
+    pub list: Vec<Value>,
+    pub reference: Vec<Value>,
+    pub assigned: Vec<Option<usize>>,
+    pub removed: Vec<usize>,
+}
+
 /// What names mean while a property is evaluated for one example run.
 #[derive(Debug, Clone)]
 pub struct Env<'a> {
     pub inputs: &'a [(String, Value)],
     pub out: &'a Value,
-    pub binders: Vec<(String, Value)>,
+    pub binders: Vec<Binding>,
     pub params: Vec<(String, Value)>,
+    pub leftovers: Vec<Leftover>,
 }
 
 impl<'a> Env<'a> {
@@ -24,13 +57,22 @@ impl<'a> Env<'a> {
             out,
             binders: Vec::new(),
             params: Vec::new(),
+            leftovers: Vec::new(),
         }
     }
 
-    fn bind(&self, name: &str, v: Value) -> Env<'a> {
+    fn bind(&self, name: &str, v: Value, occurrence: Option<Occurrence>) -> Env<'a> {
         let mut e = self.clone();
-        e.binders.push((name.to_string(), v));
+        e.binders.push(Binding {
+            name: name.to_string(),
+            value: v,
+            occurrence,
+        });
         e
+    }
+
+    fn binding(&self, name: &str) -> Option<&Binding> {
+        self.binders.iter().rev().find(|b| b.name == name)
     }
 
     /// The scope of an abbreviation body: inputs and `out`, no binders.
@@ -40,8 +82,57 @@ impl<'a> Env<'a> {
             out: self.out,
             binders: Vec::new(),
             params,
+            leftovers: Vec::new(),
         }
     }
+}
+
+/// `leftover in L`: for each element of `taken` in order, the earliest
+/// occurrence in `list` of an equal value not yet removed. Returns the
+/// assignment per taken element, the removed positions, and the positions
+/// left over.
+pub fn leftover_positions(
+    list: &[Value],
+    taken: &[Value],
+) -> (Vec<Option<usize>>, Vec<usize>, Vec<usize>) {
+    let mut removed: Vec<usize> = Vec::new();
+    let mut assigned = Vec::with_capacity(taken.len());
+    for t in taken {
+        let p = (0..list.len()).find(|i| !removed.contains(i) && list[*i] == *t);
+        if let Some(p) = p {
+            removed.push(p);
+        }
+        assigned.push(p);
+    }
+    let remaining = (0..list.len()).filter(|i| !removed.contains(i)).collect();
+    (assigned, removed, remaining)
+}
+
+/// The position an operand of `before` stands for in `list`: its own, when
+/// it is an occurrence of that list; the occurrence `leftover` assigned it,
+/// when it is an element of the list `leftover` subtracted; else the
+/// earliest occurrence of its value that `leftover` removed, or its first
+/// occurrence when no `leftover` over that list is in scope.
+fn position_of(operand: &Expr, value: &Value, list: &[Value], env: &Env<'_>) -> Option<usize> {
+    let leftover = env.leftovers.iter().rev().find(|lo| lo.list == list);
+    if let Expr::Name(n, _) = operand {
+        if let Some(occ) = env.binding(n).and_then(|b| b.occurrence.as_ref()) {
+            if occ.list == list {
+                return Some(occ.position);
+            }
+            if let Some(lo) = leftover {
+                if occ.list == lo.reference {
+                    return lo.assigned.get(occ.position).copied().flatten();
+                }
+            }
+        }
+    }
+    if let Some(lo) = leftover {
+        if let Some(p) = lo.removed.iter().filter(|&&p| list[p] == *value).min() {
+            return Some(*p);
+        }
+    }
+    list.iter().position(|x| x == value)
 }
 
 fn truthy(v: &Value, what: &str) -> Result<bool, String> {
@@ -224,10 +315,10 @@ impl<'g> Checker<'g> {
             Expr::Before { a, b, list } => {
                 let xs = self.eval(list, env)?;
                 let xs = as_list(&xs, "`before`")?;
-                let a = self.eval(a, env)?;
-                let b = self.eval(b, env)?;
-                let ia = xs.iter().position(|x| *x == a);
-                let ib = xs.iter().position(|x| *x == b);
+                let va = self.eval(a, env)?;
+                let vb = self.eval(b, env)?;
+                let ia = position_of(a, &va, xs, env);
+                let ib = position_of(b, &vb, xs, env);
                 Ok(Value::Bool(matches!((ia, ib), (Some(i), Some(j)) if i < j)))
             }
             Expr::Relation(rel, a, b) => {
@@ -268,8 +359,8 @@ impl<'g> Checker<'g> {
         if let Some((_, v)) = env.params.iter().rev().find(|(p, _)| p == n) {
             return Ok(v.clone());
         }
-        if let Some((_, v)) = env.binders.iter().rev().find(|(b, _)| b == n) {
-            return Ok(v.clone());
+        if let Some(b) = env.binding(n) {
+            return Ok(b.value.clone());
         }
         if let Some((_, v)) = env.inputs.iter().find(|(i, _)| i == n) {
             return Ok(v.clone());
@@ -454,28 +545,44 @@ impl<'g> Checker<'g> {
 
     fn eval_quantifier(&mut self, q: &Quantifier, env: &Env<'_>) -> Result<bool, String> {
         let dom = self.eval(&q.domain, env)?;
-        let mut elements: Vec<Value> = match dom {
+        let elements: Vec<Value> = match dom {
             Value::List(xs) => xs,
             Value::None => Vec::new(),
             other => vec![other],
         };
+        let mut positions: Vec<usize> = (0..elements.len()).collect();
+        let mut scope = env.clone();
         if q.leftover {
             let taken = as_list(env.out, "`leftover` (out)")?;
-            elements = multiset_minus(&elements, taken);
+            let (assigned, removed, remaining) = leftover_positions(&elements, taken);
+            positions = remaining;
+            scope.leftovers.push(Leftover {
+                list: elements.clone(),
+                reference: taken.to_vec(),
+                assigned,
+                removed,
+            });
         }
-        let total = elements.len();
-        let matched: Vec<Value> = elements
+        let total = positions.len();
+        let matched: Vec<(usize, Value)> = positions
             .into_iter()
-            .filter_map(|el| match (q.binder.side, el) {
-                (Some(Side::Ok), Value::Ok(v)) => Some(*v),
-                (Some(Side::Err), Value::Err(v)) => Some(*v),
+            .filter_map(|p| match (q.binder.side, elements[p].clone()) {
+                (Some(Side::Ok), Value::Ok(v)) => Some((p, *v)),
+                (Some(Side::Err), Value::Err(v)) => Some((p, *v)),
                 (Some(_), _) => None,
-                (None, el) => Some(el),
+                (None, el) => Some((p, el)),
             })
             .collect();
-        fn bind<'a>(q: &Quantifier, env: &Env<'a>, v: &Value) -> Env<'a> {
+        fn bind<'a>(q: &Quantifier, env: &Env<'a>, list: &[Value], p: usize, v: &Value) -> Env<'a> {
             match &q.binder.name {
-                Some(n) => env.bind(n, v.clone()),
+                Some(n) => env.bind(
+                    n,
+                    v.clone(),
+                    Some(Occurrence {
+                        list: list.to_vec(),
+                        position: p,
+                    }),
+                ),
                 None => env.clone(),
             }
         }
@@ -490,26 +597,26 @@ impl<'g> Checker<'g> {
             });
         };
         let mut domain = Vec::new();
-        for v in matched {
+        for (p, v) in matched {
             let keep = match &q.where_ {
                 Some(w) => {
-                    let inner = bind(q, env, &v);
+                    let inner = bind(q, &scope, &elements, p, &v);
                     self.eval_bool(w, &inner)?
                 }
                 None => true,
             };
             if keep {
-                domain.push(v);
+                domain.push((p, v));
             }
         }
         if domain.is_empty() {
             if let Some(e) = &q.else_ {
-                return self.eval_bool(e, env);
+                return self.eval_bool(e, &scope);
             }
         }
         let mut results = Vec::with_capacity(domain.len());
-        for v in &domain {
-            let inner = bind(q, env, v);
+        for (p, v) in &domain {
+            let inner = bind(q, &scope, &elements, *p, v);
             results.push(self.eval_bool(body, &inner)?);
         }
         let hits = results.iter().filter(|r| **r).count();

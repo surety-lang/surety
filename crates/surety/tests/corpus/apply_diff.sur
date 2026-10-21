@@ -19,17 +19,25 @@ added_already_present_sku_err: DiffError = {
 	display: "Item in diff.added already present in old"
 }
 
+conflicting_sku_err: DiffError = {
+	code: "e1-conflicting-sku",
+	display: "A sku is in both diff.removed and diff.changed"
+}
+
 valid_errors = [
 	missing_removed_sku_err,
 	missing_changed_sku_err,
-	added_already_present_sku_err
+	added_already_present_sku_err,
+	conflicting_sku_err
 ]
 
 apply_diff(old: Item[unique sku], diff: Diff) -> Result<Item[unique sku], DiffError[]>
 	removed_ok = all s in diff.removed.sku: s in old.sku
 	changed_ok = all s in diff.changed.sku: s in old.sku
 	added_ok   = all s in diff.added.sku:   s not in old.sku
-	checks     = removed_ok and changed_ok and added_ok
+	// a sku in both removed and changed asks for it to be absent and present; added overlaps are already caught by added_ok
+	disjoint   = none s in diff.removed.sku: s in diff.changed.sku
+	checks     = removed_ok and changed_ok and added_ok and disjoint
 	
 	checks <-> exactly_one Ok(_) in out
 	
@@ -39,6 +47,8 @@ apply_diff(old: Item[unique sku], diff: Diff) -> Result<Item[unique sku], DiffEr
 		missing_changed_sku_err in errs <-> not changed_ok
 	all Err(errs) in out:
 		added_already_present_sku_err in errs <-> not added_ok
+	all Err(errs) in out:
+		conflicting_sku_err in errs <-> not disjoint
 	
 	all Err(errs) in out:
 		errs drawn_from valid_errors
@@ -120,6 +130,12 @@ apply_diff(old: Item[unique sku], diff: Diff) -> Result<Item[unique sku], DiffEr
 	  in: ([ { sku: "A", qty: 5 } ], { added: [ { sku: "A", qty: 6 } ], removed: [], changed: [] })
 	  out: Err([added_already_present_sku_err])
 	
+	e:
+	  note "a sku in both removed and changed"
+	  in: ([ { sku: "A", qty: 5 } ],
+	      { added: [], removed: [ { sku: "A", qty: 5 } ], changed: [ { sku: "A", old_qty: 5, new_qty: 6 } ] })
+	  out: Err([conflicting_sku_err])
+
 	e:
 	  note "two disagreements, both reported"
 	  in: ([ { sku: "A", qty: 5 } ],

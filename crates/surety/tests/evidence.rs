@@ -5,7 +5,7 @@
 
 mod common;
 
-use surety_check::{Budget, Checker, PropVerdict, Report};
+use surety_check::{Budget, Checker, PropVerdict, Report, Value};
 use surety_syntax::normalize::canonical_file;
 
 fn check(name: &str, budget: Budget) -> Report {
@@ -66,49 +66,13 @@ fn every_fixture_passes_with_a_full_record() {
         ] {
             assert!(text.contains(line), "{name}: record lacks {line:?}\n{text}");
         }
-        match name {
-            "p5b" => {
-                // The identical-orders residue: `leftover` subtracts by value
-                // and `before` finds positions by first occurrence, so two
-                // identical orders make "the leftover one is later" false.
-                let before = r
-                    .properties
-                    .iter()
-                    .find(|p| p.text.contains("o before l in orders"))
-                    .unwrap();
-                assert!(before.findings() > 0, "{text}");
-                assert_eq!(
-                    before.suggest, None,
-                    "no refinement fixes identical elements:\n{text}"
-                );
-                assert!(
-                    before
-                        .note
-                        .as_deref()
-                        .unwrap_or("")
-                        .contains("repeats an element of `orders`"),
-                    "{text}"
-                );
-                for p in &r.properties {
-                    if !p.text.contains("o before l in orders") {
-                        assert_eq!(p.findings(), 0, "{name}: {}\n{text}", p.text);
-                    }
-                }
-            }
-            // apply_diff's open hole, a sku in both diff.removed and
-            // diff.changed, is a coincidence the 500 generated inputs no
-            // longer reach now that each list is unique on sku; it is pinned
-            // by a hand-built input in the test below.
-            // The holes P6, P7 and apply_diff's `added` had are closed in the
-            // fixtures and tested on copies below.
-            _ => {
-                assert_eq!(
-                    r.claim_findings(),
-                    0,
-                    "{name}: no finding expected:\n{text}"
-                );
-            }
-        }
+        // Every hole the corpus had is closed in the fixtures and tested
+        // on copies below; apply_diff's conflict has its own error now.
+        assert_eq!(
+            r.claim_findings(),
+            0,
+            "{name}: no finding expected:\n{text}"
+        );
         eprintln!(
             "{name}: findings {} ({} claims, {} raised, {} nondeterministic)",
             r.findings(),
@@ -287,75 +251,136 @@ fn apply_diff_without_its_added_refinement_forces_a_non_unique_output() {
     assert!(json.contains("\"kind\":\"boundary\""), "{json}");
 }
 
-/// apply_diff's open hole: a sku in both diff.removed and diff.changed
-/// must be absent from the result and present in it. Every shape of output
-/// fails a different property, so no performance can satisfy the
-/// obligation on that input. The generated tier reached it twice in 497
-/// runs before the author's fix and not at all after, so it is pinned here.
+/// apply_diff's seventh example, a sku in both diff.removed and
+/// diff.changed, is answered by the fourth error since the author's fix.
+/// `Err([conflicting_sku_err])` holds every property on that input; an
+/// `Ok` of either shape and an empty `Err` each fail one.
 #[test]
-fn apply_diff_is_contradictory_when_a_sku_is_both_removed_and_changed() {
-    let read =
-        |n: &str| std::fs::read_to_string(common::corpus_dir().join(format!("{n}.sur"))).unwrap();
-    let src = read("apply_diff")
-        + "\n\te:\n\t  note \"sku A removed and changed\"\n\t  in: ([ { sku: \"A\", qty: 5 } ], { added: [], removed: [ { sku: \"A\", qty: 5 } ], changed: [ { sku: \"A\", old_qty: 5, new_qty: 6 } ] })\n\t  out: Ok([])\n";
-    let file = surety_syntax::parse(&src).unwrap();
-    let p8 = surety_syntax::parse(&read("p8")).unwrap();
-    let graph = surety_syntax::Graph::new(vec![
-        ("apply_diff".to_string(), file),
-        ("p8".to_string(), p8),
-    ]);
-    graph.check_file(0).unwrap();
+fn apply_diff_answers_a_sku_both_removed_and_changed_with_an_error() {
+    let graph = common::corpus();
+    let idx = common::fixture_index(&graph, "apply_diff");
     let perf = common::corpus_dir().join("apply_diff.py");
-    let mut c = Checker::new(&graph, 0, &perf, &common::corpus_dir(), surety::TIMEOUT).unwrap();
+    let mut c = Checker::new(&graph, idx, &perf, &common::corpus_dir(), surety::TIMEOUT).unwrap();
     c.budget = Budget::none();
     let fun = c.fun;
-    let conflict = fun.examples.last().unwrap();
+    let conflict = fun
+        .examples
+        .iter()
+        .find(|e| e.note.as_deref() == Some("a sku in both removed and changed"))
+        .expect("the author's example");
     let inputs = c.example_inputs(conflict).unwrap();
-    let outputs = [
+    let answer = Value::Err(Box::new(Value::List(vec![
+        c.named_value("conflicting_sku_err").unwrap(),
+    ])));
+    for p in &fun.properties {
+        assert_eq!(
+            c.holds(&p.expr, &inputs, &answer),
+            Ok(true),
+            "the answer fails {}",
+            p.text
+        );
+    }
+    let item = Value::record(vec![
+        ("sku".into(), Value::Text("A".into())),
+        ("qty".into(), Value::Int(6)),
+    ]);
+    let wrong = [
         (
             "Ok([])",
-            "sk not in res.sku",
-            "exactly_one i in res where i.sku == c.sku",
+            Value::Ok(Box::new(Value::List(vec![]))),
+            "exactly_one Ok(_) in out",
         ),
         (
-            "Ok([ { sku: \"A\", qty: 6 } ])",
-            "exactly_one i in res where i.sku == c.sku",
-            "sk not in res.sku",
+            "Ok([A: 6])",
+            Value::Ok(Box::new(Value::List(vec![item]))),
+            "exactly_one Ok(_) in out",
         ),
-        ("Err([])", "all Ok(res) in out", "exactly_one Ok(_) in out"),
+        (
+            "Err([])",
+            Value::Err(Box::new(Value::List(vec![]))),
+            "conflicting_sku_err in errs",
+        ),
     ];
-    for (out, holds_text, fails_text) in outputs {
-        let value = {
-            let lookup = |n: &str| c.named_value(n);
-            let expr = surety_syntax::parse(&format!("f(x: Int) -> Result<Item[unique sku], DiffError[]>\n\te:\n\t\tin: 0\n\t\tout: {out}\n"))
-                .map(|f| match &f.decls[0] {
-                    surety_syntax::Decl::Function(f) => f.examples[0].output.clone(),
-                    _ => unreachable!(),
-                })
-                .unwrap();
-            surety_check::value::from_literal(&expr, c.output_type(), &lookup, None).unwrap()
-        };
-        let holds = fun
-            .properties
-            .iter()
-            .find(|p| p.text.contains(holds_text))
-            .unwrap();
+    for (label, out, fails_text) in wrong {
         let fails = fun
             .properties
             .iter()
             .find(|p| p.text.contains(fails_text))
             .unwrap();
         assert_eq!(
-            c.holds(&holds.expr, &inputs, &value),
-            Ok(true),
-            "{out}: {holds_text}"
-        );
-        assert_eq!(
-            c.holds(&fails.expr, &inputs, &value),
+            c.holds(&fails.expr, &inputs, &out),
             Ok(false),
-            "{out}: {fails_text}"
+            "{label} should fail {fails_text}"
         );
     }
+    let r = c.check();
+    assert!(
+        r.passed(),
+        "the performance answers the example:\n{}",
+        surety::render(&r)
+    );
+}
+
+/// The binders decision: on two identical orders, P5b's "every same-email
+/// leftover is later" holds, because `leftover` assigns the output's order
+/// the first occurrence and the leftover is the second. Three copies too.
+#[test]
+fn p5b_holds_on_identical_orders_under_occurrence_semantics() {
+    let graph = common::corpus();
+    let idx = common::fixture_index(&graph, "p5b");
+    let perf = common::corpus_dir().join("p5b.py");
+    let mut c = Checker::new(&graph, idx, &perf, &common::corpus_dir(), surety::TIMEOUT).unwrap();
+    c.budget = Budget::none();
+    let fun = c.fun;
+    let before = fun
+        .properties
+        .iter()
+        .find(|p| p.text.contains("o before l in orders"))
+        .unwrap();
+    let x = Value::record(vec![
+        ("amount".into(), Value::Int(2)),
+        ("customer_email".into(), Value::Text("j@test.com".into())),
+    ]);
+    for copies in [2usize, 3] {
+        let orders = Value::List(vec![x.clone(); copies]);
+        let out = Value::List(vec![x.clone()]);
+        assert_eq!(
+            c.holds(&before.expr, std::slice::from_ref(&orders), &out),
+            Ok(true),
+            "{copies} identical orders"
+        );
+        for p in &fun.properties {
+            assert_eq!(
+                c.holds(&p.expr, std::slice::from_ref(&orders), &out),
+                Ok(true),
+                "{copies} copies: {}",
+                p.text
+            );
+        }
+    }
+    // Keeping a later copy is still wrong: the kept order's position is
+    // the earliest occurrence, and the leftover is later than it, so the
+    // property cannot tell the copies apart by value; it is the `same_order_as`
+    // and the other clauses that pin which copy. Two different orders, kept
+    // in the wrong order, still fail.
+    let y = Value::record(vec![
+        ("amount".into(), Value::Int(4)),
+        ("customer_email".into(), Value::Text("j@test.com".into())),
+    ]);
+    let orders = Value::List(vec![x.clone(), y.clone()]);
+    assert_eq!(
+        c.holds(
+            &before.expr,
+            std::slice::from_ref(&orders),
+            &Value::List(vec![x.clone()])
+        ),
+        Ok(true)
+    );
+    assert_eq!(
+        c.holds(&before.expr, &[orders], &Value::List(vec![y])),
+        Ok(false),
+        "keeping the later order is caught"
+    );
 }
 
 #[test]

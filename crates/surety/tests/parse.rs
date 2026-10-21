@@ -39,7 +39,7 @@ fn fixture_shapes_match_the_corpus() {
         ("p6", 5, 2, 0),
         ("p7", 4, 3, 0),
         ("p8", 7, 12, 1),
-        ("apply_diff", 13, 7, 4),
+        ("apply_diff", 14, 8, 5),
         ("p14", 16, 3, 0),
     ];
     for (name, props, examples, abbrevs) in expected {

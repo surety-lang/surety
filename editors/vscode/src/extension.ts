@@ -137,7 +137,7 @@ async function checkDocument(doc: vscode.TextDocument, mode: Mode): Promise<void
     const lines = json.stdout.split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
     const diags = useCheck ? checkDiagnostics(doc, lines, sig) : mutantDiagnostics(doc, lines, sig);
     verdicts.set(doc.uri, diags);
-    gapDetail.set(doc.uri.toString(), lines.filter(l => l.kind === 'gap').map(g => ({ range: outputRange(doc, sig), md: gapMarkdown(g) })));
+    gapDetail.set(doc.uri.toString(), lines.filter(l => l.kind === 'gap').map(g => ({ range: outputRange(doc, sig), md: gapMarkdown(g), gap: g, sig })));
 }
 
 /** The output type on the signature line: what a gap, a claim about `out`, sits under. */
@@ -157,7 +157,7 @@ function outputRange(doc: vscode.TextDocument, sig: number): vscode.Range {
 // show it. Its diagnostic is that one line, under the output type; its
 // hover is the example that shows it, laid out and highlighted. The inputs
 // and mutants it holds carry its index and get no diagnostic of their own.
-const gapDetail = new Map<string, { range: vscode.Range; md: vscode.MarkdownString }[]>();
+const gapDetail = new Map<string, { range: vscode.Range; md: vscode.MarkdownString; gap: any; sig: number }[]>();
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
@@ -174,6 +174,56 @@ function gapMarkdown(g: any): vscode.MarkdownString {
         md.appendMarkdown(`Also what ${mutants.join(' and ')} ${mutants.length === 1 ? 'returns' : 'return'}.`);
     }
     return md;
+}
+
+/** A clause no mutant breaks: one that never reads `out` cannot be broken by any output. */
+function unbreakable(inputOnly: boolean): string {
+    return inputOnly
+        ? 'this clause never reads `out`: a claim about the input alone, which no output can break'
+        : 'no mutant breaks this clause: check that it claims what you mean';
+}
+
+const QUICK_FIX_TITLE = 'Add this input as an example, with both outputs to choose from';
+
+/**
+ * The quick fix on a gap: the gap's input as a drafted example whose two
+ * `out:` lines sit between merge-conflict markers, so the author keeps the
+ * one they mean (the editor offers Accept Current and Accept Incoming) and
+ * the file does not parse until they do. Appended to the obligation's block.
+ */
+function chooseOutput(doc: vscode.TextDocument, sig: number, g: any): vscode.WorkspaceEdit {
+    let last = sig;
+    let unit = '\t';
+    for (let k = sig + 1; k < doc.lineCount; k++) {
+        const t = doc.lineAt(k).text;
+        if (t.trim() === '') {
+            continue;
+        }
+        if (!/^\s/.test(t)) {
+            break;
+        }
+        if (last === sig) {
+            unit = t.match(/^\s+/)![0];
+        }
+        last = k;
+    }
+    const body = unit + unit;
+    const value = (head: string, v: string) => `${body}${head}: ${v.split('\n').join(`\n${body}`)}`;
+    const text = [
+        '',
+        '',
+        `${unit}// drafted: two outputs pass every clause on this input; keep the one you mean`,
+        `${unit}e:`,
+        value('in', g.pretty.in),
+        '<<<<<<< passes every clause',
+        value('out', g.pretty.a),
+        '=======',
+        value('out', g.pretty.b),
+        '>>>>>>> also passes every clause',
+    ].join('\n');
+    const edit = new vscode.WorkspaceEdit();
+    edit.insert(doc.uri, doc.lineAt(last).range.end, text);
+    return edit;
 }
 
 function diag(doc: vscode.TextDocument, line: number, message: string, severity: vscode.DiagnosticSeverity): vscode.Diagnostic {
@@ -208,6 +258,12 @@ function checkDiagnostics(doc: vscode.TextDocument, lines: any[], sig: number): 
         }
         if (l.kind === 'gap') {
             out.push(diagAt(outputRange(doc, sig), gapMessage(l), vscode.DiagnosticSeverity.Warning));
+            continue;
+        }
+        if (l.kind === 'look_here' && l.clause?.line !== undefined) {
+            if (!/\bunordered$/.test(l.clause.text ?? '')) {
+                out.push(diag(doc, l.clause.line, unbreakable(!!l.input_only), vscode.DiagnosticSeverity.Information));
+            }
             continue;
         }
         const party = l.party ? ` (${l.party})` : '';
@@ -249,6 +305,13 @@ function mutantDiagnostics(doc: vscode.TextDocument, lines: any[], sig: number):
         }
         for (const c of clauses) {
             out.push(diag(doc, c.line ?? sig + 1, `mutant ${name} slips through this clause`, vscode.DiagnosticSeverity.Warning));
+        }
+    }
+    const report = lines.find(l => l.kind === 'mutant_report');
+    // `x unordered` claims nothing by design: no hint for it.
+    for (const c of report?.uncaught ?? []) {
+        if (c.line !== undefined && !/\bunordered$/.test(c.text ?? '')) {
+            out.push(diag(doc, c.line, unbreakable(!!c.input_only), vscode.DiagnosticSeverity.Information));
         }
     }
     for (const u of underdetermined.filter(u => u.gap === undefined)) {
@@ -300,6 +363,23 @@ export function activate(context: vscode.ExtensionContext): void {
             latest.delete(doc.uri.toString());
             gapDetail.delete(doc.uri.toString());
         }),
+        vscode.languages.registerCodeActionsProvider({ language: 'surety' }, {
+            provideCodeActions(doc, _range, context) {
+                const gaps = gapDetail.get(doc.uri.toString()) ?? [];
+                const actions: vscode.CodeAction[] = [];
+                for (const d of context.diagnostics) {
+                    // An input that is already an example has its output chosen.
+                    const hit = gaps.find(g => d.source === 'surety' && d.message === gapMessage(g.gap) && !g.gap.a_is_expected);
+                    if (hit) {
+                        const action = new vscode.CodeAction(QUICK_FIX_TITLE, vscode.CodeActionKind.QuickFix);
+                        action.diagnostics = [d];
+                        action.edit = chooseOutput(doc, hit.sig, hit.gap);
+                        actions.push(action);
+                    }
+                }
+                return actions;
+            },
+        }, { providedCodeActionKinds: [vscode.CodeActionKind.QuickFix] }),
         vscode.languages.registerHoverProvider({ language: 'surety' }, {
             provideHover(doc, position) {
                 const hits = (gapDetail.get(doc.uri.toString()) ?? []).filter(g => g.range.contains(position));

@@ -2,6 +2,8 @@
 //! passing outputs differ, each with its smallest input and the slipped
 //! mutants that return one of its outputs.
 
+mod common;
+
 use std::fs;
 use std::path::PathBuf;
 
@@ -185,4 +187,96 @@ fn size(inputs: &[Value]) -> usize {
         }
     }
     inputs.iter().map(one).sum()
+}
+
+/// A clause about the inputs alone is false whatever the output wherever it
+/// is false, so it catches no mutant: here nothing does, and `empty` slips.
+#[test]
+fn a_claim_about_the_input_alone_catches_nothing() {
+    let path = scratch(
+        "keep_small.sur",
+        "type Order = { amount: Int }\n\nkeep_small(orders: Order[]) -> Order[]\n\tall o in out: o.amount <= 100\n\tall a in orders.amount: a >= 0\n",
+    );
+    let r = surety::mutants_file(&path, None, Budget::default()).unwrap();
+    let text = surety::render_mutants(&r, false);
+    let empty = r.run(surety_check::Mutant::Empty).unwrap();
+    assert_eq!(
+        empty.verdict,
+        surety_check::MutantVerdict::Slipped,
+        "{text}"
+    );
+    assert_eq!(r.input_only.len(), 1, "{text}");
+    assert_eq!(r.input_only[0].line(), Some(5));
+    assert!(r.uncaught.contains(&r.input_only[0]), "{text}");
+    let lines = surety::mutants_json_lines(&r);
+    let report = lines.iter().find(|j| j["kind"] == "mutant_report").unwrap();
+    let flagged: Vec<&Json> = report["uncaught"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|c| c["input_only"] == true)
+        .collect();
+    assert_eq!(flagged.len(), 1, "{report}");
+    assert_eq!(flagged[0]["line"], 5);
+}
+
+/// A mutant whose output depends on the input joins a gap only on the
+/// input it was shown on. Here `identity` and `drop_one` return `Ok([])` on
+/// their own small inputs, which equals one output of the gap's pair on
+/// another input: a coincidence, not the same hole. `ok_empty` returns
+/// `Ok([])` everywhere, so it does belong.
+#[test]
+fn an_input_dependent_mutant_joins_a_gap_only_on_its_own_input() {
+    let path = scratch(
+        "same_type.sur",
+        "type Event = { id: Id, at: Text }\ntype Problem = { code: Text }\n\nbucket(events: Event[]) -> Result<Event[], Problem>\n\tnote \"nothing claimed yet\"\n",
+    );
+    let r = surety::mutants_file(&path, None, Budget::default()).unwrap();
+    let text = surety::render_mutants(&r, false);
+    let gaps = surety_check::gaps(&r);
+    assert_eq!(gaps.len(), 1, "{text}");
+    let names: Vec<&str> = gaps[0].mutants.iter().map(|m| m.name()).collect();
+    assert!(names.contains(&"ok_empty"), "{text}");
+    for m in ["identity", "drop_one"] {
+        assert!(
+            r.slipped().iter().any(|s| s.mutant.name() == m),
+            "{m} slips here:\n{text}"
+        );
+        assert!(!names.contains(&m), "{m} is not this gap:\n{text}");
+    }
+}
+
+/// `leftover` reads `out` without naming it: a clause that only ranges over
+/// leftovers catches what it should.
+#[test]
+fn a_leftover_clause_reads_the_output() {
+    let path = scratch(
+        "leftover.sur",
+        "type Order = { amount: Int }\n\nkeep_small(orders: Order[]) -> Order[]\n\tall o leftover in orders: o.amount > 100\n",
+    );
+    let r = surety::mutants_file(&path, None, Budget::default()).unwrap();
+    assert!(r.input_only.is_empty(), "{:?}", r.input_only);
+    let empty = r.run(surety_check::Mutant::Empty).unwrap();
+    assert_eq!(empty.verdict, surety_check::MutantVerdict::Caught);
+    assert!(empty.kills.iter().any(|k| k.clause.line() == Some(4)));
+}
+
+/// None of the eleven makes a claim about its inputs alone: every property
+/// reads `out` (by name, through `leftover`, through an abbreviation or a
+/// call to itself), and every frame clause pairs an output record.
+#[test]
+fn every_corpus_clause_reads_the_output() {
+    for name in common::FIXTURES {
+        let path = common::corpus_dir().join(format!("{name}.sur"));
+        let r = surety::mutants_file(
+            &path,
+            None,
+            Budget {
+                search_candidates: 0,
+                ..Budget::default()
+            },
+        )
+        .unwrap();
+        assert!(r.input_only.is_empty(), "{name}: {:?}", r.input_only);
+    }
 }

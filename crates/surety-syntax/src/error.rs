@@ -22,6 +22,8 @@ pub enum ErrorKind {
     AmbiguousType,
     UnknownField,
     DuplicateDefinition,
+    EmptyLeftover,
+    UnresolvedChoice,
 }
 
 impl ErrorKind {
@@ -46,6 +48,8 @@ impl ErrorKind {
             ErrorKind::AmbiguousType => "ambiguous_type",
             ErrorKind::UnknownField => "unknown_field",
             ErrorKind::DuplicateDefinition => "duplicate_definition",
+            ErrorKind::EmptyLeftover => "empty_leftover",
+            ErrorKind::UnresolvedChoice => "unresolved_choice",
         }
     }
 }

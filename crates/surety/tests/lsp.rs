@@ -159,7 +159,7 @@ fn every_bad_fixture_gets_parses_diagnostic_and_the_corpus_gets_none() {
         assert!(d["message"].as_str().is_some_and(|m| !m.is_empty()));
         checked += 1;
     }
-    assert_eq!(checked, 16, "the sixteen negative fixtures");
+    assert_eq!(checked, 18, "the eighteen negative fixtures");
     for name in common::FIXTURES {
         let path = common::corpus_dir().join(format!("{name}.sur"));
         let diagnostics = lsp.open(&path);
@@ -423,6 +423,27 @@ fn hover_writes_out_spreads_and_gives_every_callee_its_interface() {
         "{value}"
     );
     assert!(!value.contains("state:"), "{value}");
+    // An obligation named like the start of a node's hash is not that node:
+    // its state comes from the namespace by name, never from a hash prefix.
+    let prefix: String =
+        fs::read_dir(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../graph/nodes"))
+            .unwrap()
+            .filter_map(|e| e.ok()?.file_name().into_string().ok())
+            .find(|h| h.chars().take(3).all(|c| ('a'..='f').contains(&c)))
+            .map(|h| h[..3].to_string())
+            .expect("a node whose hash starts with three letters");
+    let hashlike = dir.join("hashlike.sur");
+    fs::write(&hashlike, format!("{prefix}(x: Int) -> Int\n\tout == x\n")).unwrap();
+    lsp.open(&hashlike);
+    let value = hover_text(lsp.at("textDocument/hover", &hashlike, &format!("{prefix}(x")));
+    assert!(
+        value.contains(&format!("{prefix}(x: Int) -> Int")),
+        "{value}"
+    );
+    assert!(
+        !value.contains("state:") && !value.contains("pins"),
+        "{value}"
+    );
     let value = hover_text(lsp.at("textDocument/hover", &elsewhere, "snapshot_diff(old, out)"));
     assert!(
         value.contains("snapshot_diff(old: Item[unique sku], new: Item[unique sku]) -> Diff"),

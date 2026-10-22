@@ -77,5 +77,31 @@ suite('the verdict on save', () => {
         const text = hovers.flatMap(h => h.contents.map(c => (typeof c === 'string' ? c : c.value))).join('\n');
         assert.ok(/```surety\nin: \[\n    \{/.test(text), text);
         assert.strictEqual((text.match(/\nout: /g) ?? []).length, 2, text);
+        // The quick fix writes the input as a drafted example, the two
+        // outputs as a choice to resolve; until it is, the file does not parse.
+        const actions = await vscode.commands.executeCommand<vscode.CodeAction[]>('vscode.executeCodeActionProvider', uri, gaps[0].range);
+        const fix = actions.find(a => a.title === 'Add this input as an example, with both outputs to choose from');
+        assert.ok(fix?.edit, JSON.stringify(actions.map(a => a.title)));
+        assert.ok(await vscode.workspace.applyEdit(fix!.edit!));
+        const written = doc.getText();
+        assert.ok(/\t\/\/ drafted: two outputs pass every clause on this input; keep the one you mean\n\te:\n\t\tin: \[\n/.test(written), written);
+        assert.ok(/\n<<<<<<< passes every clause\n\t\tout: [\s\S]*\n=======\n\t\tout: [\s\S]*\n>>>>>>> also passes every clause/.test(written), written);
+        await ours(uri, all => all.some(d => d.message.startsWith('a choice left open')));
+        await vscode.commands.executeCommand('workbench.action.files.revert');
+        // `out unordered` claims nothing by design and gets no hint.
+        assert.ok(!diags.some(d => d.severity === vscode.DiagnosticSeverity.Information && doc.lineAt(d.range.start.line).text.trim().endsWith('unordered')), JSON.stringify(diags.map(d => d.message)));
+    });
+
+    test('a clause about the input alone: a hint on its line that no output can break it', async () => {
+        const uri = workspaceFile('inputs.sur');
+        const doc = await vscode.workspace.openTextDocument(uri);
+        await vscode.window.showTextDocument(doc);
+        await vscode.commands.executeCommand('surety.mutants');
+        const line = doc.getText().split('\n').findIndex(l => l.includes('all o in orders: o.amount >= 0'));
+        const diags = await ours(uri, all => all.some(d => d.range.start.line === line));
+        const hint = diags.find(d => d.range.start.line === line)!;
+        assert.strictEqual(hint.severity, vscode.DiagnosticSeverity.Information);
+        assert.ok(hint.message.startsWith('this clause never reads `out`'), hint.message);
+        assert.strictEqual(hint.range.start.character, 1, 'after the tab');
     });
 });

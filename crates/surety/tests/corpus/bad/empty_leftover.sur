@@ -1,0 +1,5 @@
+type Order = { amount: Int }
+filter_orders(orders: Order[]) -> Order[]
+	all o in out: o.amount <= 100
+	out same_order_as orders
+	all i_o leftover in out: i_o.amount > 100

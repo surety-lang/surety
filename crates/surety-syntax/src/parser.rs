@@ -129,8 +129,23 @@ fn flatten_tokens(items: &[Item], out: &mut Vec<Token>) {
     }
 }
 
+/// The markers of a choice left open, as the editor's quick fix writes two
+/// passing outputs for the author to choose between, and as a merge does.
+const CHOICE_MARKERS: &[&str] = &["<<<<<<<", "=======", ">>>>>>>"];
+
 /// Parse a whole `.sur` file.
 pub fn parse(src: &str) -> Result<File, Error> {
+    if let Some((i, _)) = src
+        .lines()
+        .enumerate()
+        .find(|(_, l)| CHOICE_MARKERS.iter().any(|m| l.starts_with(m)))
+    {
+        return Err(Error::new(
+            ErrorKind::UnresolvedChoice,
+            i + 1,
+            "a choice left open: keep one side, and delete the side you do not mean and the three marker lines",
+        ));
+    }
     let lexed = lex(src)?;
     let mut pos = 0;
     let items = build_block(&lexed.lines, &mut pos, None)?;
@@ -1246,6 +1261,13 @@ impl<'a> ExprParser<'a> {
                     ),
                 ));
             }
+        }
+        if leftover && matches!(&domain, Expr::Name(n, _) if n == "out") {
+            return Err(Error::new(
+                ErrorKind::EmptyLeftover,
+                line,
+                "`leftover in out` ranges over nothing, since `out` takes all of its own elements; range over the input `out` is drawn from",
+            ));
         }
         let where_ = if self.peek_ident("where") {
             self.bump();

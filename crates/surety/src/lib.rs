@@ -1104,6 +1104,9 @@ pub fn json_lines(r: &Report) -> Vec<Json> {
             LookKind::Uncaught(c) => {
                 f["clause"] = clause_json(c);
                 f["why"] = json!("no mutant can violate it");
+                if r.mutants.as_ref().is_some_and(|m| m.input_only.contains(c)) {
+                    f["input_only"] = json!(true);
+                }
             }
             LookKind::Accept {
                 index, satisfied, ..
@@ -1551,7 +1554,13 @@ pub fn mutants_json_lines(r: &MutantReport) -> Vec<Json> {
         "gaps": gaps.len(),
         "accepted_inputs": r.accepted().len(),
         "underdetermined": r.underdetermined(),
-        "uncaught": r.uncaught.iter().map(clause_json).collect::<Vec<_>>(),
+        "uncaught": r.uncaught.iter().map(|c| {
+            let mut j = clause_json(c);
+            if r.input_only.contains(c) {
+                j["input_only"] = json!(true);
+            }
+            j
+        }).collect::<Vec<_>>(),
         "unevaluable": r.unevaluable.iter().map(|(c, e)| { let mut j = clause_json(c); j["message"] = json!(last_line(e)); j }).collect::<Vec<_>>(),
         "search": { "inputs": r.search_inputs, "candidates_cap": r.search_cap },
         "generated": r.buckets.iter().map(|b| json!({ "lengths": b.lengths, "taken": b.taken, "space": b.space.to_string(), "exhaustive": b.exhaustive })).collect::<Vec<_>>(),

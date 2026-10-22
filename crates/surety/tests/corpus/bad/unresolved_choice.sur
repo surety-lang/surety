@@ -1,0 +1,11 @@
+type Order = { amount: Int }
+filter_orders(orders: Order[]) -> Order[]
+	all o in out: o.amount <= 100
+	// drafted
+	e:
+		in: [{amount: 0}]
+<<<<<<< passes every clause
+		out: []
+=======
+		out: [{amount: 0}]
+>>>>>>> also passes every clause

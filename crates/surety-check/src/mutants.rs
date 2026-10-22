@@ -622,6 +622,10 @@ pub struct MutantReport {
     pub unevaluable: Vec<(Clause, String)>,
     /// Clauses that caught no applicable mutant.
     pub uncaught: Vec<Clause>,
+    /// Clauses that cannot read the output: claims about the inputs alone,
+    /// credited with no catch, since on an input where one is false it is
+    /// false whatever the output.
+    pub input_only: Vec<Clause>,
 }
 
 impl MutantReport {
@@ -868,6 +872,36 @@ impl<'g> Checker<'g> {
         walk(&self.scope, e, 0)
     }
 
+    /// Whether a clause's truth can depend on the output: it names `out`,
+    /// ranges over leftovers, or calls the obligation itself, directly or
+    /// through an abbreviation.
+    pub fn reads_output(&self, e: &Expr) -> bool {
+        fn walk(scope: &Scope<'_>, own: &str, e: &Expr, depth: usize) -> bool {
+            let mut found = false;
+            e.walk(&mut |sub| {
+                if found {
+                    return;
+                }
+                match sub {
+                    Expr::Name(n, _) if n == "out" => found = true,
+                    Expr::Call(n, _, _) if n == own => found = true,
+                    // `leftover` ranges over the domain less `out`.
+                    Expr::Quantifier(q) if q.leftover => found = true,
+                    Expr::Name(n, _) | Expr::Call(n, _, _) => {
+                        if let Some(a) = scope.abbrev(n) {
+                            if depth < 8 && walk(scope, own, &a.body, depth + 1) {
+                                found = true;
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            });
+            found
+        }
+        walk(&self.scope, &self.fun.name, e, 0)
+    }
+
     /// Every clause a candidate output is judged by: the properties, then
     /// the frame rule's implicit ones.
     pub fn clauses(&self) -> Vec<(Clause, Expr)> {
@@ -958,6 +992,13 @@ impl<'g> Checker<'g> {
         }
         let out_ty = self.output_type().clone();
         let clauses = self.clauses();
+        // A clause about the inputs alone is false whatever the output on an
+        // input where it is false: no catch of its is the mutant's doing.
+        // The frame rule always pairs an output record with an input one.
+        let reads: Vec<bool> = clauses
+            .iter()
+            .map(|(c, e)| matches!(c, Clause::Frame { .. }) || self.reads_output(e))
+            .collect();
         let unordered: Vec<Vec<Step>> = self.unordered().to_vec();
         let mut mutants = Vec::new();
         for m in LIBRARY {
@@ -985,7 +1026,7 @@ impl<'g> Checker<'g> {
                 if let Err(b) = from_json(&to_json(&out), &out_ty) {
                     kill(&mut run, Clause::Boundary, Some(b.to_string()), case, &out);
                 } else {
-                    for (clause, expr) in &clauses {
+                    for ((clause, expr), _) in clauses.iter().zip(&reads).filter(|(_, r)| **r) {
                         match self.holds(expr, &case.inputs, &out) {
                             Ok(true) => {}
                             Ok(false) => kill(&mut run, clause.clone(), None, case, &out),
@@ -1075,6 +1116,12 @@ impl<'g> Checker<'g> {
             search_cap: self.budget.search_candidates,
             unevaluable,
             uncaught,
+            input_only: clauses
+                .iter()
+                .zip(&reads)
+                .filter(|(_, r)| !**r)
+                .map(|((c, _), _)| c.clone())
+                .collect(),
         }
     }
 

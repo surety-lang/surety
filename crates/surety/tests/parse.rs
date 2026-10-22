@@ -99,6 +99,18 @@ fn a_second_domain_is_named() {
     );
 }
 
+/// A field on something that is not a record says what the thing is.
+#[test]
+fn a_field_on_a_non_record_says_what_it_is() {
+    let text = fs::read_to_string(common::corpus_dir().join("bad/not_a_record.sur")).unwrap();
+    let f = parse(&text).unwrap();
+    let e = Graph::single("bad", f).check_file(0).unwrap_err();
+    assert_eq!(
+        e.message,
+        "`out` is Int, not a record, so it has no field `amount`"
+    );
+}
+
 /// An error that knows its tokens names their columns, so the editor
 /// underlines the term and not the line: each span here is checked against
 /// the text it should cover.

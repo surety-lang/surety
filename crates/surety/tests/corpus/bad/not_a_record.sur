@@ -1,0 +1,2 @@
+total(xs: Int[], rate: Int) -> Int
+	out.amount >= 0

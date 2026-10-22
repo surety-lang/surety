@@ -170,7 +170,7 @@ fn every_bad_fixture_gets_parses_diagnostic_and_the_corpus_gets_none() {
         assert!(d["message"].as_str().is_some_and(|m| !m.is_empty()));
         checked += 1;
     }
-    assert_eq!(checked, 18, "the eighteen negative fixtures");
+    assert_eq!(checked, 19, "the nineteen negative fixtures");
     let mut hints = 0;
     for name in common::FIXTURES {
         let path = common::corpus_dir().join(format!("{name}.sur"));
@@ -600,6 +600,26 @@ fn completion_offers_the_words_the_language_has_and_the_names_in_scope() {
     fields.sort();
     assert_eq!(fields, ["age", "email", "password"]);
 
+    // After the dot of something that is not a record, nothing: an Int
+    // output, an Int input, a Result. The fields of every type in the
+    // directory are offered only when the type is not known at all.
+    let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("lsp-dot");
+    fs::create_dir_all(&dir).unwrap();
+    let ints = dir.join("ints.sur");
+    let saved_ints = "total(xs: Int[], rate: Int) -> Int\n\tout >= 0\n";
+    fs::write(&ints, saved_ints).unwrap();
+    lsp.open(&ints);
+    for (typed, needle) in [("\tout.\n", "\tout."), ("\trate. == 0\n", "\trate.")] {
+        let text = saved_ints.replace("\tout >= 0\n", typed);
+        assert!(lsp.complete(&ints, &text, needle).is_empty(), "{needle}");
+    }
+    let text = saved8.replace("all Ok(p_o) in out: p_o == p", "all Ok(p_o) in out: out.");
+    assert!(
+        lsp.complete(&p8, &text, "all Ok(p_o) in out: out.")
+            .is_empty(),
+        "a Result has no fields"
+    );
+
     // A half-typed head over a vertical body: the file as saved still says
     // what `c_out` ranges over.
     let p14 = common::corpus_dir().join("p14.sur");
@@ -618,3 +638,4 @@ fn completion_offers_the_words_the_language_has_and_the_names_in_scope() {
     assert_eq!(fields, ["new_qty", "old_qty", "sku"]);
     lsp.stop();
 }
+

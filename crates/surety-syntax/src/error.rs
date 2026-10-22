@@ -24,6 +24,7 @@ pub enum ErrorKind {
     DuplicateDefinition,
     EmptyLeftover,
     UnresolvedChoice,
+    NotARecord,
 }
 
 impl ErrorKind {
@@ -50,6 +51,7 @@ impl ErrorKind {
             ErrorKind::DuplicateDefinition => "duplicate_definition",
             ErrorKind::EmptyLeftover => "empty_leftover",
             ErrorKind::UnresolvedChoice => "unresolved_choice",
+            ErrorKind::NotARecord => "not_a_record",
         }
     }
 }

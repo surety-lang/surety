@@ -541,7 +541,14 @@ impl<'g> Scope<'g> {
                                 )
                             }),
                         Type::Unknown => Ok(Type::Unknown),
-                        other => Err(self.err(*l, format!("`.{f}` on a non-record {other}"))),
+                        other => Err(Error::new(
+                            ErrorKind::NotARecord,
+                            *l,
+                            format!(
+                                "`{}` is {other}, not a record, so it has no field `{f}`",
+                                crate::render::expr(base)
+                            ),
+                        )),
                     }
                 };
                 match &t {

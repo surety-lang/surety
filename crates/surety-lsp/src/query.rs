@@ -999,11 +999,15 @@ impl At<'_> {
         }
     }
 
-    /// The fields after a dotted chain, when its type is worked out here.
+    /// The fields after a dotted chain, when its type is worked out here:
+    /// none for a type that is not a record, since nothing can follow its
+    /// dot; None when the type is not known.
     fn fields_after(&self, chain: &[String]) -> Option<Vec<(String, Type)>> {
-        element(self.chain_type(chain, 0)?)
-            .record_fields()
-            .map(|fs| fs.to_vec())
+        let t = element(self.chain_type(chain, 0)?);
+        if t.is_unknown() {
+            return None;
+        }
+        Some(t.record_fields().map(|fs| fs.to_vec()).unwrap_or_default())
     }
 }
 
@@ -1117,3 +1121,4 @@ pub fn completion(path: &Path, text: &str, pos: &Json) -> Json {
     }
     Json::Array(items)
 }
+

@@ -23,13 +23,19 @@ let output: vscode.OutputChannel;
 const latest = new Map<string, vscode.Diagnostic[]>();
 const holds = new Map<string, Block>();
 
+// An error that no further typing on its line can mend is not held: a
+// field on something that is not a record stays wrong however the line
+// goes on.
+const UNMENDABLE = new Set(['not_a_record']);
+
 function shown(uri: vscode.Uri): vscode.Diagnostic[] {
     const all = latest.get(uri.toString()) ?? [];
     const hold = holds.get(uri.toString());
     if (!hold) {
         return all;
     }
-    return all.filter(d => d.range.start.line < hold.start || d.range.start.line > hold.end);
+    return all.filter(d => UNMENDABLE.has(String(typeof d.code === 'object' ? d.code.value : d.code))
+        || d.range.start.line < hold.start || d.range.start.line > hold.end);
 }
 
 function release(uri: vscode.Uri): void {

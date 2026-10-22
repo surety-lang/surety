@@ -56,4 +56,22 @@ suite('diagnostics wait while a clause is typed', () => {
         await never('the error stays shown when the cursor only returns', () => !onHead(), 1000);
         await vscode.commands.executeCommand('workbench.action.files.revert');
     });
+
+    test('a field on something that is not a record shows at once, even in the block being typed', async () => {
+        const uri = workspaceFile('typing.sur');
+        const doc = await vscode.workspace.openTextDocument(uri);
+        const editor = await vscode.window.showTextDocument(doc);
+        await until('the server to see the file clean', () => parseErrors(uri).length === 0);
+        const at = (line: number, ch: number) => new vscode.Position(line, ch);
+        // `o.amount` is an Int: no field can follow it, however the line goes on.
+        await editor.edit(e => e.insert(at(2, doc.lineAt(2).text.length), '\n\tall o in out: o.amount. > 0'));
+        // The field name typed inside the line: the edit holds this block.
+        await editor.edit(e => e.insert(at(3, 24), 'x'));
+        editor.selection = new vscode.Selection(at(3, 25), at(3, 25));
+        await until('the error, with the cursor still on the line', () =>
+            parseErrors(uri).some(d => d.range.start.line === 3 && d.code === 'not_a_record'));
+        const d = parseErrors(uri).find(x => x.range.start.line === 3)!;
+        assert.ok(d.message.startsWith('`o.amount` is Int, not a record'), d.message);
+        await vscode.commands.executeCommand('workbench.action.files.revert');
+    });
 });

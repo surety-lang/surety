@@ -99,6 +99,40 @@ fn a_second_domain_is_named() {
     );
 }
 
+/// A minus sign before a number is part of it, wherever a number goes: a
+/// named value, a property, a float, an example, and the line the editor's
+/// quick fix writes for a gap whose input is negative. Rendered, it reads
+/// back the same. Before anything but a number it is refused, since there
+/// is no arithmetic yet.
+#[test]
+fn a_number_may_be_negative() {
+    let text = "type Item = { amount: Int, rate: Float }\n\nfloor: Int = -5\n\ntotal(items: Item[], tax: Int) -> Int\n\tall i in items: i.amount > -1000 and i.rate >= -2.5\n\ttax == -1 -> out == floor\n\n\te:\n\t\tin: ([{amount: -125, rate: -0.5}], -1)\n\t\tout: -5\n\n\te:\n\t\tin: ([], -1)\n\t\tout: 0\n";
+    let f = parse(text).unwrap();
+    let g = Graph::single("neg", f.clone());
+    g.check_file(0).unwrap();
+    let rendered = surety_syntax::render::file(&f, false);
+    assert!(rendered.contains("floor: Int = -5"), "{rendered}");
+    assert!(
+        rendered.contains("i.amount > -1000 and i.rate >= -2.5"),
+        "{rendered}"
+    );
+    assert!(
+        rendered.contains("in: ([{amount: -125, rate: -0.5}], -1)"),
+        "{rendered}"
+    );
+    assert_eq!(
+        surety_syntax::render::file(&parse(&rendered).unwrap(), false),
+        rendered,
+        "it reads back the same"
+    );
+    let e = parse("total(xs: Int[]) -> Int\n\tout == -xs\n").unwrap_err();
+    assert_eq!(
+        e.message,
+        "a minus sign goes before a number; the language has no arithmetic yet"
+    );
+    assert_eq!(e.span, Some((8, 9)), "the minus sign");
+}
+
 /// A field on something that is not a record says what the thing is.
 #[test]
 fn a_field_on_a_non_record_says_what_it_is() {

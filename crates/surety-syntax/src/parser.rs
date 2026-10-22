@@ -1052,6 +1052,26 @@ impl<'a> ExprParser<'a> {
         match &t.tok {
             Tok::Int(i) => Ok(Expr::Int(*i)),
             Tok::Float(f) => Ok(Expr::Float(*f)),
+            // A minus sign is part of a number, read here rather than by the
+            // lexer so that `-` can later be subtraction too. There is no
+            // arithmetic yet, so it goes before a number and nothing else.
+            Tok::Sym("-") => match self.peek().map(|n| &n.tok) {
+                Some(Tok::Int(i)) => {
+                    let i = *i;
+                    self.bump();
+                    Ok(Expr::Int(-i))
+                }
+                Some(Tok::Float(f)) => {
+                    let f = *f;
+                    self.bump();
+                    Ok(Expr::Float(-f))
+                }
+                _ => Err(syntax(
+                    t.line,
+                    "a minus sign goes before a number; the language has no arithmetic yet",
+                )
+                .spanning(Some((t.col, t.end)))),
+            },
             Tok::Str(s) => Ok(Expr::Text(s.clone())),
             Tok::Sym("(") => {
                 if self.ctx == Ctx::Literal {

@@ -11,8 +11,8 @@ see the author's answer.
 
 `sentences` hands the model the problem's prose, the author's types if any,
 the spec's two summary paragraphs (generated inputs; the property fragment as
-it stands), the decision notes and the corpus, and takes back the types it had to add (each
-under a `// drafted` line, so the author reads them first), the signature,
+it stands), the decision notes and the corpus, and takes back the types and named values it had to add (each under a
+`// drafted` line, so the author reads them first), the signature,
 and `#` sentences, one claim each, with no property line beneath any of them
 and no examples. The file starts with `// draft`. The types are this stage's
 output, so the file is parsed and an error goes back to the model for up to
@@ -53,6 +53,7 @@ DOCS = ROOT / "docs"
 RUNS = ROOT / "experiments" / "draft" / "runs"
 MODEL = "claude-opus-5-5"
 MARK = "// draft"
+SIGNATURE = re.compile(r"^[a-z_][A-Za-z0-9_]*\s*\(.*\)\s*->")
 
 NOTATION = """The notation, by the forms the corpus uses:
 
@@ -68,13 +69,15 @@ NOTATION = """The notation, by the forms the corpus uses:
 
 SYSTEM_SENTENCES = """You draft Surety obligations from prose, in the first of two stages: the sentences.
 
-A Surety obligation is a specification a checker enforces: type declarations, a function signature, properties (claims about the relation between the inputs and the output), and examples. In this stage you write the types the problem needs that the author did not give, the signature, and the claims as prose sentences only: one `#` line per claim, each a single claim a reader can judge true or false, nothing beneath any of them. No property lines, no examples, no accept lines: the author reviews the sentences first, then the notation is asked for separately.
+A Surety obligation is a specification a checker enforces: type declarations, a function signature, properties (claims about the relation between the inputs and the output), and examples. In this stage you write the types the problem needs that the author did not give, the named values a claim will need to refer to, the signature, and the claims as prose sentences only: one `#` line per claim, each a single claim a reader can judge true or false, nothing beneath any of them. No property lines, no examples, no accept lines: the author reviews the sentences first, then the notation is asked for separately.
 
 Reply with one ```surety code block and nothing else outside it, laid out as:
 
 // draft
 // drafted
 type <Name> = { ... }          (each type you had to add, each under its own `// drafted` line; the author's own types verbatim, unmarked)
+// drafted
+<name>: <Type> = { ... }       (each named value a sentence needs to refer to, each under its own `// drafted` line)
 
 <name>(<inputs>) -> <output>
 	note "<one sentence of intent>"
@@ -82,6 +85,8 @@ type <Name> = { ... }          (each type you had to add, each under its own `//
 	# <sentence>
 
 Every type the file names must be declared in the file. The built-in types are Int, Float, Text, Bool, Id, Time and UUID, with `T[]`, `Option<T>` and `Result<T, E>` over them; there is no library of types beyond these, and no type from another obligation or from the corpus is in scope (a corpus file may name a type declared in a file beside it; the draft stands alone). A type you need that the author did not give, you declare under its own `// drafted` line, with its fields. A file that names an undeclared type does not parse and comes back to you with the error.
+
+A named value is a declaration, not an example. Draft one beside the types, under its own `// drafted` line, only where a sentence needs a value to refer to: an error case (`age_error: SignupError = { code: "e-age-range", display: "..." }`), a reused record. Give every field, since a performance must return the value byte for byte; take the fields from the problem and invent none beyond them. Examples and accept lines stay the author's, always.
 
 Use the vocabulary of the problem. Prefer several short claims to one long one. Say what must be in the output, what must not be, what is preserved, and what the order means or that it does not matter. If the problem has an error case, say what each error means and when exactly one of them is reported.
 
@@ -295,11 +300,16 @@ def stage1_file(reply: str) -> tuple[str | None, list[str]]:
         return None, []
     text, removed = strip_human_parts(block)
     notes = [f"stripped {r} (the author's, never the model's)" for r in removed]
-    # Sentences only: a property line the model wrote beneath a sentence is dropped.
+    # Sentences only: a property line the model wrote beneath a sentence is
+    # dropped. Only under the signature: before it, an indented line is the
+    # body of a type or a named value.
     kept = []
+    in_obligation = False
     for line in text.split("\n"):
         t = line.strip()
-        if line.startswith("\t") and not line.startswith("\t\t") and t and not t.startswith(("#", "//", "note")) and not re.match(r"^[a-z_][A-Za-z0-9_]* *=[^=]", t):
+        if SIGNATURE.match(line):
+            in_obligation = True
+        if in_obligation and line.startswith("\t") and not line.startswith("\t\t") and t and not t.startswith(("#", "//", "note")) and not re.match(r"^[a-z_][A-Za-z0-9_]* *=[^=]", t):
             notes.append(f"dropped a property line from stage 1: {t}")
             continue
         kept.append(line)

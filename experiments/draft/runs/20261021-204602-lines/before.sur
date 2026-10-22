@@ -1,0 +1,27 @@
+// draft
+// drafted
+type SignupForm = { email: Text, age: Int, password: Text }
+
+// drafted
+type SignupRecord = { email: Text, age: Int, password: Text }
+
+// drafted
+type SignupError = ValidationError
+
+validate_signup(form: SignupForm) -> Result<SignupRecord, SignupError[]>
+	note "validate a signup form and return the clean record, or every failing check at once"
+	# The result is Ok exactly when the email has a valid shape, the age is from 13 to 120 inclusive, and the password is at least 12 characters long.
+	# An email has a valid shape when it contains exactly one @, with non-empty text before it and a dot with text on both sides after it.
+	# An age of exactly 13 and an age of exactly 120 are both accepted.
+	# A password of exactly 12 characters is accepted.
+	# The Ok record's email is the form's email, unchanged.
+	# The Ok record's age is the form's age, unchanged.
+	# The Ok record's password is the form's password, unchanged.
+	# The invalid-email error is reported exactly when the email does not have a valid shape.
+	# The age-out-of-range error is reported exactly when the age is below 13 or above 120.
+	# The password-too-short error is reported exactly when the password is shorter than 12 characters.
+	# Every failing check is reported together, not only the first one found.
+	# An Err never carries an empty error list.
+	# Every reported error is one of the three signup errors.
+	# No error is reported twice.
+	# The order of the reported errors does not matter.

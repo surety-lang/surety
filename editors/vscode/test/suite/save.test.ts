@@ -95,16 +95,17 @@ suite('the verdict on save', () => {
         await vscode.window.showTextDocument(doc);
         await vscode.commands.executeCommand('surety.mutants');
         const sig = 2;
-        const diags = await ours(uri, all => all.some(d => onSignature(sig)(d) && d.message.startsWith('underdetermined: ')));
+        const diags = await ours(uri, all => all.some(d => onSignature(sig)(d) && d.message.startsWith('Gap: ')));
         // The ties are one gap, read where the two passing outputs differ,
         // under the output type; no input gets a diagnostic of its own, and
         // no summary line stacks on it.
-        const gaps = diags.filter(d => d.message.startsWith('underdetermined: '));
+        const gaps = diags.filter(d => d.message.startsWith('Gap: '));
         assert.strictEqual(gaps.length, 1, JSON.stringify(diags.map(d => d.message)));
         const verdict = await lens(uri, t => t.includes('settled'));
         assert.ok(verdict.command!.title.startsWith('$(warning) Not settled: 1 gap, where two different outputs both pass every clause'), verdict.command!.title);
         assert.ok(gaps[0].message.includes('].amount can be '), gaps[0].message);
-        assert.ok(!diags.some(d => /^UNDERDETERMINED|^underdetermined: two outputs/.test(d.message)), JSON.stringify(diags.map(d => d.message)));
+        assert.strictEqual(gaps[0].code, 'gap');
+        assert.ok(!diags.some(d => /^UNDERDETERMINED|^Gap: two outputs/.test(d.message)), JSON.stringify(diags.map(d => d.message)));
         const signature = doc.lineAt(sig).text;
         assert.strictEqual(gaps[0].range.start.character, signature.indexOf('-> ') + 3, 'under the output type');
         // The hover on it is the example, laid out and highlighted as Surety.
@@ -127,7 +128,7 @@ suite('the verdict on save', () => {
         assert.ok(!diags.some(d => d.severity === vscode.DiagnosticSeverity.Information && doc.lineAt(d.range.start.line).text.trim().endsWith('unordered')), JSON.stringify(diags.map(d => d.message)));
     });
 
-    test('a clause about the input alone: a hint on its line that no output can break it', async () => {
+    test('a clause about the input alone: labelled unneeded on its line, and faded', async () => {
         const uri = workspaceFile('inputs.sur');
         const doc = await vscode.workspace.openTextDocument(uri);
         await vscode.window.showTextDocument(doc);
@@ -135,8 +136,11 @@ suite('the verdict on save', () => {
         const line = doc.getText().split('\n').findIndex(l => l.includes('all o in orders: o.amount >= 0'));
         const diags = await ours(uri, all => all.some(d => d.range.start.line === line));
         const hint = diags.find(d => d.range.start.line === line)!;
-        assert.strictEqual(hint.severity, vscode.DiagnosticSeverity.Information);
-        assert.ok(hint.message.startsWith('this clause never reads `out`'), hint.message);
+        // Labelled for what it is, and faded like unused code.
+        assert.strictEqual(hint.severity, vscode.DiagnosticSeverity.Hint);
+        assert.ok(hint.message.startsWith('Unneeded clause: it never reads `out`, so it rules out no output'), hint.message);
+        assert.strictEqual(hint.code, 'unneeded-clause');
+        assert.deepStrictEqual(hint.tags, [vscode.DiagnosticTag.Unnecessary]);
         // Every mutant is caught: the pass is the line above the signature, with no squiggle under it.
         const verdict = await lens(uri, t => t.includes('ettled'));
         assert.ok(/^\$\(pass\) Settled: all \d+ mutants that fit are caught; no second passing output on the \d+ inputs searched$/.test(verdict.command!.title), verdict.command!.title);

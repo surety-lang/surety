@@ -257,8 +257,14 @@ export function checkLens(lines: any[]): { title: string; tooltip: string } | un
     };
 }
 
+function gapDiag(doc: vscode.TextDocument, sig: number, g: any): vscode.Diagnostic {
+    const d = diagAt(outputRange(doc, sig), gapMessage(g), vscode.DiagnosticSeverity.Warning);
+    d.code = GAP.code;
+    return d;
+}
+
 function gapMessage(g: any): string {
-    return `underdetermined: ${g.says}  (${plural(g.shown_by, 'input', 'inputs')})`;
+    return `Gap: ${g.says}  (${plural(g.shown_by, 'input', 'inputs')})`;
 }
 
 function gapMarkdown(g: any): vscode.MarkdownString {
@@ -272,11 +278,35 @@ function gapMarkdown(g: any): vscode.MarkdownString {
     return md;
 }
 
-/** A clause no mutant breaks: one that never reads `out` cannot be broken by any output. */
-function unbreakable(inputOnly: boolean): string {
-    return inputOnly
-        ? 'this clause never reads `out`: a claim about the input alone, which no output can break'
-        : 'no mutant breaks this clause: check that it claims what you mean';
+// Every finding the extension adds opens with a plain label, the same one
+// as its code (shown as `surety(code)`): what kind of thing it is before
+// why. A parse error's code is its kind, from the server.
+type Finding = { label: string; code: string };
+const GAP: Finding = { label: 'Gap', code: 'gap' };
+const MUTANT: Finding = { label: 'Mutant gets through', code: 'mutant' };
+const UNNEEDED: Finding = { label: 'Unneeded clause', code: 'unneeded-clause' };
+const UNTESTED: Finding = { label: 'Untested clause', code: 'untested-clause' };
+
+function finding(range: vscode.Range, f: Finding, message: string, severity: vscode.DiagnosticSeverity): vscode.Diagnostic {
+    const d = diagAt(range, `${f.label}: ${message}`, severity);
+    d.code = f.code;
+    return d;
+}
+
+/**
+ * A clause no mutant breaks. One that never reads `out` rules out no output
+ * at all: unneeded, faded the way the editor fades unused code. One that
+ * reads `out` may still mean something the library cannot exercise:
+ * untested, a hint to read it again.
+ */
+function unbreakable(doc: vscode.TextDocument, line: number, inputOnly: boolean): vscode.Diagnostic {
+    const range = lineRange(doc, line - 1);
+    if (inputOnly) {
+        const d = finding(range, UNNEEDED, 'it never reads `out`, so it rules out no output; it can only make the obligation unsatisfiable on inputs that break it', vscode.DiagnosticSeverity.Hint);
+        d.tags = [vscode.DiagnosticTag.Unnecessary];
+        return d;
+    }
+    return finding(range, UNTESTED, 'no mutant breaks it, so nothing here shows it rules any output out; check that it says what you mean', vscode.DiagnosticSeverity.Information);
 }
 
 const QUICK_FIX_TITLE = 'Add this input as an example, with both outputs to choose from';
@@ -355,12 +385,12 @@ function checkDiagnostics(doc: vscode.TextDocument, lines: any[], sig: number): 
             continue;
         }
         if (l.kind === 'gap') {
-            out.push(diagAt(outputRange(doc, sig), gapMessage(l), vscode.DiagnosticSeverity.Warning));
+            out.push(gapDiag(doc, sig, l));
             continue;
         }
         if (l.kind === 'look_here' && l.clause?.line !== undefined) {
             if (!/\bunordered$/.test(l.clause.text ?? '')) {
-                out.push(diag(doc, l.clause.line, unbreakable(!!l.input_only), vscode.DiagnosticSeverity.Information));
+                out.push(unbreakable(doc, l.clause.line, !!l.input_only));
             }
             continue;
         }
@@ -383,27 +413,27 @@ function mutantDiagnostics(doc: vscode.TextDocument, lines: any[], sig: number):
     // The run's verdict is the line above the signature; only problems are
     // diagnostics, each on its own line.
     for (const g of gaps) {
-        out.push(diagAt(outputRange(doc, sig), gapMessage(g), vscode.DiagnosticSeverity.Warning));
+        out.push(gapDiag(doc, sig, g));
     }
     for (const m of slipped.filter(m => m.gap === undefined)) {
         const name = `${m.candidate?.mutant} (${m.candidate?.describes})`;
         const clauses: any[] = m.slipped ?? [];
         if (clauses.length === 0) {
-            out.push(diag(doc, sig + 1, `mutant ${name} slips through every clause`, vscode.DiagnosticSeverity.Warning));
+            out.push(finding(lineRange(doc, sig), MUTANT, `${name} passes every clause`, vscode.DiagnosticSeverity.Warning));
         }
         for (const c of clauses) {
-            out.push(diag(doc, c.line ?? sig + 1, `mutant ${name} slips through this clause`, vscode.DiagnosticSeverity.Warning));
+            out.push(finding(lineRange(doc, (c.line ?? sig + 1) - 1), MUTANT, `${name} passes this clause`, vscode.DiagnosticSeverity.Warning));
         }
     }
     const report = lines.find(l => l.kind === 'mutant_report');
     // `x unordered` claims nothing by design: no hint for it.
     for (const c of report?.uncaught ?? []) {
         if (c.line !== undefined && !/\bunordered$/.test(c.text ?? '')) {
-            out.push(diag(doc, c.line, unbreakable(!!c.input_only), vscode.DiagnosticSeverity.Information));
+            out.push(unbreakable(doc, c.line, !!c.input_only));
         }
     }
     for (const u of underdetermined.filter(u => u.gap === undefined)) {
-        out.push(diag(doc, sig + 1, `underdetermined: two outputs pass every clause on ${u.inputs?.[0]?.sur ?? 'an input'}`, vscode.DiagnosticSeverity.Warning));
+        out.push(finding(outputRange(doc, sig), GAP, `two outputs pass every clause on ${u.inputs?.[0]?.sur ?? 'an input'}`, vscode.DiagnosticSeverity.Warning));
     }
     return out;
 }

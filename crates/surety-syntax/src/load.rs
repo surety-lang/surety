@@ -3,6 +3,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::ast::File;
 use crate::error::{Error, ErrorKind};
 use crate::parser::parse;
 use crate::resolve::Graph;
@@ -19,13 +20,18 @@ pub fn stem(p: &Path) -> String {
 /// alone; siblings that do not parse are skipped, since they are not this
 /// file's problem.
 pub fn load_with_siblings(file: &Path) -> Result<(Graph, usize), Vec<(PathBuf, Error)>> {
-    let text = fs::read_to_string(file).map_err(|e| {
+    load_with_siblings_text(file, &read_source(file)?)
+}
+
+/// A file's text, or the error `load_with_siblings` reports when it cannot
+/// be read.
+pub fn read_source(file: &Path) -> Result<String, Vec<(PathBuf, Error)>> {
+    fs::read_to_string(file).map_err(|e| {
         vec![(
             file.to_path_buf(),
             Error::new(ErrorKind::Syntax, 0, e.to_string()),
         )]
-    })?;
-    load_with_siblings_text(file, &text)
+    })
 }
 
 /// The same, with the file's text given rather than read: what an editor
@@ -33,6 +39,16 @@ pub fn load_with_siblings(file: &Path) -> Result<(Graph, usize), Vec<(PathBuf, E
 pub fn load_with_siblings_text(
     file: &Path,
     text: &str,
+) -> Result<(Graph, usize), Vec<(PathBuf, Error)>> {
+    load_with_siblings_from(file, text, |p| parse(&fs::read_to_string(p).ok()?).ok())
+}
+
+/// The same, with each sibling's parse from `sibling`, None to skip it: a
+/// server keeps the parses between requests.
+pub fn load_with_siblings_from(
+    file: &Path,
+    text: &str,
+    mut sibling: impl FnMut(&Path) -> Option<File>,
 ) -> Result<(Graph, usize), Vec<(PathBuf, Error)>> {
     let dir = file.parent().unwrap_or(Path::new("."));
     let own = parse(text).map_err(|e| vec![(file.to_path_buf(), e)])?;
@@ -45,10 +61,8 @@ pub fn load_with_siblings_text(
             .collect();
         paths.sort();
         for p in paths {
-            if let Ok(t) = fs::read_to_string(&p) {
-                if let Ok(f) = parse(&t) {
-                    files.push((stem(&p), f));
-                }
+            if let Some(f) = sibling(&p) {
+                files.push((stem(&p), f));
             }
         }
     }

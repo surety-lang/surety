@@ -12,15 +12,22 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{Value as Json, json};
 use surety_syntax::Error;
-use surety_syntax::load::load_with_siblings_text;
 
 pub mod query;
+pub mod siblings;
+
+use siblings::Siblings;
 
 /// The errors `parse` reports for a file with this text and its siblings
 /// on disk: at most one, since the parser and the resolver stop at the
 /// first. A sibling's error is the sibling's and is not reported here.
 pub fn diagnostics_for(path: &Path, text: &str) -> Vec<Error> {
-    match load_with_siblings_text(path, text) {
+    diagnostics_with(&mut Siblings::default(), path, text)
+}
+
+/// The same, the siblings' parses kept in `siblings` between calls.
+pub fn diagnostics_with(siblings: &mut Siblings, path: &Path, text: &str) -> Vec<Error> {
+    match siblings.load(path, text) {
         Err(errs) => errs
             .into_iter()
             .filter(|(p, _)| p == path)
@@ -180,6 +187,7 @@ pub fn path_to_uri(path: &Path) -> String {
 
 pub struct Server {
     docs: HashMap<String, String>,
+    siblings: Siblings,
     /// The graph directory `show` answers from, when one was given.
     pub graph: Option<PathBuf>,
     pub exited: bool,
@@ -189,16 +197,22 @@ impl Server {
     pub fn new(graph: Option<PathBuf>) -> Server {
         Server {
             docs: HashMap::new(),
+            siblings: Siblings::default(),
             graph,
             exited: false,
         }
     }
 
-    fn publish(&self, uri: &str) -> Json {
+    /// The sibling files parsed from disk since the server started.
+    pub fn parses(&self) -> usize {
+        self.siblings.parses()
+    }
+
+    fn publish(&mut self, uri: &str) -> Json {
         let text = self.docs.get(uri).cloned().unwrap_or_default();
         let path = uri_to_path(uri);
         let diagnostics: Vec<Json> = if self.docs.contains_key(uri) {
-            let mut all: Vec<Json> = diagnostics_for(&path, &text)
+            let mut all: Vec<Json> = diagnostics_with(&mut self.siblings, &path, &text)
                 .iter()
                 .map(|e| diagnostic(e, &text))
                 .collect();
@@ -274,6 +288,7 @@ impl Server {
             ("textDocument/hover", Some(id)) => {
                 let text = self.docs.get(&uri).cloned().unwrap_or_default();
                 let result = query::hover(
+                    &mut self.siblings,
                     &uri_to_path(&uri),
                     &text,
                     &params["position"],
@@ -283,7 +298,12 @@ impl Server {
             }
             ("textDocument/definition", Some(id)) => {
                 let text = self.docs.get(&uri).cloned().unwrap_or_default();
-                let result = query::definition(&uri_to_path(&uri), &text, &params["position"]);
+                let result = query::definition(
+                    &mut self.siblings,
+                    &uri_to_path(&uri),
+                    &text,
+                    &params["position"],
+                );
                 vec![Self::response(&id, result)]
             }
             ("textDocument/codeAction", Some(id)) => {
@@ -296,12 +316,22 @@ impl Server {
             }
             ("surety/unverified", Some(id)) => {
                 let text = self.docs.get(&uri).cloned().unwrap_or_default();
-                let result = query::unverified(&uri_to_path(&uri), &text, self.graph.as_deref());
+                let result = query::unverified(
+                    &mut self.siblings,
+                    &uri_to_path(&uri),
+                    &text,
+                    self.graph.as_deref(),
+                );
                 vec![Self::response(&id, result)]
             }
             ("textDocument/completion", Some(id)) => {
                 let text = self.docs.get(&uri).cloned().unwrap_or_default();
-                let result = query::completion(&uri_to_path(&uri), &text, &params["position"]);
+                let result = query::completion(
+                    &mut self.siblings,
+                    &uri_to_path(&uri),
+                    &text,
+                    &params["position"],
+                );
                 vec![Self::response(&id, result)]
             }
             ("textDocument/documentSymbol", Some(id)) => {

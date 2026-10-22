@@ -7,7 +7,6 @@
 use std::path::{Path, PathBuf};
 
 use serde_json::{Value as Json, json};
-use surety_syntax::load::{load_with_siblings, load_with_siblings_text};
 use surety_syntax::parser::{BUILTINS, PRIMITIVES, RESERVED};
 use surety_syntax::resolve::Scope;
 use surety_syntax::{
@@ -15,6 +14,7 @@ use surety_syntax::{
 };
 
 use crate::path_to_uri;
+use crate::siblings::Siblings;
 
 /// The identifier under a position, if the cursor is on one.
 fn word_at(text: &str, line: usize, character: usize) -> Option<String> {
@@ -143,12 +143,12 @@ fn position(p: &Json) -> (usize, usize) {
     )
 }
 
-pub fn definition(path: &Path, text: &str, pos: &Json) -> Json {
+pub fn definition(siblings: &mut Siblings, path: &Path, text: &str, pos: &Json) -> Json {
     let (line, character) = position(pos);
     let Some(word) = word_at(text, line, character) else {
         return Json::Null;
     };
-    let Ok((graph, idx)) = load_with_siblings_text(path, text) else {
+    let Ok((graph, idx)) = siblings.load(path, text) else {
         return Json::Null;
     };
     let Some((fidx, found)) = resolve(&graph, idx, &word) else {
@@ -574,11 +574,11 @@ fn builtin(name: &str) -> Option<&'static str> {
 /// its interface read from its source with that file's siblings, or from
 /// the pinned presentation when the source is gone; where it is pinned
 /// from, and its state.
-fn from_store(dir: &Path, name: &str) -> Option<String> {
+fn from_store(siblings: &mut Siblings, dir: &Path, name: &str) -> Option<String> {
     let store = surety_graph::Store::open(dir);
     let entry = store.namespace().ok()?.get(name)?.clone();
     let state = surety_graph::state(&store, name).ok()?;
-    let graph = match load_with_siblings(&graph_base(dir).join(&entry.source)) {
+    let graph = match siblings.load_saved(&graph_base(dir).join(&entry.source)) {
         Ok((graph, _)) => graph,
         Err(_) => {
             let hash = &entry.obligation;
@@ -601,6 +601,7 @@ fn from_store(dir: &Path, name: &str) -> Option<String> {
 /// obligation only the graph holds, or a graph reference with no obligation
 /// yet, typed as this file calls it.
 fn describe_call(
+    siblings: &mut Siblings,
     graph: &Graph,
     idx: usize,
     name: &str,
@@ -610,7 +611,7 @@ fn describe_call(
     if BUILTINS.contains(&name) {
         return builtin(name).map(|what| format!("`{name}`: built-in, {what}."));
     }
-    if let Some(s) = graph_dir.and_then(|dir| from_store(dir, name)) {
+    if let Some(s) = graph_dir.and_then(|dir| from_store(siblings, dir, name)) {
         return Some(s);
     }
     let uses = uses_of(graph, idx, name);
@@ -639,9 +640,15 @@ fn describe_call(
     ))
 }
 
-pub fn hover(path: &Path, text: &str, pos: &Json, graph_dir: Option<&Path>) -> Json {
+pub fn hover(
+    siblings: &mut Siblings,
+    path: &Path,
+    text: &str,
+    pos: &Json,
+    graph_dir: Option<&Path>,
+) -> Json {
     let (line, character) = position(pos);
-    let Ok((graph, idx)) = load_with_siblings_text(path, text) else {
+    let Ok((graph, idx)) = siblings.load(path, text) else {
         return Json::Null;
     };
     if let Some(word) = word_at(text, line, character) {
@@ -649,7 +656,7 @@ pub fn hover(path: &Path, text: &str, pos: &Json, graph_dir: Option<&Path>) -> J
             return markdown(describe(&graph, path, idx, fidx, &found, graph_dir));
         }
         if called_at(text, line, character) {
-            if let Some(value) = describe_call(&graph, idx, &word, line + 1, graph_dir) {
+            if let Some(value) = describe_call(siblings, &graph, idx, &word, line + 1, graph_dir) {
                 return markdown(value);
             }
         }
@@ -852,8 +859,13 @@ fn chain_before(text: &str, line: usize, character: usize) -> Option<Vec<String>
 /// (a line half typed), from its text with the cursor's line blank; when
 /// that does not either (the half-typed line heads a body), from the file
 /// as last saved.
-fn load_for_completion(path: &Path, text: &str, line: usize) -> Option<(Graph, usize)> {
-    if let Ok(g) = load_with_siblings_text(path, text) {
+fn load_for_completion(
+    siblings: &mut Siblings,
+    path: &Path,
+    text: &str,
+    line: usize,
+) -> Option<(Graph, usize)> {
+    if let Ok(g) = siblings.load(path, text) {
         return Some(g);
     }
     let blanked: Vec<&str> = text
@@ -861,8 +873,9 @@ fn load_for_completion(path: &Path, text: &str, line: usize) -> Option<(Graph, u
         .enumerate()
         .map(|(i, l)| if i == line { "" } else { l })
         .collect();
-    load_with_siblings_text(path, &blanked.join("\n"))
-        .or_else(|_| load_with_siblings(path))
+    siblings
+        .load(path, &blanked.join("\n"))
+        .or_else(|_| siblings.load_saved(path))
         .ok()
 }
 
@@ -1037,9 +1050,9 @@ fn all_fields(graph: &Graph) -> Vec<(String, Type)> {
 /// the directory declares, the keywords, built-ins and primitive types, and
 /// the identifiers already in the file's code. The editor filters by what
 /// has been typed.
-pub fn completion(path: &Path, text: &str, pos: &Json) -> Json {
+pub fn completion(siblings: &mut Siblings, path: &Path, text: &str, pos: &Json) -> Json {
     let (line, character) = position(pos);
-    let loaded = load_for_completion(path, text, line);
+    let loaded = load_for_completion(siblings, path, text, line);
     let graph = loaded.as_ref().map(|(g, i)| (g, *i));
     let f = graph.and_then(|(g, i)| enclosing(g, i, line + 1));
     let typing = word_at(text, line, character).unwrap_or_default();
@@ -1130,8 +1143,13 @@ pub fn completion(path: &Path, text: &str, pos: &Json) -> Json {
 /// when a graph is given. The performance supplies each, unchecked; the
 /// editor marks them in a style of their own, not as a problem. Each with
 /// the columns of its name.
-pub fn unverified(path: &Path, text: &str, graph_dir: Option<&Path>) -> Json {
-    let Ok((graph, idx)) = load_with_siblings_text(path, text) else {
+pub fn unverified(
+    siblings: &mut Siblings,
+    path: &Path,
+    text: &str,
+    graph_dir: Option<&Path>,
+) -> Json {
+    let Ok((graph, idx)) = siblings.load(path, text) else {
         return json!([]);
     };
     let pinned: Vec<String> = graph_dir

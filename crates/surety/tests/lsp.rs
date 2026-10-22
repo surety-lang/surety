@@ -250,6 +250,102 @@ fn a_change_reparses_against_the_siblings_on_disk() {
     lsp.stop();
 }
 
+/// A server in this process, so a test can count what it parsed.
+struct InProcess {
+    server: surety_lsp::Server,
+    uri: String,
+    text: String,
+}
+
+impl InProcess {
+    fn open(path: &Path) -> InProcess {
+        let mut server = surety_lsp::Server::new(None);
+        let uri = surety_lsp::path_to_uri(&fs::canonicalize(path).unwrap());
+        let text = fs::read_to_string(path).unwrap();
+        server.handle(&json!({ "jsonrpc": "2.0", "method": "textDocument/didOpen",
+            "params": { "textDocument": { "uri": uri, "languageId": "surety", "version": 1, "text": text } } }));
+        InProcess { server, uri, text }
+    }
+
+    /// The text again, as a keystroke sends it: the error codes published.
+    fn keystroke(&mut self) -> Vec<String> {
+        let out = self.server.handle(&json!({ "jsonrpc": "2.0", "method": "textDocument/didChange",
+            "params": { "textDocument": { "uri": self.uri, "version": 2 }, "contentChanges": [{ "text": self.text }] } }));
+        out[0]["params"]["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|d| d["severity"] == 1)
+            .map(|d| d["code"].as_str().unwrap().to_string())
+            .collect()
+    }
+
+    fn request(&mut self, method: &str, line: usize, character: usize) {
+        let reply = self.server.handle(&json!({ "jsonrpc": "2.0", "id": 1, "method": method,
+            "params": { "textDocument": { "uri": self.uri }, "position": { "line": line, "character": character } } }));
+        assert!(reply[0].get("error").is_none(), "{method}: {reply:?}");
+    }
+}
+
+#[test]
+fn a_request_parses_the_editors_text_and_only_the_siblings_that_changed_on_disk() {
+    let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR"))
+        .join("lsp")
+        .join("siblings");
+    let _ = fs::remove_dir_all(&dir);
+    fs::create_dir_all(&dir).unwrap();
+    for e in fs::read_dir(common::corpus_dir()).unwrap() {
+        let p = e.unwrap().path();
+        if p.extension().is_some_and(|x| x == "sur") {
+            fs::copy(&p, dir.join(p.file_name().unwrap())).unwrap();
+        }
+    }
+    let siblings = common::FIXTURES.len() - 1;
+    // p14 takes Item and Diff from apply_diff.sur.
+    let mut lsp = InProcess::open(&dir.join("p14.sur"));
+    assert_eq!(
+        lsp.server.parses(),
+        siblings,
+        "opening parses each sibling once"
+    );
+    for _ in 0..5 {
+        assert!(lsp.keystroke().is_empty());
+        lsp.request("textDocument/completion", 4, 10);
+        lsp.request("textDocument/hover", 0, 1);
+        lsp.request("textDocument/definition", 0, 20);
+        lsp.request("surety/unverified", 0, 0);
+    }
+    assert_eq!(
+        lsp.server.parses(),
+        siblings,
+        "nothing changed on disk, so no sibling is parsed again"
+    );
+
+    // A sibling changed on disk is parsed again, and only that one.
+    let apply = dir.join("apply_diff.sur");
+    let saved = fs::read_to_string(&apply).unwrap();
+    fs::write(&apply, saved.replace("type Item   =", "type Stock =")).unwrap();
+    assert_eq!(lsp.keystroke(), ["unknown_type"]);
+    assert_eq!(lsp.server.parses(), siblings + 1);
+    // A sibling added is read; one removed is gone.
+    fs::write(dir.join("stock.sur"), "type Item = { sku: Id, qty: Int }\n").unwrap();
+    assert!(lsp.keystroke().is_empty());
+    assert_eq!(lsp.server.parses(), siblings + 2);
+    fs::remove_file(dir.join("stock.sur")).unwrap();
+    assert_eq!(lsp.keystroke(), ["unknown_type"]);
+    fs::write(&apply, &saved).unwrap();
+    assert!(lsp.keystroke().is_empty());
+    assert_eq!(lsp.server.parses(), siblings + 3);
+    // Written again at the same length within the same tick of a coarse
+    // clock, so with the same modification time: still seen, since it was
+    // read too soon after it was written for the time alone to say.
+    let modified = fs::metadata(&apply).unwrap().modified().unwrap();
+    fs::write(&apply, saved.replace("type Item   =", "type Itex   =")).unwrap();
+    let f = fs::File::options().write(true).open(&apply).unwrap();
+    f.set_modified(modified).unwrap();
+    assert_eq!(lsp.keystroke(), ["unknown_type"]);
+}
+
 /// The 0-based line and character of the first occurrence of `needle`.
 fn position_of(text: &str, needle: &str) -> (usize, usize) {
     for (n, line) in text.lines().enumerate() {

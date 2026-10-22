@@ -205,28 +205,98 @@ pub fn abbrev(a: &Abbrev) -> String {
     p.abbrev(a)
 }
 
+/// The column prose wraps at. A tab counts as four columns.
+pub const WIDTH: usize = 100;
+
+/// The columns a line occupies, a tab counting as four.
+pub fn columns(s: &str) -> usize {
+    s.chars().map(|c| if c == '\t' { 4 } else { 1 }).sum()
+}
+
+/// Prose under a prefix (`\t# `, `\t// `, `// `), wrapped at the width:
+/// broken at spaces, every continuation line under the same prefix, a
+/// word longer than the room on its own line.
+pub fn wrap(prefix: &str, text: &str) -> String {
+    let room = WIDTH.saturating_sub(columns(prefix)).max(1);
+    let mut out = String::new();
+    let mut line = String::new();
+    for word in text.split(' ').filter(|w| !w.is_empty()) {
+        if line.is_empty() {
+            line.push_str(word);
+        } else if line.chars().count() + 1 + word.chars().count() <= room {
+            line.push(' ');
+            line.push_str(word);
+        } else {
+            out.push_str(prefix);
+            out.push_str(&line);
+            out.push('\n');
+            line = word.to_string();
+        }
+    }
+    if line.is_empty() {
+        out.push_str(prefix.trim_end());
+    } else {
+        out.push_str(prefix);
+        out.push_str(&line);
+    }
+    out.push('\n');
+    out
+}
+
 enum Item<'a> {
     Abbrev(&'a Abbrev),
     Property(&'a Property),
     Accept(&'a Property),
     Example(&'a Example),
-    Comment(&'a str),
+    /// A sentence with no property beneath it: a draft's, kept in place.
+    Sentence(&'a Pin),
+    Comment(&'a Pin),
 }
 
-fn line_of(i: &Item, pins: &[(usize, &str)]) -> usize {
+fn line_of(i: &Item) -> usize {
     match i {
         Item::Abbrev(a) => a.line,
         Item::Property(p) | Item::Accept(p) => p.line,
         Item::Example(e) => e.line,
-        Item::Comment(t) => pins
-            .iter()
-            .find(|(_, x)| x == t)
-            .map(|(l, _)| *l)
-            .unwrap_or(0),
+        Item::Sentence(p) | Item::Comment(p) => p.line,
+    }
+}
+
+fn decl_line(d: &Decl) -> usize {
+    match d {
+        Decl::Type(t) => t.line,
+        Decl::NamedValue(nv) => nv.line,
+        Decl::Abbrev(a) => a.line,
+        Decl::Function(f) => f.line,
+    }
+}
+
+/// Where a pin belongs: before the declaration at this index, or inside
+/// the body of the function at this index.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Slot {
+    Before(usize),
+    Body(usize),
+}
+
+/// A pin is anchored to the line that follows it: the next declaration, or,
+/// when the declaration before it is a function, that function's body.
+fn slot_of(line: usize, decls: &[Decl]) -> Slot {
+    let next = decls
+        .iter()
+        .position(|d| decl_line(d) > line)
+        .unwrap_or(decls.len());
+    match next.checked_sub(1).map(|i| &decls[i]) {
+        Some(Decl::Function(_)) => Slot::Body(next - 1),
+        _ => Slot::Before(next),
     }
 }
 
 /// The whole file. `fresh` renames every binder in order of appearance.
+/// Prose is wrapped at `WIDTH`; comments stay anchored to the line that
+/// follows them; a sentence with no property beneath it stays in place with
+/// a blank line between it and the next, since consecutive `#` lines read
+/// as one sentence.
 pub fn file(f: &File, fresh: bool) -> String {
     let mut p = Printer {
         fresh,
@@ -238,16 +308,41 @@ pub fn file(f: &File, fresh: bool) -> String {
         out.push_str(l);
         out.push('\n');
     }
-    let comments: Vec<(usize, &str)> = f
+    let attached: Vec<&str> = f
+        .decls
+        .iter()
+        .filter_map(|d| match d {
+            Decl::Function(fun) => Some(fun),
+            _ => None,
+        })
+        .flat_map(|fun| fun.properties.iter().chain(&fun.accepts))
+        .filter_map(|pr| pr.sentence.as_deref())
+        .collect();
+    let pins: Vec<(&Pin, Slot)> = f
         .pins
         .iter()
-        .filter(|x| x.kind == PinKind::Comment)
-        .map(|x| (x.line, x.text.as_str()))
+        .filter(|x| match x.kind {
+            PinKind::Comment => true,
+            PinKind::Sentence => !attached.contains(&x.text.as_str()),
+            PinKind::Note => false,
+        })
+        .map(|x| (x, slot_of(x.line, &f.decls)))
         .collect();
+    let top_level = |out: &mut String, slot: Slot| {
+        for (pin, _) in pins.iter().filter(|(_, s)| *s == slot) {
+            let prefix = if pin.kind == PinKind::Sentence {
+                "# "
+            } else {
+                "// "
+            };
+            out.push_str(&wrap(prefix, &pin.text));
+        }
+    };
     let mut last_was_type = false;
-    for d in &f.decls {
+    for (i, d) in f.decls.iter().enumerate() {
         match d {
             Decl::Type(t) => {
+                top_level(&mut out, Slot::Before(i));
                 let _ = writeln!(out, "type {} = {}", t.name, t.ty);
                 last_was_type = true;
             }
@@ -255,6 +350,7 @@ pub fn file(f: &File, fresh: bool) -> String {
                 if last_was_type {
                     out.push('\n');
                 }
+                top_level(&mut out, Slot::Before(i));
                 let value = p.expr(&nv.value);
                 match &nv.ty {
                     Some(t) => {
@@ -270,6 +366,7 @@ pub fn file(f: &File, fresh: bool) -> String {
                 if last_was_type {
                     out.push('\n');
                 }
+                top_level(&mut out, Slot::Before(i));
                 let line = p.abbrev(a);
                 out.push_str(&line);
                 out.push('\n');
@@ -277,11 +374,7 @@ pub fn file(f: &File, fresh: bool) -> String {
             }
             Decl::Function(fun) => {
                 out.push('\n');
-                let before: Vec<&(usize, &str)> =
-                    comments.iter().filter(|(l, _)| *l < fun.line).collect();
-                for (_, c) in before {
-                    let _ = writeln!(out, "// {c}");
-                }
+                top_level(&mut out, Slot::Before(i));
                 let ins: Vec<String> = fun
                     .inputs
                     .iter()
@@ -297,13 +390,21 @@ pub fn file(f: &File, fresh: bool) -> String {
                 items.extend(fun.accepts.iter().map(Item::Accept));
                 items.extend(fun.examples.iter().map(Item::Example));
                 items.extend(
-                    comments
-                        .iter()
-                        .filter(|(l, _)| *l > fun.line)
-                        .map(|(_, c)| Item::Comment(c)),
+                    pins.iter()
+                        .filter(|(_, s)| *s == Slot::Body(i))
+                        .map(|(pin, _)| match pin.kind {
+                            PinKind::Sentence => Item::Sentence(pin),
+                            _ => Item::Comment(pin),
+                        }),
                 );
-                items.sort_by_key(|i| line_of(i, &comments));
+                items.sort_by_key(line_of);
+                let mut after_sentence = false;
                 for item in items {
+                    let is_sentence = matches!(item, Item::Sentence(_));
+                    if is_sentence && after_sentence {
+                        out.push('\n');
+                    }
+                    after_sentence = is_sentence;
                     match item {
                         Item::Abbrev(a) => {
                             let line = p.abbrev(a);
@@ -311,14 +412,14 @@ pub fn file(f: &File, fresh: bool) -> String {
                         }
                         Item::Property(pr) => {
                             if let Some(s) = &pr.sentence {
-                                let _ = writeln!(out, "\t# {s}");
+                                out.push_str(&wrap("\t# ", s));
                             }
                             let e = p.expr(&pr.expr);
                             let _ = writeln!(out, "\t{e}");
                         }
                         Item::Accept(pr) => {
                             if let Some(s) = &pr.sentence {
-                                let _ = writeln!(out, "\t# {s}");
+                                out.push_str(&wrap("\t# ", s));
                             }
                             let e = p.expr(&pr.expr);
                             let _ = writeln!(out, "\taccept {e}");
@@ -333,8 +434,11 @@ pub fn file(f: &File, fresh: bool) -> String {
                             let _ = writeln!(out, "\t\tin: {i}");
                             let _ = writeln!(out, "\t\tout: {o}");
                         }
-                        Item::Comment(c) => {
-                            let _ = writeln!(out, "\t// {c}");
+                        Item::Sentence(pin) => {
+                            out.push_str(&wrap("\t# ", &pin.text));
+                        }
+                        Item::Comment(pin) => {
+                            out.push_str(&wrap("\t// ", &pin.text));
                         }
                     }
                 }
@@ -342,5 +446,6 @@ pub fn file(f: &File, fresh: bool) -> String {
             }
         }
     }
+    top_level(&mut out, Slot::Before(f.decls.len()));
     out
 }

@@ -128,3 +128,147 @@ fn a_blank_line_a_comment_or_a_line_of_code_ends_a_sentence() {
         ]
     );
 }
+
+fn prose_lines(text: &str) -> Vec<&str> {
+    text.lines()
+        .filter(|l| {
+            let t = l.trim_start();
+            t.starts_with('#') || t.starts_with("//")
+        })
+        .collect()
+}
+
+fn comment_words(f: &File) -> Vec<String> {
+    f.pins
+        .iter()
+        .filter(|p| p.kind == PinKind::Comment)
+        .flat_map(|p| {
+            p.text
+                .split_whitespace()
+                .map(String::from)
+                .collect::<Vec<_>>()
+        })
+        .collect()
+}
+
+#[test]
+fn the_renderer_wraps_prose_at_the_column_and_is_a_formatter() {
+    let mut wrapped = 0;
+    for name in common::FIXTURES {
+        let file = common::corpus_dir().join(format!("{name}.sur"));
+        let text = fs::read_to_string(&file).unwrap();
+        let original = hash_of(&file);
+        let parsed = surety_syntax::parse(&text).unwrap();
+        let rendered = surety_syntax::render::file(&parsed, false);
+        for l in prose_lines(&rendered) {
+            assert!(
+                surety_syntax::render::columns(l) <= surety_syntax::render::WIDTH,
+                "{name}: a prose line past the column:\n{l}"
+            );
+        }
+        wrapped += prose_lines(&rendered).len() - prose_lines(&text).len();
+        assert_eq!(
+            hash_of(&corpus_with(name, &rendered, "wrapped")),
+            original,
+            "{name}: wrapping changed the hash"
+        );
+        let again = surety_syntax::parse(&rendered).unwrap();
+        assert_eq!(
+            sentences_of(&again),
+            sentences_of(&parsed),
+            "{name}: every sentence reads the same after wrapping"
+        );
+        assert_eq!(
+            comment_words(&again),
+            comment_words(&parsed),
+            "{name}: every comment's words, in order"
+        );
+        assert_eq!(
+            surety_syntax::render::file(&again, false),
+            rendered,
+            "{name}: rendering the rendering changes nothing"
+        );
+    }
+    assert!(wrapped > 0, "the corpus has prose past the column to wrap");
+}
+
+#[test]
+fn a_draft_renders_with_its_mark_first_and_everything_in_place() {
+    let file = common::corpus_dir().join("drafts").join("p11.sur");
+    let text = fs::read_to_string(&file).unwrap();
+    let parsed = surety_syntax::parse(&text).unwrap();
+    let rendered = surety_syntax::render::file(&parsed, false);
+    let lines: Vec<&str> = rendered.lines().collect();
+    assert_eq!(lines[0], "// draft", "{rendered}");
+    let type_at = lines
+        .iter()
+        .position(|l| l.starts_with("type LineItem"))
+        .unwrap();
+    assert_eq!(
+        lines[type_at - 1],
+        "// drafted",
+        "the mark stays on its type:\n{rendered}"
+    );
+    for l in prose_lines(&rendered) {
+        assert!(
+            surety_syntax::render::columns(l) <= surety_syntax::render::WIDTH,
+            "a prose line past the column:\n{l}"
+        );
+    }
+    assert!(
+        text.lines()
+            .any(|l| surety_syntax::render::columns(l) > 150),
+        "the fixture has lines past 150 columns to wrap"
+    );
+    // The sentences read the same after wrapping. This draft was written
+    // before consecutive `#` lines became one sentence, so its three lines
+    // read as one; the draft tool now puts a blank line between sentences.
+    let again = surety_syntax::parse(&rendered).unwrap();
+    assert_eq!(sentence_pins(&again), sentence_pins(&parsed));
+    assert_eq!(sentence_pins(&again).len(), 1);
+    let wanted = |f: &File| -> Vec<String> {
+        f.pins
+            .iter()
+            .filter(|p| p.kind == PinKind::Comment && p.text.starts_with("example wanted:"))
+            .map(|p| p.text.clone())
+            .collect()
+    };
+    assert_eq!(wanted(&parsed).len(), 8);
+    let joined: Vec<String> = {
+        // Wrapped comments come back as several pins; join continuation pins
+        // (those not starting a new `example wanted:`) onto the previous one.
+        let mut out: Vec<String> = Vec::new();
+        for p in again.pins.iter().filter(|p| p.kind == PinKind::Comment) {
+            if p.text.starts_with("example wanted:") {
+                out.push(p.text.clone());
+            } else if let Some(last) = out.last_mut() {
+                last.push(' ');
+                last.push_str(&p.text);
+            }
+        }
+        out
+    };
+    assert_eq!(joined, wanted(&parsed), "{rendered}");
+    let last_sentence = lines
+        .iter()
+        .rposition(|l| l.trim_start().starts_with('#'))
+        .unwrap();
+    let first_wanted = lines
+        .iter()
+        .position(|l| l.contains("example wanted:"))
+        .unwrap();
+    assert!(last_sentence < first_wanted, "{rendered}");
+    // The same obligation.
+    let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR"))
+        .join("prose")
+        .join("draft");
+    let _ = fs::remove_dir_all(&dir);
+    fs::create_dir_all(&dir).unwrap();
+    fs::write(dir.join("p11.sur"), &rendered).unwrap();
+    assert_eq!(hash_of(&dir.join("p11.sur")), hash_of(&file));
+    assert_eq!(
+        surety_syntax::render::file(&again, false),
+        rendered,
+        "rendering the rendering changes nothing"
+    );
+}

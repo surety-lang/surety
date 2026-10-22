@@ -1,0 +1,20 @@
+// draft
+// drafted
+type Order = { amount: Int, customer_email: Text }
+
+drop_orders_over_100(orders: Order[]) -> Order[]
+	note "remove every order whose amount is greater than 100 and keep the rest"
+	# Every output order has an amount of at most 100.
+	all o in out: o.amount <= 100
+	# Every output order is one of the input orders, unchanged.
+	all o in out: o in orders
+	# Every input order with an amount of at most 100 is in the output.
+	all o in orders where o.amount <= 100: o in out
+	# Every input order left out of the output has an amount greater than 100.
+	all o leftover in orders: o.amount > 100
+	# An order whose amount is exactly 100 is kept.
+	all o in orders where o.amount == 100: o in out
+	# An input order that appears more than once with an amount of at most 100 is kept as many times as it appears.
+	// reaching for: for each input order whose amount is at most 100 and whose value occurs more than once in orders, the number of times that value occurs in out equals the number of times it occurs in orders. This needs a count of a value's occurrences in a list. `none o leftover in orders: o.amount <= 100` gives only "at least as many". Adding `out drawn_from orders` would also claim multiplicity for every output order, not just the duplicated ones at or under 100.
+	# The output keeps the kept orders in the same order as the input.
+	out same_order_as orders

@@ -1,0 +1,27 @@
+```surety
+// draft
+// drafted
+type SignupForm = { email: Text, age: Int, password: Text }
+// drafted
+type Signup = { ...SignupForm }
+// drafted
+type SignupError = { code: Text, display: Text }
+// drafted
+email_error: SignupError = { code: "e-email-shape", display: "Email is not a well-formed address" }
+// drafted
+age_error: SignupError = { code: "e-age-range", display: "Age must be between 13 and 120" }
+// drafted
+password_error: SignupError = { code: "e-password-length", display: "Password must be at least 12 characters" }
+
+validate_signup(form: SignupForm) -> Result<Signup, SignupError[]>
+	note "return the clean signup record when every field is valid, otherwise every error the form has, not just the first"
+	# The result is Ok exactly when the email is well formed, the age is between 13 and 120 inclusive, and the password is at least 12 characters long.
+	# On Ok, the record carries the form's email, age and password unchanged.
+	# On Err, email_error is in the errors exactly when the form's email is not well formed.
+	# On Err, age_error is in the errors exactly when the form's age is below 13 or above 120.
+	# On Err, password_error is in the errors exactly when the form's password is shorter than 12 characters.
+	# On Err, the error list is never empty.
+	# On Err, every reported error is one of email_error, age_error or password_error, and nothing else appears.
+	# On Err, each error appears at most once.
+	# On Err, the order of the errors does not matter.
+```

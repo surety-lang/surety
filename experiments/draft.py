@@ -74,7 +74,7 @@ NOTATION = """The notation, by the forms the corpus uses:
 
 SYSTEM_SENTENCES = """You draft Surety obligations from prose, in the first of two stages: the sentences.
 
-A Surety obligation is a specification a checker enforces: type declarations, a function signature, properties (claims about the relation between the inputs and the output), and examples. In this stage you write the types the problem needs that the author did not give, the named values a claim will need to refer to, the signature, and the claims as prose sentences only: one `#` line per claim about the whole relation between the inputs and the output, each a single claim a reader can judge true or false, nothing beneath any of them. No property lines, no examples, no accept lines: the author reviews the sentences first, then the notation is asked for separately.
+A Surety obligation is a specification a checker enforces: type declarations, a function signature, properties (claims about the relation between the inputs and the output), and examples. In this stage you write the types the problem needs that the author did not give, the named values a claim will need to refer to, the signature, and the claims as prose sentences only: one `#` line per claim about the whole relation between the inputs and the output, each a single claim a reader can judge true or false, nothing beneath any of them, a blank line between sentences (consecutive `#` lines read as one sentence). No property lines, no examples, no accept lines: the author reviews the sentences first, then the notation is asked for separately.
 
 Reply with one ```surety code block and nothing else outside it, laid out as:
 
@@ -87,7 +87,9 @@ type <Name> = { ... }          (each type you had to add, each under its own `//
 <name>(<inputs>) -> <output>
 	note "<one sentence of intent>"
 	# <sentence>
+
 	# <sentence>
+
 	// example wanted: <the case in one line, and what decides it; never the output>
 
 Every type the file names must be declared in the file. The built-in types are Int, Float, Text, Bool, Id, Time and UUID, with `T[]`, `Option<T>` and `Result<T, E>` over them; there is no library of types beyond these, and no type from another obligation or from the corpus is in scope (a corpus file may name a type declared in a file beside it; the draft stands alone). A type you need that the author did not give, you declare under its own `// drafted` line, with its fields. Prefer an exact integer representation wherever the problem allows: cents over a decimal amount, basis points over a float rate, whole units over fractions. The reason: with a float rate, 125 * 0.1 is 12.500000000000002, so a half-even tie does not exist and every example's expected value depends on the performance's arithmetic rather than on the problem; with cents and basis points the expected value is a fact. A file that names an undeclared type does not parse and comes back to you with the error.
@@ -222,6 +224,17 @@ def strip_human_parts(text: str) -> tuple[str, list[str]]:
     return "\n".join(out), removed
 
 
+def format_file(surety: str, path: pathlib.Path) -> bool:
+    """Write the file back through `surety render`, so no prose line runs past
+    the column and every comment stays where it was; the hash is unchanged by
+    construction. False when render refuses (the file does not parse)."""
+    code, text = run_surety(surety, "render", str(path))
+    if code != 0 or not text.strip():
+        return False
+    path.write_text(text if text.endswith("\n") else text + "\n", encoding="utf-8")
+    return True
+
+
 def run_surety(surety: str, *args: str) -> tuple[int, str]:
     proc = subprocess.run([surety, *args], capture_output=True, text=True, timeout=900)
     return proc.returncode, proc.stdout + proc.stderr
@@ -247,16 +260,31 @@ def run_dir(stage: str) -> pathlib.Path:
     return d
 
 
+def sentence_groups(lines: list[str]) -> list[tuple[int, int, str]]:
+    """Each sentence as (first line index, last line index, text): consecutive
+    `#` lines are one sentence, joined by single spaces, as the grammar reads
+    them; a blank line, a comment or a line of code ends one."""
+    out: list[tuple[int, int, str]] = []
+    i = 0
+    while i < len(lines):
+        if lines[i].strip().startswith("#"):
+            start = i
+            parts = []
+            while i < len(lines) and lines[i].strip().startswith("#"):
+                parts.append(lines[i].strip()[1:].strip())
+                i += 1
+            out.append((start, i - 1, " ".join(x for x in parts if x)))
+        else:
+            i += 1
+    return out
+
+
 def sentences_without_lines(text: str) -> list[str]:
-    """Each `#` sentence whose next non-blank line is not a property line."""
+    """Each sentence whose next non-blank line is not a property line."""
     lines = text.split("\n")
     out = []
-    for i, line in enumerate(lines):
-        t = line.strip()
-        if not t.startswith("#"):
-            continue
-        sentence = t[1:].strip()
-        nxt = next((l for l in lines[i + 1:] if l.strip()), "")
+    for _, last, sentence in sentence_groups(lines):
+        nxt = next((l for l in lines[last + 1:] if l.strip()), "")
         n = nxt.strip()
         if n == "" or n.startswith("#") or n.startswith("//") or n == "e:" or not nxt.startswith("\t"):
             out.append(sentence)
@@ -264,22 +292,22 @@ def sentences_without_lines(text: str) -> list[str]:
 
 
 def insert_lines(text: str, pairs: dict[str, str]) -> tuple[str, list[str]]:
-    """Put each sentence's line beneath it; a `reaching for` becomes a comment."""
+    """Put each sentence's line beneath its last `#` line; a `reaching for`
+    becomes a comment."""
     lines = text.split("\n")
+    ends = {last: sentence for _, last, sentence in sentence_groups(lines)}
     out: list[str] = []
     reach: list[str] = []
-    for line in lines:
+    for i, line in enumerate(lines):
         out.append(line)
-        t = line.strip()
-        if t.startswith("#"):
-            sentence = t[1:].strip()
-            if sentence in pairs:
-                proposed = pairs.pop(sentence).strip()
-                if proposed.lower().startswith("reaching for:"):
-                    out.append(f"\t// {proposed}")
-                    reach.append(proposed[len("reaching for:"):].strip())
-                else:
-                    out.append("\t" + proposed)
+        sentence = ends.get(i)
+        if sentence is not None and sentence in pairs:
+            proposed = pairs.pop(sentence).strip()
+            if proposed.lower().startswith("reaching for:"):
+                out.append(f"\t// {proposed}")
+                reach.append(proposed[len("reaching for:"):].strip())
+            else:
+                out.append("\t" + proposed)
     return "\n".join(out), reach
 
 
@@ -288,13 +316,18 @@ def parse_pairs(block: str) -> tuple[dict[str, str], list[str]]:
     pairs: dict[str, str] = {}
     refused: list[str] = []
     current: str | None = None
+    current_done = True
     for line in block.split("\n"):
         t = line.strip()
         if not t:
             continue
         if t.startswith("#"):
-            current = t[1:].strip()
+            # A sentence wrapped over several `#` lines is one sentence.
+            part = t[1:].strip()
+            current = f"{current} {part}" if current is not None and not current_done else part
+            current_done = False
             continue
+        current_done = True
         if current is None or t.startswith("//"):
             # A comment (an `example wanted`, a reach-for the model echoed) is not a line.
             continue
@@ -328,7 +361,15 @@ def stage1_file(reply: str) -> tuple[str | None, list[str]]:
             notes.append(f"dropped a property line from stage 1: {t}")
             continue
         kept.append(line)
-    text = "\n".join(kept).strip("\n") + "\n"
+    # Each `#` line the model wrote is one sentence: a blank line between
+    # consecutive ones keeps them apart, since the grammar reads consecutive
+    # `#` lines as one sentence (render wraps a long one into those).
+    spaced: list[str] = []
+    for line in kept:
+        if line.strip().startswith("#") and spaced and spaced[-1].strip().startswith("#"):
+            spaced.append("")
+        spaced.append(line)
+    text = "\n".join(spaced).strip("\n") + "\n"
     if not text.startswith(MARK + "\n"):
         text = MARK + "\n" + text
     return text, notes
@@ -352,7 +393,16 @@ def stage1_summary(out: pathlib.Path, text: str, parse: str) -> str:
             elif re.match(r"^[a-z_][A-Za-z0-9_]*\s*:", nxt):
                 values += 1
     sentences = sentences_without_lines(text)
-    wanted = [l.strip()[len("// example wanted:"):].strip() for l in lines if l.strip().startswith("// example wanted:")]
+    # An example-wanted line, with the continuation lines render wrapped it into.
+    wanted: list[str] = []
+    for line in lines:
+        t = line.strip()
+        if t.startswith("// example wanted:"):
+            wanted.append(t[len("// example wanted:"):].strip())
+        elif t.startswith("//") and wanted and not t.startswith(("// drafted", "// draft", "// reaching for")) and lines.index(line) > 0 and lines[lines.index(line) - 1].strip().startswith("//"):
+            wanted[-1] += " " + t[2:].strip()
+        elif not t.startswith("//"):
+            pass
     s = [f"wrote {out}: parse {parse}"]
     s.append(f"  drafted: {plural(types, 'type')}, {plural(values, 'named value')}; each under // drafted, read first")
     s.append(f"  sentences: {len(sentences)}, no property lines yet; stage 2 asks for them")
@@ -403,6 +453,8 @@ def cmd_sentences(args: argparse.Namespace) -> int:
         if usage:
             print(f"round {round_no}: tokens {usage['input']}/{usage['output']}")
         if code == 0:
+            format_file(surety, out)
+            text = read(out)
             break
         print(f"round {round_no}: {errors.strip()}")
     (d / "after.sur").write_text(text, encoding="utf-8")
@@ -462,6 +514,8 @@ def cmd_lines(args: argparse.Namespace) -> int:
         if code == 0:
             break
         print(f"round {round_no}: {errors.strip()}")
+    if code == 0 and format_file(surety, path):
+        text = read(path)
     (d / "after.sur").write_text(text, encoding="utf-8")
     code, report = run_surety(surety, "mutants", str(path))
     (d / "mutants.txt").write_text(report, encoding="utf-8")

@@ -25,6 +25,7 @@ Usage:
   python3 context_audit.py --days 14
   python3 context_audit.py --project surety     # substring of the project dir
   python3 context_audit.py --by-project         # one line per project: the both-doors re-read share
+  python3 context_audit.py --exclude foo        # leave out projects whose directory name contains foo
   python3 context_audit.py path/to/session.jsonl ...
   python3 context_audit.py --json > audit.json
 
@@ -271,12 +272,15 @@ def main():
     ap.add_argument("--project", default=None, help="substring of the project directory name")
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--by-project", action="store_true", help="one line per project, both doors, largest re-read share first")
+    ap.add_argument("--exclude", action="append", default=[], metavar="SUBSTRING", help="leave out every project whose directory name contains this; repeatable")
     a = ap.parse_args()
     paths = a.paths or sorted(glob.glob(os.path.expanduser("~/.claude/projects/*/*.jsonl")))
     cutoff = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=a.days)).timestamp()
     sessions = []
     for p in paths:
         if a.project and a.project not in os.path.basename(os.path.dirname(p)):
+            continue
+        if any(x in os.path.basename(os.path.dirname(p)) for x in a.exclude):
             continue
         if not a.paths and os.path.getmtime(p) < cutoff:
             continue

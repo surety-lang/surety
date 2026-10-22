@@ -128,9 +128,9 @@ pub fn evidence(
 /// The report's lines and the run log with every presentation reference
 /// replaced by a canonical one: a clause object `{line, text}` becomes
 /// `{clause, canonical}` (`frame: true` for a frame clause, other keys
-/// kept), an `example` index and an `accept` index become ordinals, the
-/// evidence object's per-clause lists stand in canonical order, and so do
-/// the example runs in the log.
+/// kept), an `example` number becomes its canonical ordinal from 1 and an
+/// `accept` index its ordinal, the evidence object's per-clause lists stand
+/// in canonical order, and so do the example runs in the log.
 fn canonical_terms(lines: Vec<Json>, runs: Vec<Json>, ids: &Identities) -> (Vec<Json>, Vec<Json>) {
     let lines = lines
         .into_iter()
@@ -144,9 +144,10 @@ fn canonical_terms(lines: Vec<Json>, runs: Vec<Json>, ids: &Identities) -> (Vec<
                     line[key] = Json::Array(mapped);
                 }
             }
+            // The report's lines number examples from 1.
             if let Some(i) = line.get("example").and_then(Json::as_u64) {
-                if let Some(id) = ids.example_at(i as usize) {
-                    line["example"] = json!(id.ordinal);
+                if let Some(id) = i.checked_sub(1).and_then(|i| ids.example_at(i as usize)) {
+                    line["example"] = json!(id.ordinal + 1);
                 }
             }
             if let Some(i) = line.get("accept").and_then(Json::as_u64) {
@@ -199,8 +200,10 @@ fn canonical_terms(lines: Vec<Json>, runs: Vec<Json>, ids: &Identities) -> (Vec<
     for mut run in runs {
         match run.get("example").and_then(Json::as_u64) {
             Some(i) => {
+                // The checker numbers example runs from 0; the record from 1,
+                // as the report's lines do.
                 if let Some(id) = ids.example_at(i as usize) {
-                    run["example"] = json!(id.ordinal);
+                    run["example"] = json!(id.ordinal + 1);
                 }
                 examples.push(run);
             }

@@ -272,6 +272,77 @@
         }
       },
       {
+        "clause": {
+          "canonical": "(unordered out)",
+          "clause": 4
+        },
+        "inputs": [
+          {
+            "json": [
+              [
+                {
+                  "amount": 2,
+                  "customer_email": "j@test.com",
+                  "ordered_at": "2026-10-19T14:19:01Z"
+                },
+                {
+                  "amount": 4,
+                  "customer_email": "j@test.com",
+                  "ordered_at": "2026-09-19T14:19:01Z"
+                }
+              ]
+            ],
+            "sur": "in: [{amount: 2, customer_email: \"j@test.com\", ordered_at: \"2026-10-19T14:19:01Z\"}, {amount: 4, customer_email: \"j@test.com\", ordered_at: \"2026-09-19T14:19:01Z\"}]"
+          }
+        ],
+        "kind": "look_here",
+        "obligation": "get_first_customer_orders",
+        "obligation_hash": "b771e47272e621410914b10eaf4a2d3ea7a1055a0d9034b255bb0cfbb5174984",
+        "output": [
+          {
+            "amount": 4,
+            "customer_email": "j@test.com",
+            "ordered_at": "2026-09-19T14:19:01Z"
+          }
+        ],
+        "performance_hash": "747b13507cc2dad7e1a67e345c5dc372c76661bd7da30ea5d84f2470184a9cb6",
+        "why": "no mutant can violate it"
+      },
+      {
+        "accept": 0,
+        "inputs": [
+          {
+            "json": [
+              [
+                {
+                  "amount": 1,
+                  "customer_email": "",
+                  "ordered_at": "2026-09-19T14:19:01Z"
+                },
+                {
+                  "amount": 22,
+                  "customer_email": "",
+                  "ordered_at": "2026-09-19T14:19:01Z"
+                }
+              ]
+            ],
+            "sur": "in: [{amount: 1, customer_email: \"\", ordered_at: \"2026-09-19T14:19:01Z\"}, {amount: 22, customer_email: \"\", ordered_at: \"2026-09-19T14:19:01Z\"}]"
+          }
+        ],
+        "kind": "look_here",
+        "obligation": "get_first_customer_orders",
+        "obligation_hash": "b771e47272e621410914b10eaf4a2d3ea7a1055a0d9034b255bb0cfbb5174984",
+        "output": [
+          {
+            "amount": 1,
+            "customer_email": "",
+            "ordered_at": "2026-09-19T14:19:01Z"
+          }
+        ],
+        "performance_hash": "747b13507cc2dad7e1a67e345c5dc372c76661bd7da30ea5d84f2470184a9cb6",
+        "why": "fires on 38 inputs"
+      },
+      {
         "accepts": [
           {
             "accept": 0,
@@ -411,9 +482,9 @@
       }
     ],
     "runs": [
-      {"example":0,"in":[[{"amount":2,"customer_email":"j@test.com","ordered_at":"2026-10-19T14:19:01Z"},{"amount":4,"customer_email":"j@test.com","ordered_at":"2026-09-19T14:19:01Z"},{"amount":42,"customer_email":"arj@abctest.com","ordered_at":"2026-09-19T14:19:01Z"},{"amount":22,"customer_email":"arj@abctest.com","ordered_at":"2025-09-19T14:19:01Z"}]],"out":"527169514ecd684a85dd07daa77ca83addab78a2e4da450d0cd834410b7ade4b","pass":true},
-      {"example":1,"in":[[{"amount":2,"customer_email":"j@test.com","ordered_at":"2026-10-19T14:19:01Z"},{"amount":4,"customer_email":"j@test.com","ordered_at":"2026-09-19T14:19:01Z"}]],"out":"94fa17e3001176dd6af13448884a72a54b3cc2fbf5501036bc73b5a92fe2917e","pass":true},
-      {"example":2,"in":[[]],"out":"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945","pass":true},
+      {"example":1,"in":[[{"amount":2,"customer_email":"j@test.com","ordered_at":"2026-10-19T14:19:01Z"},{"amount":4,"customer_email":"j@test.com","ordered_at":"2026-09-19T14:19:01Z"},{"amount":42,"customer_email":"arj@abctest.com","ordered_at":"2026-09-19T14:19:01Z"},{"amount":22,"customer_email":"arj@abctest.com","ordered_at":"2025-09-19T14:19:01Z"}]],"out":"527169514ecd684a85dd07daa77ca83addab78a2e4da450d0cd834410b7ade4b","pass":true},
+      {"example":2,"in":[[{"amount":2,"customer_email":"j@test.com","ordered_at":"2026-10-19T14:19:01Z"},{"amount":4,"customer_email":"j@test.com","ordered_at":"2026-09-19T14:19:01Z"}]],"out":"94fa17e3001176dd6af13448884a72a54b3cc2fbf5501036bc73b5a92fe2917e","pass":true},
+      {"example":3,"in":[[]],"out":"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945","pass":true},
       {"in":[[{"amount":0,"customer_email":"","ordered_at":"2025-09-18T14:19:01Z"}]],"out":"47170da0ec217f3fcf1ab0f6cad844e4fe1aca42453c53824cccbb6d1bbc2f0c"},
       {"in":[[{"amount":0,"customer_email":"","ordered_at":"2025-09-19T14:19:01Z"}]],"out":"43cfcf81cdbf77d164d38d6ca9f75d456885c2891f397d7b5d9b8039a0ac56cc"},
       {"in":[[{"amount":0,"customer_email":"","ordered_at":"2026-09-19T14:19:01Z"}]],"out":"6c3241b42b914b8fe3cdc5de9fe76e5ed1c640fc6b625e459c4c36de871f8df7"},

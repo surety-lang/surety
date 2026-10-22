@@ -12,7 +12,7 @@ pub mod value;
 
 pub use checker::{
     AcceptReport, Cause, Checker, Counterexample, Determinism, ExampleReport, Failure, FrameReport,
-    GenRun, Outcome, Party, PropVerdict, PropertyReport, Report, Verdict,
+    GenRun, LookHere, LookKind, Outcome, Party, PropVerdict, PropertyReport, Report, Verdict,
 };
 pub use diff::{Class, DiffReport, Difference};
 pub use generate::{Bucket, Budget, Domain, Generated};

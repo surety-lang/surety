@@ -206,6 +206,8 @@ pub struct Report {
     pub mutants: Option<MutantReport>,
     /// Each `accept` line and how many inputs satisfied it.
     pub accepts: Vec<AcceptReport>,
+    /// The reviewer's reading list: see `LookHere`.
+    pub look_here: Vec<LookHere>,
     /// Claims false on generated inputs, grouped by cause and attributed.
     pub causes: Vec<Cause>,
 }
@@ -219,6 +221,27 @@ pub struct AcceptReport {
     pub line: usize,
     pub text: String,
     pub satisfied: usize,
+}
+
+/// A place for the reviewer to look: a clause no mutant can violate, or an
+/// accept that fired, with one input and the output the performance gave.
+#[derive(Debug, Clone)]
+pub struct LookHere {
+    pub kind: LookKind,
+    pub inputs: Vec<Value>,
+    pub output: Option<Value>,
+}
+
+#[derive(Debug, Clone)]
+pub enum LookKind {
+    Uncaught(crate::mutants::Clause),
+    Accept {
+        /// The accept's index in source order.
+        index: usize,
+        line: usize,
+        text: String,
+        satisfied: usize,
+    },
 }
 
 impl AcceptReport {
@@ -698,6 +721,7 @@ impl<'g> Checker<'g> {
             None
         };
         let accepts = self.check_accepts();
+        let look_here = self.look_here(&examples, mutants.as_ref(), &accepts);
         Report {
             obligation: self.fun.name.clone(),
             obligation_hash,
@@ -720,8 +744,64 @@ impl<'g> Checker<'g> {
             inspection_error,
             mutants,
             accepts,
+            look_here,
             causes,
         }
+    }
+
+    /// The reviewer's reading list: every clause no mutant can violate and
+    /// every accept that fired, each with one input and the output the
+    /// performance gave there. The example runs come first, so the author's
+    /// own case is the one shown when it serves.
+    fn look_here(
+        &mut self,
+        examples: &[ExampleReport],
+        mutants: Option<&MutantReport>,
+        accepts: &[AcceptReport],
+    ) -> Vec<LookHere> {
+        let mut runs: Vec<(Vec<Value>, Value)> = examples
+            .iter()
+            .filter_map(|e| Some((e.inputs.clone(), e.output.clone()?)))
+            .collect();
+        runs.extend(self.generated.iter().filter_map(|g| match &g.outcome {
+            Outcome::Output(v) => Some((g.inputs.clone(), v.clone())),
+            _ => None,
+        }));
+        let mut out = Vec::new();
+        if let Some(m) = mutants {
+            for c in &m.uncaught {
+                if let Some((inputs, output)) = runs.first() {
+                    out.push(LookHere {
+                        kind: LookKind::Uncaught(c.clone()),
+                        inputs: inputs.clone(),
+                        output: Some(output.clone()),
+                    });
+                }
+            }
+        }
+        let fun = self.fun;
+        for (index, (a, report)) in fun.accepts.iter().zip(accepts).enumerate() {
+            if report.satisfied == 0 {
+                continue;
+            }
+            let hit = runs
+                .iter()
+                .find(|(inputs, _)| self.accepts_input(&a.expr, inputs))
+                .cloned();
+            if let Some((inputs, output)) = hit {
+                out.push(LookHere {
+                    kind: LookKind::Accept {
+                        index,
+                        line: report.line,
+                        text: report.text.clone(),
+                        satisfied: report.satisfied,
+                    },
+                    inputs,
+                    output: Some(output),
+                });
+            }
+        }
+        out
     }
 
     /// Group the claims' generated counterexamples by cause and say whose

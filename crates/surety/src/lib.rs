@@ -9,8 +9,8 @@ use serde_json::{Value as Json, json};
 use surety_check::mutants::{Clause, MutantReport, MutantRun, MutantVerdict};
 use surety_check::value::to_json;
 use surety_check::{
-    Bucket, Budget, Cause, Checker, Class, DiffReport, Difference, Outcome, Party, PropVerdict,
-    Report, Value, Verdict,
+    Bucket, Budget, Cause, Checker, Class, DiffReport, Difference, LookKind, Outcome, Party,
+    PropVerdict, Report, Value, Verdict,
 };
 use surety_graph::{NodeView, PinState, Pinned, Rendered, State, StatusRow, Verification};
 use surety_syntax::{Error, Graph, parse};
@@ -486,6 +486,64 @@ fn two_outputs(s: &mut String, u: &surety_check::Underdetermined) {
 }
 
 /// A plain-text rendering of a report. `full` adds the bucket detail.
+/// The reviewer's reading list, at the end of the report: the clauses no
+/// mutant can violate and the accepts that fired, each with one input and
+/// the output the performance gave.
+fn look_here_text(r: &Report) -> String {
+    let clauses = r
+        .look_here
+        .iter()
+        .filter(|l| matches!(l.kind, LookKind::Uncaught(_)))
+        .count();
+    let accepts = r.look_here.len() - clauses;
+    let mut parts = Vec::new();
+    if clauses > 0 {
+        parts.push(format!(
+            "{} no mutant can violate",
+            plural(clauses, "clause", "clauses")
+        ));
+    }
+    if accepts > 0 {
+        parts.push(format!(
+            "{} that fired",
+            plural(accepts, "accept", "accepts")
+        ));
+    }
+    let mut s = format!(
+        "  look here  {}: {}\n",
+        plural(r.look_here.len(), "place", "places"),
+        parts.join(", ")
+    );
+    for l in &r.look_here {
+        let (label, why) = match &l.kind {
+            LookKind::Uncaught(c) => (
+                match c.line() {
+                    Some(line) => format!("clause (line {line}): {}", c.text()),
+                    None => format!("clause: {}", c.text()),
+                },
+                "no mutant can violate it".to_string(),
+            ),
+            LookKind::Accept {
+                line,
+                text,
+                satisfied,
+                ..
+            } => (
+                format!("accept (line {line}): {text}"),
+                format!("fires on {satisfied} inputs"),
+            ),
+        };
+        s.push_str(&format!(
+            "    {label}    # {why}\n        in: {}\n",
+            sur_inputs(&l.inputs)
+        ));
+        if let Some(o) = &l.output {
+            s.push_str(&format!("        out: {o}    # the performance's\n"));
+        }
+    }
+    s
+}
+
 pub fn render_with(report: &Report, full: bool) -> String {
     let mut s = String::new();
     s.push_str(&verdict_line(report));
@@ -633,6 +691,9 @@ pub fn render_with(report: &Report, full: bool) -> String {
         ));
     }
     s.push_str(&render_evidence_with(report, full));
+    if !report.look_here.is_empty() {
+        s.push_str(&look_here_text(report));
+    }
     s
 }
 
@@ -1036,6 +1097,33 @@ pub fn json_lines(r: &Report) -> Vec<Json> {
         let mut f = finding("dead_accept", r, Some((a.line, &a.text)), &[]);
         f["party"] = json!("obligation");
         f["message"] = json!("holds on no example or generated input");
+        out.push(f);
+    }
+    for l in &r.look_here {
+        let mut f = json!({
+            "kind": "look_here",
+            "obligation": r.obligation,
+            "obligation_hash": r.obligation_hash,
+            "inputs": input_json(&l.inputs),
+        });
+        if let Some(i) = &r.inspection {
+            f["performance_hash"] = json!(i.hash);
+        }
+        match &l.kind {
+            LookKind::Uncaught(c) => {
+                f["clause"] = clause_json(c);
+                f["why"] = json!("no mutant can violate it");
+            }
+            LookKind::Accept {
+                index, satisfied, ..
+            } => {
+                f["accept"] = json!(index);
+                f["why"] = json!(format!("fires on {satisfied} inputs"));
+            }
+        }
+        if let Some(o) = &l.output {
+            f["output"] = to_json(o);
+        }
         out.push(f);
     }
     out.push(ev);

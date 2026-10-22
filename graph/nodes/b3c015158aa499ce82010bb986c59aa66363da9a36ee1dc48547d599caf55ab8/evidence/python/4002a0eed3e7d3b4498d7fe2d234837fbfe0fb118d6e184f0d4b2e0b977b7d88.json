@@ -10,6 +10,351 @@
     "performance": "4002a0eed3e7d3b4498d7fe2d234837fbfe0fb118d6e184f0d4b2e0b977b7d88",
     "report": [
       {
+        "clause": {
+          "canonical": "(all err($) out (body (drawn_from $0 (list (rec (code (text \"e1-missing-removed-sku\")) (display (text \"Item in diff.removed not present in old\"))) (rec (code (text \"e1-missing-changed-sku\")) (display (text \"Item in diff.changed not present in old\"))) (rec (code (text \"e1-added-present-sku\")) (display (text \"Item in diff.added already present in old\"))) (rec (code (text \"e1-conflicting-sku\")) (display (text \"A sku is in both diff.removed and diff.changed\")))))))",
+          "clause": 5
+        },
+        "inputs": [
+          {
+            "json": [
+              [
+                {
+                  "qty": 5,
+                  "sku": "A"
+                },
+                {
+                  "qty": 2,
+                  "sku": "B"
+                },
+                {
+                  "qty": 1,
+                  "sku": "C"
+                }
+              ],
+              {
+                "added": [
+                  {
+                    "qty": 7,
+                    "sku": "D"
+                  }
+                ],
+                "changed": [
+                  {
+                    "new_qty": 3,
+                    "old_qty": 2,
+                    "sku": "B"
+                  }
+                ],
+                "removed": [
+                  {
+                    "qty": 1,
+                    "sku": "C"
+                  }
+                ]
+              }
+            ],
+            "sur": "in: ([{qty: 5, sku: \"A\"}, {qty: 2, sku: \"B\"}, {qty: 1, sku: \"C\"}], {added: [{qty: 7, sku: \"D\"}], changed: [{new_qty: 3, old_qty: 2, sku: \"B\"}], removed: [{qty: 1, sku: \"C\"}]})"
+          }
+        ],
+        "kind": "look_here",
+        "obligation": "apply_diff",
+        "obligation_hash": "b3c015158aa499ce82010bb986c59aa66363da9a36ee1dc48547d599caf55ab8",
+        "output": {
+          "ok": [
+            {
+              "qty": 5,
+              "sku": "A"
+            },
+            {
+              "qty": 3,
+              "sku": "B"
+            },
+            {
+              "qty": 7,
+              "sku": "D"
+            }
+          ]
+        },
+        "performance_hash": "4002a0eed3e7d3b4498d7fe2d234837fbfe0fb118d6e184f0d4b2e0b977b7d88",
+        "why": "no mutant can violate it"
+      },
+      {
+        "clause": {
+          "canonical": "(all err($) out (body (unordered $0)))",
+          "clause": 6
+        },
+        "inputs": [
+          {
+            "json": [
+              [
+                {
+                  "qty": 5,
+                  "sku": "A"
+                },
+                {
+                  "qty": 2,
+                  "sku": "B"
+                },
+                {
+                  "qty": 1,
+                  "sku": "C"
+                }
+              ],
+              {
+                "added": [
+                  {
+                    "qty": 7,
+                    "sku": "D"
+                  }
+                ],
+                "changed": [
+                  {
+                    "new_qty": 3,
+                    "old_qty": 2,
+                    "sku": "B"
+                  }
+                ],
+                "removed": [
+                  {
+                    "qty": 1,
+                    "sku": "C"
+                  }
+                ]
+              }
+            ],
+            "sur": "in: ([{qty: 5, sku: \"A\"}, {qty: 2, sku: \"B\"}, {qty: 1, sku: \"C\"}], {added: [{qty: 7, sku: \"D\"}], changed: [{new_qty: 3, old_qty: 2, sku: \"B\"}], removed: [{qty: 1, sku: \"C\"}]})"
+          }
+        ],
+        "kind": "look_here",
+        "obligation": "apply_diff",
+        "obligation_hash": "b3c015158aa499ce82010bb986c59aa66363da9a36ee1dc48547d599caf55ab8",
+        "output": {
+          "ok": [
+            {
+              "qty": 5,
+              "sku": "A"
+            },
+            {
+              "qty": 3,
+              "sku": "B"
+            },
+            {
+              "qty": 7,
+              "sku": "D"
+            }
+          ]
+        },
+        "performance_hash": "4002a0eed3e7d3b4498d7fe2d234837fbfe0fb118d6e184f0d4b2e0b977b7d88",
+        "why": "no mutant can violate it"
+      },
+      {
+        "clause": {
+          "canonical": "(all ok($) out (body (unique (. $0 sku))))",
+          "clause": 12
+        },
+        "inputs": [
+          {
+            "json": [
+              [
+                {
+                  "qty": 5,
+                  "sku": "A"
+                },
+                {
+                  "qty": 2,
+                  "sku": "B"
+                },
+                {
+                  "qty": 1,
+                  "sku": "C"
+                }
+              ],
+              {
+                "added": [
+                  {
+                    "qty": 7,
+                    "sku": "D"
+                  }
+                ],
+                "changed": [
+                  {
+                    "new_qty": 3,
+                    "old_qty": 2,
+                    "sku": "B"
+                  }
+                ],
+                "removed": [
+                  {
+                    "qty": 1,
+                    "sku": "C"
+                  }
+                ]
+              }
+            ],
+            "sur": "in: ([{qty: 5, sku: \"A\"}, {qty: 2, sku: \"B\"}, {qty: 1, sku: \"C\"}], {added: [{qty: 7, sku: \"D\"}], changed: [{new_qty: 3, old_qty: 2, sku: \"B\"}], removed: [{qty: 1, sku: \"C\"}]})"
+          }
+        ],
+        "kind": "look_here",
+        "obligation": "apply_diff",
+        "obligation_hash": "b3c015158aa499ce82010bb986c59aa66363da9a36ee1dc48547d599caf55ab8",
+        "output": {
+          "ok": [
+            {
+              "qty": 5,
+              "sku": "A"
+            },
+            {
+              "qty": 3,
+              "sku": "B"
+            },
+            {
+              "qty": 7,
+              "sku": "D"
+            }
+          ]
+        },
+        "performance_hash": "4002a0eed3e7d3b4498d7fe2d234837fbfe0fb118d6e184f0d4b2e0b977b7d88",
+        "why": "no mutant can violate it"
+      },
+      {
+        "clause": {
+          "canonical": "(all ok($) out (body (unordered $0)))",
+          "clause": 13
+        },
+        "inputs": [
+          {
+            "json": [
+              [
+                {
+                  "qty": 5,
+                  "sku": "A"
+                },
+                {
+                  "qty": 2,
+                  "sku": "B"
+                },
+                {
+                  "qty": 1,
+                  "sku": "C"
+                }
+              ],
+              {
+                "added": [
+                  {
+                    "qty": 7,
+                    "sku": "D"
+                  }
+                ],
+                "changed": [
+                  {
+                    "new_qty": 3,
+                    "old_qty": 2,
+                    "sku": "B"
+                  }
+                ],
+                "removed": [
+                  {
+                    "qty": 1,
+                    "sku": "C"
+                  }
+                ]
+              }
+            ],
+            "sur": "in: ([{qty: 5, sku: \"A\"}, {qty: 2, sku: \"B\"}, {qty: 1, sku: \"C\"}], {added: [{qty: 7, sku: \"D\"}], changed: [{new_qty: 3, old_qty: 2, sku: \"B\"}], removed: [{qty: 1, sku: \"C\"}]})"
+          }
+        ],
+        "kind": "look_here",
+        "obligation": "apply_diff",
+        "obligation_hash": "b3c015158aa499ce82010bb986c59aa66363da9a36ee1dc48547d599caf55ab8",
+        "output": {
+          "ok": [
+            {
+              "qty": 5,
+              "sku": "A"
+            },
+            {
+              "qty": 3,
+              "sku": "B"
+            },
+            {
+              "qty": 7,
+              "sku": "D"
+            }
+          ]
+        },
+        "performance_hash": "4002a0eed3e7d3b4498d7fe2d234837fbfe0fb118d6e184f0d4b2e0b977b7d88",
+        "why": "no mutant can violate it"
+      },
+      {
+        "clause": {
+          "clause": null,
+          "frame": true
+        },
+        "inputs": [
+          {
+            "json": [
+              [
+                {
+                  "qty": 5,
+                  "sku": "A"
+                },
+                {
+                  "qty": 2,
+                  "sku": "B"
+                },
+                {
+                  "qty": 1,
+                  "sku": "C"
+                }
+              ],
+              {
+                "added": [
+                  {
+                    "qty": 7,
+                    "sku": "D"
+                  }
+                ],
+                "changed": [
+                  {
+                    "new_qty": 3,
+                    "old_qty": 2,
+                    "sku": "B"
+                  }
+                ],
+                "removed": [
+                  {
+                    "qty": 1,
+                    "sku": "C"
+                  }
+                ]
+              }
+            ],
+            "sur": "in: ([{qty: 5, sku: \"A\"}, {qty: 2, sku: \"B\"}, {qty: 1, sku: \"C\"}], {added: [{qty: 7, sku: \"D\"}], changed: [{new_qty: 3, old_qty: 2, sku: \"B\"}], removed: [{qty: 1, sku: \"C\"}]})"
+          }
+        ],
+        "kind": "look_here",
+        "obligation": "apply_diff",
+        "obligation_hash": "b3c015158aa499ce82010bb986c59aa66363da9a36ee1dc48547d599caf55ab8",
+        "output": {
+          "ok": [
+            {
+              "qty": 5,
+              "sku": "A"
+            },
+            {
+              "qty": 3,
+              "sku": "B"
+            },
+            {
+              "qty": 7,
+              "sku": "D"
+            }
+          ]
+        },
+        "performance_hash": "4002a0eed3e7d3b4498d7fe2d234837fbfe0fb118d6e184f0d4b2e0b977b7d88",
+        "why": "no mutant can violate it"
+      },
+      {
         "accepts": [],
         "dependencies": [],
         "determinism": {
@@ -196,14 +541,14 @@
       }
     ],
     "runs": [
-      {"example":0,"in":[[{"qty":5,"sku":"A"},{"qty":2,"sku":"B"},{"qty":1,"sku":"C"}],{"added":[{"qty":7,"sku":"D"}],"changed":[{"new_qty":3,"old_qty":2,"sku":"B"}],"removed":[{"qty":1,"sku":"C"}]}],"out":"d7c93a8ff718671a8da29a7371242124e3644249429cdbfdba422aa0a69e6675","pass":true},
-      {"example":1,"in":[[{"qty":5,"sku":"A"}],{"added":[{"qty":6,"sku":"A"}],"changed":[],"removed":[{"qty":9,"sku":"Z"}]}],"out":"657ce420474870fd1fadb66718cffebaa68b1e901a1ba4f72963b653b6ee92e3","pass":true},
-      {"example":2,"in":[[{"qty":5,"sku":"A"}],{"added":[{"qty":6,"sku":"A"}],"changed":[],"removed":[]}],"out":"de3927ed195efb56369d6cf09cfcb0b5cb1cc9b31ea77a14febf263830987340","pass":true},
-      {"example":3,"in":[[{"qty":5,"sku":"A"}],{"added":[],"changed":[{"new_qty":2,"old_qty":1,"sku":"B"}],"removed":[]}],"out":"c837a87568ced4954d98f036de35227bee71eb37e603b81e9281f2a4adba4c4f","pass":true},
-      {"example":4,"in":[[{"qty":5,"sku":"A"}],{"added":[],"changed":[{"new_qty":6,"old_qty":5,"sku":"A"}],"removed":[{"qty":5,"sku":"A"}]}],"out":"690e472a91272336808a7ed91b20c6bdf17d7012f2bde0c6fa17bdf3e02a3154","pass":true},
-      {"example":5,"in":[[{"qty":5,"sku":"A"}],{"added":[],"changed":[],"removed":[{"qty":9,"sku":"Z"}]}],"out":"0d8c2cd21335153543e9b087d01230bbee9ec3bde1907ac070730e0c8678362e","pass":true},
-      {"example":6,"in":[[{"qty":5,"sku":"A"}],{"added":[],"changed":[],"removed":[]}],"out":"5dcc2788647148c66fd68fc27b2908512d73c8d0e111a10c279d21459587ff94","pass":true},
-      {"example":7,"in":[[],{"added":[],"changed":[],"removed":[]}],"out":"79f889f1b8ec725e8664679b972e031a687ac0b0ef9c489f183be0a8b83e39d4","pass":true},
+      {"example":1,"in":[[{"qty":5,"sku":"A"},{"qty":2,"sku":"B"},{"qty":1,"sku":"C"}],{"added":[{"qty":7,"sku":"D"}],"changed":[{"new_qty":3,"old_qty":2,"sku":"B"}],"removed":[{"qty":1,"sku":"C"}]}],"out":"d7c93a8ff718671a8da29a7371242124e3644249429cdbfdba422aa0a69e6675","pass":true},
+      {"example":2,"in":[[{"qty":5,"sku":"A"}],{"added":[{"qty":6,"sku":"A"}],"changed":[],"removed":[{"qty":9,"sku":"Z"}]}],"out":"657ce420474870fd1fadb66718cffebaa68b1e901a1ba4f72963b653b6ee92e3","pass":true},
+      {"example":3,"in":[[{"qty":5,"sku":"A"}],{"added":[{"qty":6,"sku":"A"}],"changed":[],"removed":[]}],"out":"de3927ed195efb56369d6cf09cfcb0b5cb1cc9b31ea77a14febf263830987340","pass":true},
+      {"example":4,"in":[[{"qty":5,"sku":"A"}],{"added":[],"changed":[{"new_qty":2,"old_qty":1,"sku":"B"}],"removed":[]}],"out":"c837a87568ced4954d98f036de35227bee71eb37e603b81e9281f2a4adba4c4f","pass":true},
+      {"example":5,"in":[[{"qty":5,"sku":"A"}],{"added":[],"changed":[{"new_qty":6,"old_qty":5,"sku":"A"}],"removed":[{"qty":5,"sku":"A"}]}],"out":"690e472a91272336808a7ed91b20c6bdf17d7012f2bde0c6fa17bdf3e02a3154","pass":true},
+      {"example":6,"in":[[{"qty":5,"sku":"A"}],{"added":[],"changed":[],"removed":[{"qty":9,"sku":"Z"}]}],"out":"0d8c2cd21335153543e9b087d01230bbee9ec3bde1907ac070730e0c8678362e","pass":true},
+      {"example":7,"in":[[{"qty":5,"sku":"A"}],{"added":[],"changed":[],"removed":[]}],"out":"5dcc2788647148c66fd68fc27b2908512d73c8d0e111a10c279d21459587ff94","pass":true},
+      {"example":8,"in":[[],{"added":[],"changed":[],"removed":[]}],"out":"79f889f1b8ec725e8664679b972e031a687ac0b0ef9c489f183be0a8b83e39d4","pass":true},
       {"in":[[],{"added":[],"changed":[{"new_qty":1,"old_qty":9,"sku":"A"}],"removed":[{"qty":3,"sku":"k2"},{"qty":1,"sku":"D"},{"qty":3,"sku":"k3"},{"qty":1,"sku":"C"}]}],"out":"0fa9e43f63e7c39b1d0e1aaab0b8e12d2b8f8389c0886cf1d08b64366dd2a341"},
       {"in":[[],{"added":[{"qty":7,"sku":"D"},{"qty":6,"sku":"k1"}],"changed":[],"removed":[{"qty":1,"sku":"Z"},{"qty":0,"sku":"C"},{"qty":9,"sku":"k2"}]}],"out":"0d8c2cd21335153543e9b087d01230bbee9ec3bde1907ac070730e0c8678362e"},
       {"in":[[],{"added":[{"qty":9,"sku":"k1"},{"qty":3,"sku":"Z"},{"qty":0,"sku":"D"},{"qty":6,"sku":"B"}],"changed":[],"removed":[]}],"out":"ec9d7d646b7c24804499b33818a036ff0f515a8e2a73c0a753ff0aaec823dfb0"},

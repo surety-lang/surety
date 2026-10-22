@@ -10,6 +10,114 @@
     "performance": "e15a58b2f58a2f71bc52d01027e718adb94e9b35a90ae0c4fc90c5d56372d2ae",
     "report": [
       {
+        "clause": {
+          "clause": null,
+          "frame": true
+        },
+        "inputs": [
+          {
+            "json": [
+              [
+                {
+                  "amount": 2,
+                  "customer_email": "j@test.com",
+                  "id": "o1",
+                  "user_id": null
+                },
+                {
+                  "amount": 1,
+                  "customer_email": "j@test.com",
+                  "id": "o2",
+                  "user_id": "u1a"
+                }
+              ],
+              [
+                {
+                  "id": "u1a",
+                  "user_name": "jess_test"
+                }
+              ]
+            ],
+            "sur": "in: ([{amount: 2, customer_email: \"j@test.com\", id: \"o1\", user_id: None}, {amount: 1, customer_email: \"j@test.com\", id: \"o2\", user_id: \"u1a\"}], [{id: \"u1a\", user_name: \"jess_test\"}])"
+          }
+        ],
+        "kind": "look_here",
+        "obligation": "enrich_orders",
+        "obligation_hash": "68dc03f953feb8a92484aa29eec45cb37d8d0e7389340dd057dd45bef610a951",
+        "output": [
+          {
+            "amount": 2,
+            "customer_email": "j@test.com",
+            "id": "o1",
+            "user_id": null,
+            "user_name": null
+          },
+          {
+            "amount": 1,
+            "customer_email": "j@test.com",
+            "id": "o2",
+            "user_id": "u1a",
+            "user_name": "jess_test"
+          }
+        ],
+        "performance_hash": "e15a58b2f58a2f71bc52d01027e718adb94e9b35a90ae0c4fc90c5d56372d2ae",
+        "why": "no mutant can violate it"
+      },
+      {
+        "clause": {
+          "clause": null,
+          "frame": true
+        },
+        "inputs": [
+          {
+            "json": [
+              [
+                {
+                  "amount": 2,
+                  "customer_email": "j@test.com",
+                  "id": "o1",
+                  "user_id": null
+                },
+                {
+                  "amount": 1,
+                  "customer_email": "j@test.com",
+                  "id": "o2",
+                  "user_id": "u1a"
+                }
+              ],
+              [
+                {
+                  "id": "u1a",
+                  "user_name": "jess_test"
+                }
+              ]
+            ],
+            "sur": "in: ([{amount: 2, customer_email: \"j@test.com\", id: \"o1\", user_id: None}, {amount: 1, customer_email: \"j@test.com\", id: \"o2\", user_id: \"u1a\"}], [{id: \"u1a\", user_name: \"jess_test\"}])"
+          }
+        ],
+        "kind": "look_here",
+        "obligation": "enrich_orders",
+        "obligation_hash": "68dc03f953feb8a92484aa29eec45cb37d8d0e7389340dd057dd45bef610a951",
+        "output": [
+          {
+            "amount": 2,
+            "customer_email": "j@test.com",
+            "id": "o1",
+            "user_id": null,
+            "user_name": null
+          },
+          {
+            "amount": 1,
+            "customer_email": "j@test.com",
+            "id": "o2",
+            "user_id": "u1a",
+            "user_name": "jess_test"
+          }
+        ],
+        "performance_hash": "e15a58b2f58a2f71bc52d01027e718adb94e9b35a90ae0c4fc90c5d56372d2ae",
+        "why": "no mutant can violate it"
+      },
+      {
         "accepts": [],
         "dependencies": [],
         "determinism": {
@@ -321,9 +429,9 @@
       }
     ],
     "runs": [
-      {"example":0,"in":[[{"amount":2,"customer_email":"a@test.com","id":"o1","user_id":null},{"amount":2,"customer_email":"a@test.com","id":"o2","user_id":"u2b"}],[{"id":"u1a","user_name":"jess_test"}]],"out":"754fbf7ebbcb385b05216f7225e45e85c1a00550605c6ccbc0ff1bbb69647bb2","pass":true},
-      {"example":1,"in":[[{"amount":2,"customer_email":"j@test.com","id":"o1","user_id":null},{"amount":1,"customer_email":"j@test.com","id":"o2","user_id":"u1a"}],[{"id":"u1a","user_name":"jess_test"}]],"out":"8d0ff10d94d4754936633d10578a25fe8ad9539363c3ae262ca9c8253a210e6e","pass":true},
-      {"example":2,"in":[[{"amount":2,"customer_email":"j@test.com","id":"o1","user_id":null},{"amount":2,"customer_email":"j@test.com","id":"o2","user_id":null}],[]],"out":"af3fbe2d06711c1ac0c98f3875f284951a494ca074b5e0285ac3e0ae2518e893","pass":true},
+      {"example":1,"in":[[{"amount":2,"customer_email":"a@test.com","id":"o1","user_id":null},{"amount":2,"customer_email":"a@test.com","id":"o2","user_id":"u2b"}],[{"id":"u1a","user_name":"jess_test"}]],"out":"754fbf7ebbcb385b05216f7225e45e85c1a00550605c6ccbc0ff1bbb69647bb2","pass":true},
+      {"example":2,"in":[[{"amount":2,"customer_email":"j@test.com","id":"o1","user_id":null},{"amount":1,"customer_email":"j@test.com","id":"o2","user_id":"u1a"}],[{"id":"u1a","user_name":"jess_test"}]],"out":"8d0ff10d94d4754936633d10578a25fe8ad9539363c3ae262ca9c8253a210e6e","pass":true},
+      {"example":3,"in":[[{"amount":2,"customer_email":"j@test.com","id":"o1","user_id":null},{"amount":2,"customer_email":"j@test.com","id":"o2","user_id":null}],[]],"out":"af3fbe2d06711c1ac0c98f3875f284951a494ca074b5e0285ac3e0ae2518e893","pass":true},
       {"in":[[],[]],"out":"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"},
       {"in":[[],[{"id":"u2b","user_name":"j@test.com"}]],"out":"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"},
       {"in":[[],[{"id":"k3","user_name":""}]],"out":"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"},

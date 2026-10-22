@@ -10,6 +10,406 @@
     "performance": "cdf206c09e603a39c02a7123dc712db25576dcbb5cd61fa1df237d0476243eea",
     "report": [
       {
+        "clause": {
+          "canonical": "(all $ out (body (all $ (. $0 orders) (body (== (. $0 customer_email) (. $1 customer_email))))))",
+          "clause": 2
+        },
+        "inputs": [
+          {
+            "json": [
+              [
+                {
+                  "amount": 4,
+                  "customer_email": "test@test.com"
+                },
+                {
+                  "amount": 42143,
+                  "customer_email": "test@test.com"
+                },
+                {
+                  "amount": 52,
+                  "customer_email": "jess@test.com"
+                },
+                {
+                  "amount": 99,
+                  "customer_email": "jess@test.com"
+                },
+                {
+                  "amount": 100,
+                  "customer_email": "joe@abe.com"
+                }
+              ]
+            ],
+            "sur": "in: [{amount: 4, customer_email: \"test@test.com\"}, {amount: 42143, customer_email: \"test@test.com\"}, {amount: 52, customer_email: \"jess@test.com\"}, {amount: 99, customer_email: \"jess@test.com\"}, {amount: 100, customer_email: \"joe@abe.com\"}]"
+          }
+        ],
+        "kind": "look_here",
+        "obligation": "group_by_customer",
+        "obligation_hash": "e5dcff838def52522007d9783eddb69385cc7a52fb36099c87adbf5b6ad3be65",
+        "output": [
+          {
+            "customer_email": "test@test.com",
+            "orders": [
+              {
+                "amount": 4,
+                "customer_email": "test@test.com"
+              },
+              {
+                "amount": 42143,
+                "customer_email": "test@test.com"
+              }
+            ],
+            "total_amount": 42147
+          },
+          {
+            "customer_email": "jess@test.com",
+            "orders": [
+              {
+                "amount": 52,
+                "customer_email": "jess@test.com"
+              },
+              {
+                "amount": 99,
+                "customer_email": "jess@test.com"
+              }
+            ],
+            "total_amount": 151
+          },
+          {
+            "customer_email": "joe@abe.com",
+            "orders": [
+              {
+                "amount": 100,
+                "customer_email": "joe@abe.com"
+              }
+            ],
+            "total_amount": 100
+          }
+        ],
+        "performance_hash": "cdf206c09e603a39c02a7123dc712db25576dcbb5cd61fa1df237d0476243eea",
+        "why": "no mutant can violate it"
+      },
+      {
+        "clause": {
+          "canonical": "(all $ out (body (== (. $0 total_amount) (call sum (. (. $0 orders) amount)))))",
+          "clause": 1
+        },
+        "inputs": [
+          {
+            "json": [
+              [
+                {
+                  "amount": 4,
+                  "customer_email": "test@test.com"
+                },
+                {
+                  "amount": 42143,
+                  "customer_email": "test@test.com"
+                },
+                {
+                  "amount": 52,
+                  "customer_email": "jess@test.com"
+                },
+                {
+                  "amount": 99,
+                  "customer_email": "jess@test.com"
+                },
+                {
+                  "amount": 100,
+                  "customer_email": "joe@abe.com"
+                }
+              ]
+            ],
+            "sur": "in: [{amount: 4, customer_email: \"test@test.com\"}, {amount: 42143, customer_email: \"test@test.com\"}, {amount: 52, customer_email: \"jess@test.com\"}, {amount: 99, customer_email: \"jess@test.com\"}, {amount: 100, customer_email: \"joe@abe.com\"}]"
+          }
+        ],
+        "kind": "look_here",
+        "obligation": "group_by_customer",
+        "obligation_hash": "e5dcff838def52522007d9783eddb69385cc7a52fb36099c87adbf5b6ad3be65",
+        "output": [
+          {
+            "customer_email": "test@test.com",
+            "orders": [
+              {
+                "amount": 4,
+                "customer_email": "test@test.com"
+              },
+              {
+                "amount": 42143,
+                "customer_email": "test@test.com"
+              }
+            ],
+            "total_amount": 42147
+          },
+          {
+            "customer_email": "jess@test.com",
+            "orders": [
+              {
+                "amount": 52,
+                "customer_email": "jess@test.com"
+              },
+              {
+                "amount": 99,
+                "customer_email": "jess@test.com"
+              }
+            ],
+            "total_amount": 151
+          },
+          {
+            "customer_email": "joe@abe.com",
+            "orders": [
+              {
+                "amount": 100,
+                "customer_email": "joe@abe.com"
+              }
+            ],
+            "total_amount": 100
+          }
+        ],
+        "performance_hash": "cdf206c09e603a39c02a7123dc712db25576dcbb5cd61fa1df237d0476243eea",
+        "why": "no mutant can violate it"
+      },
+      {
+        "clause": {
+          "canonical": "(unordered out)",
+          "clause": 7
+        },
+        "inputs": [
+          {
+            "json": [
+              [
+                {
+                  "amount": 4,
+                  "customer_email": "test@test.com"
+                },
+                {
+                  "amount": 42143,
+                  "customer_email": "test@test.com"
+                },
+                {
+                  "amount": 52,
+                  "customer_email": "jess@test.com"
+                },
+                {
+                  "amount": 99,
+                  "customer_email": "jess@test.com"
+                },
+                {
+                  "amount": 100,
+                  "customer_email": "joe@abe.com"
+                }
+              ]
+            ],
+            "sur": "in: [{amount: 4, customer_email: \"test@test.com\"}, {amount: 42143, customer_email: \"test@test.com\"}, {amount: 52, customer_email: \"jess@test.com\"}, {amount: 99, customer_email: \"jess@test.com\"}, {amount: 100, customer_email: \"joe@abe.com\"}]"
+          }
+        ],
+        "kind": "look_here",
+        "obligation": "group_by_customer",
+        "obligation_hash": "e5dcff838def52522007d9783eddb69385cc7a52fb36099c87adbf5b6ad3be65",
+        "output": [
+          {
+            "customer_email": "test@test.com",
+            "orders": [
+              {
+                "amount": 4,
+                "customer_email": "test@test.com"
+              },
+              {
+                "amount": 42143,
+                "customer_email": "test@test.com"
+              }
+            ],
+            "total_amount": 42147
+          },
+          {
+            "customer_email": "jess@test.com",
+            "orders": [
+              {
+                "amount": 52,
+                "customer_email": "jess@test.com"
+              },
+              {
+                "amount": 99,
+                "customer_email": "jess@test.com"
+              }
+            ],
+            "total_amount": 151
+          },
+          {
+            "customer_email": "joe@abe.com",
+            "orders": [
+              {
+                "amount": 100,
+                "customer_email": "joe@abe.com"
+              }
+            ],
+            "total_amount": 100
+          }
+        ],
+        "performance_hash": "cdf206c09e603a39c02a7123dc712db25576dcbb5cd61fa1df237d0476243eea",
+        "why": "no mutant can violate it"
+      },
+      {
+        "clause": {
+          "canonical": "(all $ out (body (unordered (. $0 orders))))",
+          "clause": 4
+        },
+        "inputs": [
+          {
+            "json": [
+              [
+                {
+                  "amount": 4,
+                  "customer_email": "test@test.com"
+                },
+                {
+                  "amount": 42143,
+                  "customer_email": "test@test.com"
+                },
+                {
+                  "amount": 52,
+                  "customer_email": "jess@test.com"
+                },
+                {
+                  "amount": 99,
+                  "customer_email": "jess@test.com"
+                },
+                {
+                  "amount": 100,
+                  "customer_email": "joe@abe.com"
+                }
+              ]
+            ],
+            "sur": "in: [{amount: 4, customer_email: \"test@test.com\"}, {amount: 42143, customer_email: \"test@test.com\"}, {amount: 52, customer_email: \"jess@test.com\"}, {amount: 99, customer_email: \"jess@test.com\"}, {amount: 100, customer_email: \"joe@abe.com\"}]"
+          }
+        ],
+        "kind": "look_here",
+        "obligation": "group_by_customer",
+        "obligation_hash": "e5dcff838def52522007d9783eddb69385cc7a52fb36099c87adbf5b6ad3be65",
+        "output": [
+          {
+            "customer_email": "test@test.com",
+            "orders": [
+              {
+                "amount": 4,
+                "customer_email": "test@test.com"
+              },
+              {
+                "amount": 42143,
+                "customer_email": "test@test.com"
+              }
+            ],
+            "total_amount": 42147
+          },
+          {
+            "customer_email": "jess@test.com",
+            "orders": [
+              {
+                "amount": 52,
+                "customer_email": "jess@test.com"
+              },
+              {
+                "amount": 99,
+                "customer_email": "jess@test.com"
+              }
+            ],
+            "total_amount": 151
+          },
+          {
+            "customer_email": "joe@abe.com",
+            "orders": [
+              {
+                "amount": 100,
+                "customer_email": "joe@abe.com"
+              }
+            ],
+            "total_amount": 100
+          }
+        ],
+        "performance_hash": "cdf206c09e603a39c02a7123dc712db25576dcbb5cd61fa1df237d0476243eea",
+        "why": "no mutant can violate it"
+      },
+      {
+        "clause": {
+          "clause": null,
+          "frame": true
+        },
+        "inputs": [
+          {
+            "json": [
+              [
+                {
+                  "amount": 4,
+                  "customer_email": "test@test.com"
+                },
+                {
+                  "amount": 42143,
+                  "customer_email": "test@test.com"
+                },
+                {
+                  "amount": 52,
+                  "customer_email": "jess@test.com"
+                },
+                {
+                  "amount": 99,
+                  "customer_email": "jess@test.com"
+                },
+                {
+                  "amount": 100,
+                  "customer_email": "joe@abe.com"
+                }
+              ]
+            ],
+            "sur": "in: [{amount: 4, customer_email: \"test@test.com\"}, {amount: 42143, customer_email: \"test@test.com\"}, {amount: 52, customer_email: \"jess@test.com\"}, {amount: 99, customer_email: \"jess@test.com\"}, {amount: 100, customer_email: \"joe@abe.com\"}]"
+          }
+        ],
+        "kind": "look_here",
+        "obligation": "group_by_customer",
+        "obligation_hash": "e5dcff838def52522007d9783eddb69385cc7a52fb36099c87adbf5b6ad3be65",
+        "output": [
+          {
+            "customer_email": "test@test.com",
+            "orders": [
+              {
+                "amount": 4,
+                "customer_email": "test@test.com"
+              },
+              {
+                "amount": 42143,
+                "customer_email": "test@test.com"
+              }
+            ],
+            "total_amount": 42147
+          },
+          {
+            "customer_email": "jess@test.com",
+            "orders": [
+              {
+                "amount": 52,
+                "customer_email": "jess@test.com"
+              },
+              {
+                "amount": 99,
+                "customer_email": "jess@test.com"
+              }
+            ],
+            "total_amount": 151
+          },
+          {
+            "customer_email": "joe@abe.com",
+            "orders": [
+              {
+                "amount": 100,
+                "customer_email": "joe@abe.com"
+              }
+            ],
+            "total_amount": 100
+          }
+        ],
+        "performance_hash": "cdf206c09e603a39c02a7123dc712db25576dcbb5cd61fa1df237d0476243eea",
+        "why": "no mutant can violate it"
+      },
+      {
         "accepts": [],
         "dependencies": [],
         "determinism": {
@@ -160,8 +560,8 @@
       }
     ],
     "runs": [
-      {"example":0,"in":[[{"amount":4,"customer_email":"test@test.com"},{"amount":42143,"customer_email":"test@test.com"},{"amount":52,"customer_email":"jess@test.com"},{"amount":99,"customer_email":"jess@test.com"},{"amount":100,"customer_email":"joe@abe.com"}]],"out":"0181c019df4c70fcb5169ffb5bbb9ac26b2b984d63b85b7119df333417b3d714","pass":true},
-      {"example":1,"in":[[]],"out":"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945","pass":true},
+      {"example":1,"in":[[{"amount":4,"customer_email":"test@test.com"},{"amount":42143,"customer_email":"test@test.com"},{"amount":52,"customer_email":"jess@test.com"},{"amount":99,"customer_email":"jess@test.com"},{"amount":100,"customer_email":"joe@abe.com"}]],"out":"0181c019df4c70fcb5169ffb5bbb9ac26b2b984d63b85b7119df333417b3d714","pass":true},
+      {"example":2,"in":[[]],"out":"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945","pass":true},
       {"in":[[{"amount":0,"customer_email":""}]],"out":"f351169ff873cb1a4e582992c0b0251d400d9a7c8fe9657cebc9860f22a06285"},
       {"in":[[{"amount":0,"customer_email":"a"}]],"out":"871664c6698dc30a3a5fb35e0c4f07f639bf693a511d9ea732a1e74388770043"},
       {"in":[[{"amount":0,"customer_email":"b"}]],"out":"68764ab8fe6385513defda5c6151bd6f6b919c464d4edb1a78ca0c934aab932e"},

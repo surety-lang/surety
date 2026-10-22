@@ -10,6 +10,66 @@
     "performance": "5faa21d2c7a59e21747891385a18f05663247ac04657092cf0753e95ac1a9df1",
     "report": [
       {
+        "clause": {
+          "canonical": "(all err($) out (body (drawn_from $0 (list (rec (code (text \"e-pass-length\")) (display (text \"Your password must be at least 12 characters\"))) (rec (code (text \"e-age-invalid\")) (display (text \"You are not old enough or did not enter a valid birthday.\"))) (rec (code (text \"e-email-shape\")) (display (text \"Please provide a valid email\")))))))",
+          "clause": 4
+        },
+        "inputs": [
+          {
+            "json": [
+              {
+                "age": 41,
+                "email": "test@test.com",
+                "password": "asb32fslasdlkal343"
+              }
+            ],
+            "sur": "in: {age: 41, email: \"test@test.com\", password: \"asb32fslasdlkal343\"}"
+          }
+        ],
+        "kind": "look_here",
+        "obligation": "validate_signup",
+        "obligation_hash": "b7f1698c634e7b4246073f32da76bb1bd36573ad54d80b151752038891360210",
+        "output": {
+          "ok": {
+            "age": 41,
+            "email": "test@test.com",
+            "password": "asb32fslasdlkal343"
+          }
+        },
+        "performance_hash": "5faa21d2c7a59e21747891385a18f05663247ac04657092cf0753e95ac1a9df1",
+        "why": "no mutant can violate it"
+      },
+      {
+        "clause": {
+          "canonical": "(all err($) out (body (unordered $0)))",
+          "clause": 5
+        },
+        "inputs": [
+          {
+            "json": [
+              {
+                "age": 41,
+                "email": "test@test.com",
+                "password": "asb32fslasdlkal343"
+              }
+            ],
+            "sur": "in: {age: 41, email: \"test@test.com\", password: \"asb32fslasdlkal343\"}"
+          }
+        ],
+        "kind": "look_here",
+        "obligation": "validate_signup",
+        "obligation_hash": "b7f1698c634e7b4246073f32da76bb1bd36573ad54d80b151752038891360210",
+        "output": {
+          "ok": {
+            "age": 41,
+            "email": "test@test.com",
+            "password": "asb32fslasdlkal343"
+          }
+        },
+        "performance_hash": "5faa21d2c7a59e21747891385a18f05663247ac04657092cf0753e95ac1a9df1",
+        "why": "no mutant can violate it"
+      },
+      {
         "accepts": [],
         "dependencies": [],
         "determinism": {
@@ -122,18 +182,18 @@
       }
     ],
     "runs": [
-      {"example":0,"in":[{"age":10,"email":"test@test.com","password":"asb32fslasdlkal343"}],"out":"d055cbc7f00c0ad08cb244a66c35d5159a1552f86ca4ba85c14b7fff789df0b5","pass":true},
-      {"example":1,"in":[{"age":12,"email":"test@test.com","password":"asb32fslasdlkal343"}],"out":"d055cbc7f00c0ad08cb244a66c35d5159a1552f86ca4ba85c14b7fff789df0b5","pass":true},
-      {"example":2,"in":[{"age":120,"email":"test@test.com","password":"asb32fslasdlkal343"}],"out":"6ba6df0d952c2ab6a941d7e856e4270f1bccc47ce45901f65aa719fc5583f8b7","pass":true},
-      {"example":3,"in":[{"age":121,"email":"test@test.com","password":"asb32fslasdlkal343"}],"out":"d055cbc7f00c0ad08cb244a66c35d5159a1552f86ca4ba85c14b7fff789df0b5","pass":true},
-      {"example":4,"in":[{"age":13,"email":"test@test.com","password":"asb32fslasdlkal343"}],"out":"5ec4ae74806a6f2fd5969e2622f0101920030ad07248e9dc803932ca5b0a2216","pass":true},
-      {"example":5,"in":[{"age":4,"email":"test","password":"pass123"}],"out":"033e89a3296d061badc24e1e80b744c62871a1e70ebd667885f618b641410d41","pass":true},
-      {"example":6,"in":[{"age":41,"email":"test@test.com","password":"abcdefghijk"}],"out":"93c469090ddedddeb37bb32d71e240a8d72448e52e3781f0dfce4821ae6cc03a","pass":true},
-      {"example":7,"in":[{"age":41,"email":"test@test.com","password":"abcdefghijkl"}],"out":"5f8ead76255e3b54210c8896627e15d5f2e1b020ee82a231b54263325fd7af00","pass":true},
-      {"example":8,"in":[{"age":41,"email":"test@test.com","password":"asb32fslasdlkal343"}],"out":"c02eacfad4d7a30f63adf3932cdbfbd815ad7027e56720cc196e7d1f329683c3","pass":true},
-      {"example":9,"in":[{"age":42,"email":"test","password":"asb32fslasdlkal343"}],"out":"6a5dda4a01478b5d3883e5ae494565a9c75a6b8f11a5b27010f23b6cc5f77062","pass":true},
-      {"example":10,"in":[{"age":45,"email":"test","password":"pass123"}],"out":"3bcabde258af06bab9288808e828e616b42c9f0b7c1415482065fdef470c60fe","pass":true},
-      {"example":11,"in":[{"age":45,"email":"test@test.com","password":"pass123"}],"out":"93c469090ddedddeb37bb32d71e240a8d72448e52e3781f0dfce4821ae6cc03a","pass":true},
+      {"example":1,"in":[{"age":10,"email":"test@test.com","password":"asb32fslasdlkal343"}],"out":"d055cbc7f00c0ad08cb244a66c35d5159a1552f86ca4ba85c14b7fff789df0b5","pass":true},
+      {"example":2,"in":[{"age":12,"email":"test@test.com","password":"asb32fslasdlkal343"}],"out":"d055cbc7f00c0ad08cb244a66c35d5159a1552f86ca4ba85c14b7fff789df0b5","pass":true},
+      {"example":3,"in":[{"age":120,"email":"test@test.com","password":"asb32fslasdlkal343"}],"out":"6ba6df0d952c2ab6a941d7e856e4270f1bccc47ce45901f65aa719fc5583f8b7","pass":true},
+      {"example":4,"in":[{"age":121,"email":"test@test.com","password":"asb32fslasdlkal343"}],"out":"d055cbc7f00c0ad08cb244a66c35d5159a1552f86ca4ba85c14b7fff789df0b5","pass":true},
+      {"example":5,"in":[{"age":13,"email":"test@test.com","password":"asb32fslasdlkal343"}],"out":"5ec4ae74806a6f2fd5969e2622f0101920030ad07248e9dc803932ca5b0a2216","pass":true},
+      {"example":6,"in":[{"age":4,"email":"test","password":"pass123"}],"out":"033e89a3296d061badc24e1e80b744c62871a1e70ebd667885f618b641410d41","pass":true},
+      {"example":7,"in":[{"age":41,"email":"test@test.com","password":"abcdefghijk"}],"out":"93c469090ddedddeb37bb32d71e240a8d72448e52e3781f0dfce4821ae6cc03a","pass":true},
+      {"example":8,"in":[{"age":41,"email":"test@test.com","password":"abcdefghijkl"}],"out":"5f8ead76255e3b54210c8896627e15d5f2e1b020ee82a231b54263325fd7af00","pass":true},
+      {"example":9,"in":[{"age":41,"email":"test@test.com","password":"asb32fslasdlkal343"}],"out":"c02eacfad4d7a30f63adf3932cdbfbd815ad7027e56720cc196e7d1f329683c3","pass":true},
+      {"example":10,"in":[{"age":42,"email":"test","password":"asb32fslasdlkal343"}],"out":"6a5dda4a01478b5d3883e5ae494565a9c75a6b8f11a5b27010f23b6cc5f77062","pass":true},
+      {"example":11,"in":[{"age":45,"email":"test","password":"pass123"}],"out":"3bcabde258af06bab9288808e828e616b42c9f0b7c1415482065fdef470c60fe","pass":true},
+      {"example":12,"in":[{"age":45,"email":"test@test.com","password":"pass123"}],"out":"93c469090ddedddeb37bb32d71e240a8d72448e52e3781f0dfce4821ae6cc03a","pass":true},
       {"in":[{"age":10,"email":"","password":"a"}],"out":"033e89a3296d061badc24e1e80b744c62871a1e70ebd667885f618b641410d41"},
       {"in":[{"age":0,"email":"asb32fslasdlkal343","password":"b"}],"out":"033e89a3296d061badc24e1e80b744c62871a1e70ebd667885f618b641410d41"},
       {"in":[{"age":121,"email":"abcdefghijk","password":"abcdefghijk"}],"out":"033e89a3296d061badc24e1e80b744c62871a1e70ebd667885f618b641410d41"},

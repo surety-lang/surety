@@ -10,6 +10,106 @@
     "performance": "3f3c77da4d7657b1340785abad4f99b099975c6d37d1c94c2baac258b0f5105d",
     "report": [
       {
+        "clause": {
+          "clause": null,
+          "frame": true
+        },
+        "inputs": [
+          {
+            "json": [
+              {
+                "customer_email": "j@test.com",
+                "id": "o1",
+                "items": [
+                  {
+                    "amount": 2,
+                    "id": "li1",
+                    "item_id": "it9"
+                  },
+                  {
+                    "amount": 1,
+                    "id": "li2",
+                    "item_id": "it4"
+                  }
+                ]
+              }
+            ],
+            "sur": "in: {customer_email: \"j@test.com\", id: \"o1\", items: [{amount: 2, id: \"li1\", item_id: \"it9\"}, {amount: 1, id: \"li2\", item_id: \"it4\"}]}"
+          }
+        ],
+        "kind": "look_here",
+        "obligation": "flatten_order",
+        "obligation_hash": "150131328a400b324de692005af855135d96915582d15624b2568174b51ce0f5",
+        "output": [
+          {
+            "amount": 2,
+            "customer_email": "j@test.com",
+            "item_id": "it9",
+            "line_id": "li1",
+            "order_id": "o1"
+          },
+          {
+            "amount": 1,
+            "customer_email": "j@test.com",
+            "item_id": "it4",
+            "line_id": "li2",
+            "order_id": "o1"
+          }
+        ],
+        "performance_hash": "3f3c77da4d7657b1340785abad4f99b099975c6d37d1c94c2baac258b0f5105d",
+        "why": "no mutant can violate it"
+      },
+      {
+        "clause": {
+          "clause": null,
+          "frame": true
+        },
+        "inputs": [
+          {
+            "json": [
+              {
+                "customer_email": "j@test.com",
+                "id": "o1",
+                "items": [
+                  {
+                    "amount": 2,
+                    "id": "li1",
+                    "item_id": "it9"
+                  },
+                  {
+                    "amount": 1,
+                    "id": "li2",
+                    "item_id": "it4"
+                  }
+                ]
+              }
+            ],
+            "sur": "in: {customer_email: \"j@test.com\", id: \"o1\", items: [{amount: 2, id: \"li1\", item_id: \"it9\"}, {amount: 1, id: \"li2\", item_id: \"it4\"}]}"
+          }
+        ],
+        "kind": "look_here",
+        "obligation": "flatten_order",
+        "obligation_hash": "150131328a400b324de692005af855135d96915582d15624b2568174b51ce0f5",
+        "output": [
+          {
+            "amount": 2,
+            "customer_email": "j@test.com",
+            "item_id": "it9",
+            "line_id": "li1",
+            "order_id": "o1"
+          },
+          {
+            "amount": 1,
+            "customer_email": "j@test.com",
+            "item_id": "it4",
+            "line_id": "li2",
+            "order_id": "o1"
+          }
+        ],
+        "performance_hash": "3f3c77da4d7657b1340785abad4f99b099975c6d37d1c94c2baac258b0f5105d",
+        "why": "no mutant can violate it"
+      },
+      {
         "accepts": [],
         "dependencies": [],
         "determinism": {
@@ -108,8 +208,8 @@
       }
     ],
     "runs": [
-      {"example":0,"in":[{"customer_email":"j@test.com","id":"o1","items":[{"amount":2,"id":"li1","item_id":"it9"},{"amount":1,"id":"li2","item_id":"it4"}]}],"out":"2c079dd120ec2211ee725a43a0d109f2d6624bd8ab82d0673e59ea45da80f49f","pass":true},
-      {"example":1,"in":[{"customer_email":"j@test.com","id":"o1","items":[]}],"out":"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945","pass":true},
+      {"example":1,"in":[{"customer_email":"j@test.com","id":"o1","items":[{"amount":2,"id":"li1","item_id":"it9"},{"amount":1,"id":"li2","item_id":"it4"}]}],"out":"2c079dd120ec2211ee725a43a0d109f2d6624bd8ab82d0673e59ea45da80f49f","pass":true},
+      {"example":2,"in":[{"customer_email":"j@test.com","id":"o1","items":[]}],"out":"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945","pass":true},
       {"in":[{"customer_email":"j@test.com","id":"it4","items":[{"amount":0,"id":"k2","item_id":"k3"},{"amount":2,"id":"o1","item_id":"k0"},{"amount":1,"id":"it9","item_id":"it4"},{"amount":2,"id":"li1","item_id":"li2"}]}],"out":"b535f66cefc310289df5b202e119a932125fa34aceb276ebd71a62d5ebbe398d"},
       {"in":[{"customer_email":"b","id":"k1","items":[{"amount":0,"id":"li2","item_id":"li1"},{"amount":1,"id":"li1","item_id":"k1"}]}],"out":"cbe7acfa9558d4b5303948dcff8dcb33fc2a8c3d5057bf5a82f396dd1d819eb7"},
       {"in":[{"customer_email":"","id":"k0","items":[{"amount":1,"id":"li2","item_id":"k2"},{"amount":0,"id":"k0","item_id":"li1"}]}],"out":"cda9544f0afa0f0c9b6389ab46622092de9e06986c8cbf92fc61b9ee04571bdc"},

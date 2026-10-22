@@ -1,0 +1,1 @@
+p20.sur: ok histogram props=0 accepts=0 examples=0 abbrevs=0 pins=15

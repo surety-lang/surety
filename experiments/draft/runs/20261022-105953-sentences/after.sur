@@ -1,0 +1,16 @@
+// draft
+// drafted
+type LineItem = { amount: Int }
+
+invoice_total(items: LineItem[], tax_rate: Float) -> Int
+	note "sum the line item amounts in cents, apply the tax rate to that subtotal once, and round the result half-even to a whole cent"
+	# The total is the same as the total of a single line item whose amount is the sum of the amounts, so tax is applied to the subtotal once and never per line.
+	# If the tax rate is at least 0 and the sum of the amounts is at least 0, the total is at least the sum of the amounts.
+	# If the tax rate is at least 0 and the sum of the amounts is at most 0, the total is at most the sum of the amounts.
+	// example wanted: no line items at any rate -> 0
+	// example wanted: amounts [250, 750] at rate 0.0 -> 1000 (a zero rate leaves the subtotal unchanged)
+	// example wanted: amounts [125] at rate 0.1 -> 137 (tax 12.5 rounds down to the even 12)
+	// example wanted: amounts [135] at rate 0.1 -> 149 (tax 13.5 rounds up to the even 14)
+	// example wanted: amounts [5, 5] at rate 0.1 -> 11 (tax on the subtotal 10 is 1; rounding each line's 0.5 half-even would give 10)
+	// example wanted: amounts [100] at rate 0.0825 -> 108 (tax 8.25 is not a tie and rounds to the nearest cent, 8)
+	// example wanted: amounts [-125] at rate 0.1 -> -137 (a credit's tax of -12.5 rounds to the even -12)

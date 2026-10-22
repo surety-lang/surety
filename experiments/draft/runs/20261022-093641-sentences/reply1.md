@@ -1,0 +1,16 @@
+```surety
+// draft
+// drafted
+type Entry = { id: Id, amount: Int }
+// drafted
+type BalancedEntry = { ...Entry, balance: Int }
+
+running_balance(entries: Entry[unique id]) -> BalancedEntry[]
+	note "pair each ledger entry with its running balance, the sum of its amount and the amounts of every entry before it, starting from zero"
+	# The length of the output is the length of the input entries.
+	# Every output entry has exactly one input entry with the same id.
+	# Every input entry has exactly one output entry with the same id.
+	# No two output entries share an id.
+	# Every output entry carries the amount of the input entry with the same id.
+	# The output's ids keep the input's order.
+```

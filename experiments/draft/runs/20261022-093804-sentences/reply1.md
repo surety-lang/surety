@@ -1,0 +1,26 @@
+```surety
+// draft
+// drafted
+type Row = { month: Text, product: Text, amount: Int }
+// drafted
+type ProductAmount = { product: Text, amount: Int }
+// drafted
+type WideRow = { month: Text, amounts: ProductAmount[unique product] }
+// drafted
+type PivotError = { code: Text, display: Text }
+// drafted
+duplicate_cell_err: PivotError = { code: "e-duplicate-cell", display: "Two rows share a month and a product" }
+
+pivot(rows: Row[]) -> Result<WideRow[], PivotError>
+	note "turn long rows of month, product and amount into one wide row per month carrying the amounts by product"
+	# The output is Ok exactly when no two input rows share both a month and a product.
+	# Every Err output is duplicate_cell_err.
+	# In an Ok output, every input row's month is in the wide rows' months.
+	# In an Ok output, every wide row's month is some input row's month.
+	# In an Ok output, no two wide rows share a month.
+	# In an Ok output, for every input row, the wide row with that row's month has exactly one entry with that row's product, and that entry's amount is the row's amount.
+	# In an Ok output, every entry in a wide row matches some input row with that wide row's month, that entry's product and that entry's amount.
+	# In an Ok output, no two entries within one wide row share a product.
+	# In an Ok output, the wide rows are not claimed in any order.
+	# In an Ok output, the entries within each wide row are not claimed in any order.
+```

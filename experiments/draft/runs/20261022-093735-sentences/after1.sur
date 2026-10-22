@@ -1,0 +1,20 @@
+// draft
+// drafted
+type Bucket = { start: Int, values: Int[], count: Int }
+// drafted
+type HistogramError = { code: Text, display: Text }
+// drafted
+width_error: HistogramError = { code: "e-width-not-positive", display: "The bucket width must be greater than zero" }
+
+histogram(values: Int[], width: Int) -> Result<Bucket[], HistogramError>
+	note "sort numbers into fixed-width buckets, one bucket per occupied range, each with its count"
+	# The output is Ok exactly when width is greater than zero.
+	# Every Err output is width_error.
+	# In an Ok output, every input value is in exactly one bucket's values.
+	# In an Ok output, the buckets' values taken together have the same elements as the input values.
+	# In an Ok output, every value in a bucket's values falls in the bucket of that start and width, which a sibling obligation decides.
+	# In an Ok output, no two buckets share a start.
+	# In an Ok output, every bucket's count is the length of its values.
+	# In an Ok output, no bucket's values is empty.
+	# In an Ok output, the buckets are sorted by start.
+	# In an Ok output, the values within a bucket are not claimed in any order.

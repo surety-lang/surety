@@ -1,0 +1,22 @@
+// draft
+// drafted
+type Event = { id: Id, occurred_at: Text }
+// drafted
+type MonthBucket = { month: Text, events: Event[] }
+// drafted
+type ValidationError = { code: Text, display: Text }
+// drafted
+timestamp_error: ValidationError = { code: "e-timestamp-shape", display: "Every event needs a valid ISO-8601 timestamp" }
+
+bucket_by_month(events: Event[]) -> Result<MonthBucket[], ValidationError>
+	note "group events into one bucket per month, the month taken from each event's ISO-8601 occurred_at"
+	# The output is Ok exactly when every event's occurred_at is a well-formed ISO-8601 timestamp; a sibling obligation decides well-formedness.
+	# An Err output is timestamp_error.
+	# In an Ok output, every event in events has exactly one bucket whose month is the month of that event's occurred_at; a sibling obligation decides which month a timestamp falls in.
+	# In an Ok output, no two buckets share a month.
+	# In an Ok output, every event in a bucket has an occurred_at that falls in that bucket's month.
+	# In an Ok output, every bucket's month is the month of some event in events.
+	# In an Ok output, the length of every bucket's events is at least 1.
+	# In an Ok output, the events across all buckets, taken together, have the same elements as events.
+	# In an Ok output, the buckets are not claimed in any order.
+	# In an Ok output, the events in every bucket keep the input's order.

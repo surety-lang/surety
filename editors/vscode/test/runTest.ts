@@ -1,13 +1,14 @@
 // Slice 4, acceptance test 4: the verdict on save, in VS Code's own test
 // host, and parse's diagnostics waiting while a clause is typed. Prepares a workspace of corpus copies, points the extension at the
-// repository's debug binary, and runs the suite under test/suite.
+// repository's debug binary, and runs the suite under test/suite. The
+// workspace is removed when the run ends, passed or failed.
 
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { runTests } from '@vscode/test-electron';
+import { runTests, TestOptions } from '@vscode/test-electron';
 
-async function main(): Promise<void> {
+export async function main(run: (options: TestOptions) => Promise<number> = runTests): Promise<void> {
     const extensionDevelopmentPath = path.resolve(__dirname, '..', '..');
     const extensionTestsPath = path.resolve(__dirname, 'suite', 'index');
     const repo = path.resolve(extensionDevelopmentPath, '..', '..');
@@ -17,6 +18,19 @@ async function main(): Promise<void> {
         throw new Error(`no surety binary at ${binary}; run cargo build first`);
     }
     const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'surety-vscode-'));
+    try {
+        prepare(workspace, corpus, binary);
+        await run({
+            extensionDevelopmentPath,
+            extensionTestsPath,
+            launchArgs: [workspace, '--disable-extensions', '--disable-gpu'],
+        });
+    } finally {
+        fs.rmSync(workspace, { recursive: true, force: true });
+    }
+}
+
+function prepare(workspace: string, corpus: string, binary: string): void {
     // P5a with its performance: ACCEPTED on save.
     fs.copyFileSync(path.join(corpus, 'p5a.sur'), path.join(workspace, 'p5a.sur'));
     fs.copyFileSync(path.join(corpus, 'p5a.py'), path.join(workspace, 'p5a.py'));
@@ -46,14 +60,11 @@ async function main(): Promise<void> {
     fs.writeFileSync(path.join(workspace, 'broken.sur'), p2.replace('all o leftover in orders:', 'all o leftover in out:'));
     fs.mkdirSync(path.join(workspace, '.vscode'));
     fs.writeFileSync(path.join(workspace, '.vscode', 'settings.json'), JSON.stringify({ 'surety.path': binary }, null, 2));
-    await runTests({
-        extensionDevelopmentPath,
-        extensionTestsPath,
-        launchArgs: [workspace, '--disable-extensions', '--disable-gpu'],
-    });
 }
 
-main().catch(e => {
-    console.error(e);
-    process.exit(1);
-});
+if (require.main === module) {
+    main().catch(e => {
+        console.error(e);
+        process.exit(1);
+    });
+}

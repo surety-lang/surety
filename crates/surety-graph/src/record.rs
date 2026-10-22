@@ -135,10 +135,8 @@ fn canonical_terms(lines: Vec<Json>, runs: Vec<Json>, ids: &Identities) -> (Vec<
     let lines = lines
         .into_iter()
         .map(|mut line| {
-            for key in ["clause"] {
-                if line.get(key).map(Json::is_object).unwrap_or(false) {
-                    line[key] = clause_ref(&line[key], ids);
-                }
+            if line.get("clause").is_some_and(Json::is_object) {
+                line["clause"] = clause_ref(&line["clause"], ids);
             }
             for key in ["clauses", "slipped", "uncaught", "unevaluable", "caught_by"] {
                 if let Some(items) = line.get(key).and_then(Json::as_array) {

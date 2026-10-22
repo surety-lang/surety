@@ -445,3 +445,135 @@ fn pin_refuses_a_file_that_still_carries_the_draft_mark() {
     .unwrap();
     assert_eq!(p.state, PinState::Verified);
 }
+
+/// A second presentation of a corpus obligation: a header comment, the
+/// properties and the examples in reverse order, every binder renamed.
+fn other_presentation(name: &str) -> String {
+    let mut parsed = surety_syntax::parse(
+        &fs::read_to_string(common::corpus_dir().join(format!("{name}.sur"))).unwrap(),
+    )
+    .unwrap();
+    for d in &mut parsed.decls {
+        if let surety_syntax::Decl::Function(f) = d {
+            f.properties.reverse();
+            f.examples.reverse();
+        }
+    }
+    format!(
+        "// a second presentation of the same obligation\n{}",
+        surety_syntax::render::file(&parsed, true)
+    )
+}
+
+#[test]
+fn evidence_is_a_function_of_the_hashes_not_the_presentation() {
+    // Half one: two presentations of one node, one performance, in two
+    // stores of their own: byte-identical evidence.
+    let a = Store::open(&scratch("invariant-a").join("graph"));
+    let first = pin_corpus(&a, "p5a");
+    let (_dir, sur) = scratch_source("invariant-src", "p5a", "", "");
+    fs::write(&sur, other_presentation("p5a")).unwrap();
+    let b = Store::open(&scratch("invariant-b").join("graph"));
+    let second = pin(
+        &b,
+        &sur,
+        None,
+        Budget::default(),
+        surety::TIMEOUT,
+        surety::rendered,
+    )
+    .unwrap();
+    assert_eq!(second.obligation, first.obligation, "the same node");
+    let perf = a.performances(&first.obligation, "python").unwrap()[0].clone();
+    let rec_a = a
+        .record(&first.obligation, "python", &perf)
+        .unwrap()
+        .unwrap();
+    let rec_b = b
+        .record(&first.obligation, "python", &perf)
+        .unwrap()
+        .unwrap();
+    assert_ne!(
+        rec_a["provenance"]["presentation"], rec_b["provenance"]["presentation"],
+        "two presentations"
+    );
+    assert_eq!(
+        serde_json::to_string(&rec_a["evidence"]).unwrap(),
+        serde_json::to_string(&rec_b["evidence"]).unwrap(),
+        "one evidence part"
+    );
+    let text = serde_json::to_string(&rec_a["evidence"]).unwrap();
+    assert!(
+        !text.contains("\"line\""),
+        "no presentation line in the evidence"
+    );
+    assert!(
+        text.contains("\"canonical\""),
+        "clauses carry their canonical print"
+    );
+    assert_eq!(
+        rec_a["provenance"]["format"],
+        serde_json::json!(surety_graph::FORMAT)
+    );
+
+    // Half two: the record, with the other presentation named in its
+    // provenance, verifies when materialized under it.
+    let both = Store::open(&scratch("invariant-both").join("graph"));
+    pin_corpus(&both, "p5a");
+    pin(
+        &both,
+        &sur,
+        None,
+        Budget::default(),
+        surety::TIMEOUT,
+        surety::rendered,
+    )
+    .unwrap();
+    let presentations = both.presentations(&first.obligation).unwrap();
+    assert_eq!(presentations.len(), 2);
+    let mut rec = both
+        .record(&first.obligation, "python", &perf)
+        .unwrap()
+        .unwrap();
+    let current = rec["provenance"]["presentation"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let other = presentations
+        .iter()
+        .find(|p| **p != current)
+        .unwrap()
+        .clone();
+    rec["provenance"]["presentation"] = serde_json::json!(other);
+    fs::write(
+        both.record_path(&first.obligation, "python", &perf),
+        serde_json::to_string_pretty(&rec).unwrap(),
+    )
+    .unwrap();
+    let vs = verify(&both, true, surety::rendered).unwrap();
+    assert_eq!(vs.len(), 1);
+    assert!(vs[0].result.is_ok(), "{:?}", vs[0].result);
+}
+
+#[test]
+fn verify_says_format_moved_for_an_old_record() {
+    let store = Store::open(&scratch("format").join("graph"));
+    let p = pin_corpus(&store, "p2");
+    let perf = p.performance.clone().unwrap();
+    let mut rec = store
+        .record(&p.obligation, "python", &perf)
+        .unwrap()
+        .unwrap();
+    rec["provenance"]["format"] = serde_json::json!(1);
+    fs::write(
+        store.record_path(&p.obligation, "python", &perf),
+        serde_json::to_string_pretty(&rec).unwrap(),
+    )
+    .unwrap();
+    let vs = verify(&store, false, surety::rendered).unwrap();
+    let err = vs[0]
+        .result
+        .clone()
+        .expect_err("an old format is named, not compared");
+    assert!(err.contains("format moved"), "{err}");
+}

@@ -99,6 +99,83 @@ pub fn canonical_function(graph: &Graph, idx: usize, f: &Function) -> Result<Str
     Ok(s)
 }
 
+/// A clause's or an example's identity in the canonical form: its ordinal
+/// in canonical order (the sorted, deduplicated prints) and the print
+/// itself, with where it came from in the source. The ordinal is the
+/// identity; the print is its label, since two clauses can print alike
+/// once binders are erased, and then they share an ordinal.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Identity {
+    pub ordinal: usize,
+    pub canonical: String,
+    /// The source line of a property or an accept; the index of an example.
+    pub source: usize,
+}
+
+/// Every property, accept and example of an obligation by canonical
+/// identity, each list in source order.
+#[derive(Debug, Clone, Default)]
+pub struct Identities {
+    pub properties: Vec<Identity>,
+    pub accepts: Vec<Identity>,
+    pub examples: Vec<Identity>,
+}
+
+impl Identities {
+    pub fn property_at(&self, line: usize) -> Option<&Identity> {
+        self.properties.iter().find(|i| i.source == line)
+    }
+    pub fn accept_at(&self, index: usize) -> Option<&Identity> {
+        self.accepts.get(index)
+    }
+    pub fn example_at(&self, index: usize) -> Option<&Identity> {
+        self.examples.get(index)
+    }
+}
+
+pub fn identities(graph: &Graph, idx: usize, f: &Function) -> Result<Identities, Error> {
+    let scope = Scope::for_function(graph, idx, f)?;
+    let mut props = Vec::new();
+    for p in &f.properties {
+        props.push((p.line, Env::new(&scope).print(&p.expr)?));
+    }
+    let mut accepts = Vec::new();
+    for a in &f.accepts {
+        accepts.push((a.line, Env::new(&scope).print(&a.expr)?));
+    }
+    let mut examples = Vec::new();
+    for (i, e) in f.examples.iter().enumerate() {
+        let mut env = Env::new(&scope);
+        examples.push((
+            i,
+            format!(
+                "(e (in {}) (out {}))",
+                env.print(&e.input)?,
+                env.print(&e.output)?
+            ),
+        ));
+    }
+    Ok(Identities {
+        properties: ordinals(props),
+        accepts: ordinals(accepts),
+        examples: ordinals(examples),
+    })
+}
+
+fn ordinals(items: Vec<(usize, String)>) -> Vec<Identity> {
+    let mut sorted: Vec<&String> = items.iter().map(|(_, s)| s).collect();
+    sorted.sort();
+    sorted.dedup();
+    items
+        .iter()
+        .map(|(source, canonical)| Identity {
+            ordinal: sorted.binary_search(&canonical).unwrap(),
+            canonical: canonical.clone(),
+            source: *source,
+        })
+        .collect()
+}
+
 /// Structural type, fields sorted, names erased.
 pub fn print_type(t: &Type) -> String {
     match t {

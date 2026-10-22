@@ -209,6 +209,19 @@ impl Domain {
     /// three fixed ones when the obligation names none; UUID gets fixed
     /// values when it names none.
     pub fn finish(&mut self) {
+        self.close();
+        // Sorted: the domain is a set, and the order inputs are generated in
+        // must not follow the order the obligation's literals appear in,
+        // or two presentations of one obligation would run different inputs.
+        self.ints.sort_unstable();
+        self.floats.sort_by(|a, b| a.total_cmp(b));
+        self.texts.sort();
+        self.ids.sort();
+        self.times.sort();
+        self.uuids.sort();
+    }
+
+    fn close(&mut self) {
         if self.times.is_empty() {
             for t in BASE_TIMES {
                 self.times.push((parse_rfc3339(t).unwrap(), t.to_string()));

@@ -34,7 +34,10 @@ fn p5a_ties_are_accepted_and_pass_strict() {
     );
     assert!(!text.contains("  UNDERDETERMINED"), "{text}");
     assert!(
-        text.contains("; 0 underdetermined inputs; 3 accepted"),
+        text.contains(&format!(
+            "; 0 underdetermined inputs; {} accepted",
+            m.search.len()
+        )),
         "{text}"
     );
     assert!(

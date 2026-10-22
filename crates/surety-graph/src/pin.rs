@@ -334,7 +334,7 @@ pub fn pin(
         .map_err(|e| format!("cannot hash {}: {e}", perf_path.display()))?
         .hash;
     let rendered = render(&report);
-    let evidence = record::evidence(&checker, &report, &budget, timeout, &perf_hash, &rendered);
+    let evidence = record::evidence(&checker, &report, &budget, timeout, &perf_hash, &rendered)?;
     admit(&evidence, &hash, &canonical.text, &perf_path, &mut checker)?;
 
     let bytes =
@@ -344,6 +344,7 @@ pub fn pin(
         Some(old) if old["evidence"] == evidence => false,
         _ => {
             let provenance = json!({
+                "format": record::FORMAT,
                 "checker": env!("CARGO_PKG_VERSION"),
                 "python": surety_py::python_version().unwrap_or_else(|_| "unknown".to_string()),
                 "source": source,
@@ -489,6 +490,13 @@ fn verify_one(
     render: Render,
 ) -> Result<(), String> {
     let evidence = &record["evidence"];
+    let format = record["provenance"]["format"].as_u64().unwrap_or(1);
+    if format != record::FORMAT {
+        return Err(format!(
+            "format moved: the record is format {format}, the checker writes {}; re-pin",
+            record::FORMAT
+        ));
+    }
     let dir = std::env::temp_dir().join(format!(
         "surety-verify-{}-{}-{}",
         std::process::id(),
@@ -518,7 +526,7 @@ fn verify_one(
         if rerun {
             let report = checker.check();
             let rendered = render(&report);
-            let again = record::evidence(&checker, &report, &budget, timeout, perf, &rendered);
+            let again = record::evidence(&checker, &report, &budget, timeout, perf, &rendered)?;
             if again != *evidence {
                 return Err(format!(
                     "the re-run differs in: {}",

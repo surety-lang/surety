@@ -88,7 +88,7 @@ fn p5b_snapshot_collapses_the_hole_and_shows_both_outputs() {
         ),
         "{first}"
     );
-    assert!(first.contains("underdetermined inputs, 1 cause"), "{first}");
+    assert!(first.contains("underdetermined inputs, 1 gap"), "{first}");
     assert!(first.ends_with("  performance: passes"), "{first}");
     let m = r.mutants.as_ref().unwrap();
     assert!(m.open().len() >= 2);
@@ -103,12 +103,26 @@ fn p5b_snapshot_collapses_the_hole_and_shows_both_outputs() {
         1,
         "one block for one hole:\n{text}"
     );
-    assert!(text.contains("inputs; in each, one of the two passing outputs is what `empty` returns: the same hole; first:"), "{text}");
-    // Both outputs, in full, on their own lines; the input uncut.
+    // The gap says where the two outputs differ, how many inputs show it,
+    // and that the slipped mutant is the same hole.
+    assert!(
+        text.contains("  UNDERDETERMINED  out can have ")
+            && text.contains(" inputs show it; `empty` returns one of the two; the smallest:\n"),
+        "{text}"
+    );
+    // Both outputs, in full, on their own lines, under the smallest input, uncut.
     let block_at = text.find("  UNDERDETERMINED  ").unwrap();
-    let block = &text[block_at..];
-    assert!(block.contains("\n        in: [{amount: 2, customer_email: \"j@test.com\"}, {amount: 4, customer_email: \"j@test.com\"}]\n"), "{block}");
-    assert!(block.contains("        out: [{amount: 2, customer_email: \"j@test.com\"}]    # example 1\n        out: []    # also passes every clause"), "{block}");
+    let block = &text[block_at
+        ..text[block_at..]
+            .find("  evidence")
+            .map_or(text.len(), |e| block_at + e)];
+    let lines: Vec<&str> = block.lines().collect();
+    assert!(lines[1].starts_with("        in: ["), "{block}");
+    assert!(
+        lines[2].starts_with("        out: ") && lines[3].starts_with("        out: "),
+        "{block}"
+    );
+    assert!(lines[3].ends_with("# also passes every clause"), "{block}");
     assert!(!block.contains("\u{2026}"), "nothing cut:\n{block}");
     // The slipped mutant shows the example's output beside its own.
     assert!(text.contains("  SLIPPED  empty:"), "{text}");

@@ -78,10 +78,10 @@ fn without_the_accept_the_ties_are_open() {
     let m = r.mutants.as_ref().unwrap();
     assert!(!m.open().is_empty(), "{text}");
     assert!(m.accepted().is_empty());
-    assert!(
-        text.contains("  UNDERDETERMINED  two outputs pass every clause"),
-        "{text}"
-    );
+    // Every tie is one gap: which of two tied orders is kept, read where
+    // the two passing outputs differ.
+    assert_eq!(text.matches("  UNDERDETERMINED  ").count(), 1, "{text}");
+    assert!(text.contains("].amount can be "), "{text}");
     assert!(text.contains("underdetermined inputs"), "{text}");
     assert!(r.accepts.is_empty());
     assert!(r.passed() && !r.strict_passed(), "{text}");

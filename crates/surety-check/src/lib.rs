@@ -6,6 +6,7 @@ pub mod diff;
 pub mod eval;
 pub mod examples;
 pub mod frame;
+pub mod gap;
 pub mod generate;
 pub mod mutants;
 pub mod value;
@@ -15,6 +16,7 @@ pub use checker::{
     GenRun, LookHere, LookKind, Outcome, Party, PropVerdict, PropertyReport, Report, Verdict,
 };
 pub use diff::{Class, DiffReport, Difference};
+pub use gap::{Change, Divergence, Gap, Step, diverge, gaps};
 pub use generate::{Bucket, Budget, Domain, Generated};
 pub use mutants::{Clause, Mutant, MutantReport, MutantRun, MutantVerdict, Underdetermined};
 pub use value::{BoundaryError, Value};

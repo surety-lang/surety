@@ -65,6 +65,17 @@ suite('the verdict on save', () => {
         const diags = await ours(uri, all => all.some(d => onSignature(sig)(d) && /UNDERDETERMINED/.test(d.message)));
         const summary = diags.find(d => d.message.startsWith('UNDERDETERMINED'))!;
         assert.ok(summary, JSON.stringify(diags.map(d => d.message)));
-        assert.ok(diags.some(d => d.message.startsWith('underdetermined: two outputs pass every clause on')), 'each undecided input is named');
+        // The ties are one gap, read where the two passing outputs differ,
+        // and no input gets a diagnostic of its own.
+        const gaps = diags.filter(d => d.message.startsWith('gap: '));
+        assert.strictEqual(gaps.length, 1, JSON.stringify(diags.map(d => d.message)));
+        assert.ok(gaps[0].message.includes('].amount can be '), gaps[0].message);
+        assert.ok(!diags.some(d => d.message.startsWith('underdetermined: ')), JSON.stringify(diags.map(d => d.message)));
+        // The hover on the signature line has the input and both outputs, highlighted as Surety.
+        const hovers = await vscode.commands.executeCommand<vscode.Hover[]>('vscode.executeHoverProvider', uri, gaps[0].range.start);
+        const text = hovers.flatMap(h => h.contents.map(c => (typeof c === 'string' ? c : c.value))).join('\n');
+        assert.ok(text.includes('**Two outputs pass every clause:**'), text);
+        assert.ok(/```surety\nin: \[/.test(text) && text.includes('// also passes every clause'), text);
+        assert.ok(text.includes('inputs show it; this is the smallest.'), text);
     });
 });

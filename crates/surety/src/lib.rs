@@ -12,6 +12,7 @@ use surety_check::{
     Bucket, Budget, Cause, Checker, Class, DiffReport, Difference, LookKind, Outcome, Party,
     PropVerdict, Report, Value, Verdict,
 };
+use surety_check::{Gap, gaps};
 use surety_graph::{NodeView, PinState, Pinned, Rendered, State, StatusRow, Verification};
 use surety_syntax::{Error, Graph, parse};
 
@@ -284,7 +285,7 @@ fn party_summaries(r: &Report) -> (Vec<String>, Vec<String>) {
         }
         let open = m.open();
         if !open.is_empty() {
-            let causes = underdetermined_groups(m).len();
+            let gaps = gaps(m).len();
             obligation.push(format!(
                 "{}{}",
                 plural(
@@ -293,7 +294,7 @@ fn party_summaries(r: &Report) -> (Vec<String>, Vec<String>) {
                     "underdetermined inputs"
                 ),
                 if open.len() > 1 {
-                    format!(", {}", plural(causes, "cause", "causes"))
+                    format!(", {}", plural(gaps, "gap", "gaps"))
                 } else {
                     String::new()
                 }
@@ -444,28 +445,34 @@ fn cause_block(s: &mut String, index: usize, c: &Cause) {
     }
 }
 
-/// Underdetermined inputs no `accept` covers, grouped by the slipped
-/// mutant whose hole they repeat (`None` = each on its own).
-fn underdetermined_groups(
-    m: &MutantReport,
-) -> Vec<(
-    Option<surety_check::Mutant>,
-    Vec<&surety_check::Underdetermined>,
-)> {
-    let mut groups: Vec<(
-        Option<surety_check::Mutant>,
-        Vec<&surety_check::Underdetermined>,
-    )> = Vec::new();
-    for u in m.open() {
-        match u.same_as {
-            Some(mu) => match groups.iter_mut().find(|(k, _)| *k == Some(mu)) {
-                Some((_, v)) => v.push(u),
-                None => groups.push((Some(mu), vec![u])),
-            },
-            None => groups.push((None, vec![u])),
-        }
+/// A gap's tail: how many inputs show it, and the slipped mutants that
+/// return one of its outputs.
+fn gap_tail(g: &Gap) -> String {
+    let mut s = format!("{} show it", plural(g.inputs.len(), "input", "inputs"));
+    if !g.mutants.is_empty() {
+        let names: Vec<String> = g
+            .mutants
+            .iter()
+            .map(|m| format!("`{}`", m.name()))
+            .collect();
+        s.push_str(&format!(
+            "; {} return{} one of the two",
+            names.join(" and "),
+            if names.len() == 1 { "s" } else { "" }
+        ));
     }
-    groups
+    s
+}
+
+/// A gap in one line: where the two outputs differ, the inputs and
+/// mutants that show it, and the smallest input.
+fn gap_line(r: &MutantReport, g: &Gap) -> String {
+    format!(
+        "{}; {}; the smallest in: {}",
+        g.says(),
+        gap_tail(g),
+        short(&sur_inputs(&g.witness(r).inputs), 80)
+    )
 }
 
 fn two_outputs(s: &mut String, u: &surety_check::Underdetermined) {
@@ -647,30 +654,13 @@ pub fn render_with(report: &Report, full: bool) -> String {
                 ));
             }
         }
-        for (same_as, group) in underdetermined_groups(m) {
-            match same_as {
-                Some(mu) if group.len() > 1 => {
-                    s.push_str(&format!(
-                        "  UNDERDETERMINED  {} inputs; in each, one of the two passing outputs is what `{}` returns: the same hole; first:\n",
-                        group.len(),
-                        mu.name()
-                    ));
-                    two_outputs(&mut s, group[0]);
-                }
-                Some(mu) => {
-                    s.push_str(&format!(
-                        "  UNDERDETERMINED  one of the two passing outputs is what `{}` returns: the same hole\n",
-                        mu.name()
-                    ));
-                    two_outputs(&mut s, group[0]);
-                }
-                None => {
-                    for u in group {
-                        s.push_str("  UNDERDETERMINED  two outputs pass every clause\n");
-                        two_outputs(&mut s, u);
-                    }
-                }
-            }
+        for g in gaps(m) {
+            s.push_str(&format!(
+                "  UNDERDETERMINED  {}; {}; the smallest:\n",
+                g.says(),
+                gap_tail(&g)
+            ));
+            two_outputs(&mut s, g.witness(m));
         }
         for u in m.accepted() {
             let line = u
@@ -825,7 +815,7 @@ pub fn render_evidence_with(r: &Report, full: bool) -> String {
             let slipped = m.slipped();
             let open = m.open();
             let accepted = m.accepted().len();
-            let groups = underdetermined_groups(m).len();
+            let groups = gaps(m).len();
             s.push_str(&format!(
                 "    underdetermination: {} of {} mutants apply; {} slipped{}; {} underdetermined inputs{}{}\n",
                 m.applicable(),
@@ -841,7 +831,7 @@ pub fn render_evidence_with(r: &Report, full: bool) -> String {
                 },
                 open.len(),
                 if open.len() > 1 {
-                    format!(", {}", plural(groups, "cause", "causes"))
+                    format!(", {}", plural(groups, "gap", "gaps"))
                 } else {
                     String::new()
                 },
@@ -1072,7 +1062,7 @@ pub fn json_lines(r: &Report) -> Vec<Json> {
         "purity": "unverified",
         "findings": r.findings(),
         "underdetermination": match &r.mutants {
-            Some(m) => json!({ "applicable": m.applicable(), "total": m.mutants.len(), "slipped": m.slipped().len(), "caught": m.caught(), "underdetermined_inputs": m.search.len(), "accepted": m.accepted().len(), "open": m.open().len(), "causes": underdetermined_groups(m).len() }),
+            Some(m) => json!({ "applicable": m.applicable(), "total": m.mutants.len(), "slipped": m.slipped().len(), "caught": m.caught(), "underdetermined_inputs": m.search.len(), "accepted": m.accepted().len(), "open": m.open().len(), "causes": gaps(m).len() }),
             None => json!("not run"),
         },
         "accepts": r.accepts.iter().map(|a| json!({ "line": a.line, "text": a.text, "satisfied": a.satisfied, "dead": a.dead() })).collect::<Vec<_>>(),
@@ -1090,6 +1080,7 @@ pub fn json_lines(r: &Report) -> Vec<Json> {
         out.extend(mutants_json_lines(m).into_iter().filter(|j| {
             j["kind"] == "mutant_slipped"
                 || j["kind"] == "underdetermined"
+                || j["kind"] == "gap"
                 || j["kind"] == "accepted"
         }));
     }
@@ -1252,13 +1243,15 @@ fn underdetermined_line(u: &surety_check::Underdetermined) -> String {
     )
 }
 
-/// The default view: one line per obligation, one per slipping mutant, one
-/// per underdetermined input. `--full` adds the behaviour-first detail.
+/// The default view: one line per obligation, one per gap, one per
+/// slipping mutant, one per accepted input. `--full` adds the
+/// behaviour-first detail.
 pub fn render_mutants(r: &MutantReport, full: bool) -> String {
     let mut s = String::new();
     let slipped = r.slipped();
+    let gaps = gaps(r);
     s.push_str(&format!(
-        "{}  inputs {}+{}  mutants {} of {} apply  slipped {}  caught {}  underdetermined {}{}\n",
+        "{}  inputs {}+{}  mutants {} of {} apply  slipped {}  caught {}  underdetermined {}{}{}\n",
         r.obligation,
         r.example_inputs,
         r.generated_inputs,
@@ -1267,20 +1260,25 @@ pub fn render_mutants(r: &MutantReport, full: bool) -> String {
         slipped.len(),
         r.caught(),
         r.open().len(),
+        if gaps.is_empty() {
+            String::new()
+        } else {
+            format!(" in {}", plural(gaps.len(), "gap", "gaps"))
+        },
         if r.accepted().is_empty() {
             String::new()
         } else {
             format!("  accepted {}", r.accepted().len())
         }
     ));
+    for g in &gaps {
+        s.push_str(&format!("  gap  {}\n", gap_line(r, g)));
+    }
     for m in &slipped {
         s.push_str(&format!("  slipped  {}\n", slipped_line(m)));
     }
-    for u in &r.search {
-        match u.accepted_by {
-            Some(_) => s.push_str(&format!("  accepted  {}\n", underdetermined_line(u))),
-            None => s.push_str(&format!("  underdetermined  {}\n", underdetermined_line(u))),
-        }
+    for u in r.accepted() {
+        s.push_str(&format!("  accepted  {}\n", underdetermined_line(u)));
     }
     if !full {
         return s;
@@ -1315,13 +1313,28 @@ pub fn render_mutants(r: &MutantReport, full: bool) -> String {
             s.push_str(&format!("    slipped through {}\n", clause_label(c)));
         }
     }
-    for u in &r.search {
-        s.push_str(match u.accepted_by {
-            Some(_) => {
-                "  accepted: two outputs pass every clause, and an `accept` line says so\n    e:\n"
-            }
-            None => "  underdetermined: two outputs pass every clause\n    e:\n",
-        });
+    let mut detail: Vec<(String, &surety_check::Underdetermined)> = gaps
+        .iter()
+        .map(|g| {
+            (
+                format!(
+                    "  gap: {}\n    {}; the smallest:\n    e:\n",
+                    g.says(),
+                    gap_tail(g)
+                ),
+                g.witness(r),
+            )
+        })
+        .collect();
+    detail.extend(r.accepted().into_iter().map(|u| {
+        (
+            "  accepted: two outputs pass every clause, and an `accept` line says so\n    e:\n"
+                .to_string(),
+            u,
+        )
+    }));
+    for (head, u) in detail {
+        s.push_str(&head);
         s.push_str(&format!("      in: {}\n", sur_inputs(&u.inputs)));
         s.push_str(&format!(
             "      out: {}    # {}\n",
@@ -1415,10 +1428,47 @@ fn clause_json(c: &Clause) -> Json {
     }
 }
 
+/// A gap as one object: the line that says it, the place and what each
+/// output holds there, the smallest input with both outputs in full, how
+/// many inputs show it, and the slipped mutants that return one of them.
+fn gap_json(r: &MutantReport, g: &Gap, index: usize) -> Json {
+    let w = g.witness(r);
+    let d = &g.divergence;
+    let mut f = json!({
+        "kind": "gap",
+        "obligation": r.obligation,
+        "obligation_hash": r.obligation_hash,
+        "gap": index,
+        "says": g.says(),
+        "place": d.place(),
+        "change": d.kind(),
+        "inputs": input_json(&w.inputs),
+        "outputs": { "a": to_json(&w.a), "b": to_json(&w.b) },
+        "sur": { "a": w.a.to_string(), "b": w.b.to_string() },
+        "a_is_expected": w.a_is_expected,
+        "shown_by": g.inputs.len(),
+        "mutants": g.mutants.iter().map(|m| {
+            let mut j = json!({ "mutant": m.name(), "describes": m.describe() });
+            if let Some(sh) = r.run(*m).and_then(|run| run.shown.as_ref()) {
+                j["returns"] = json!(sh.output.to_string());
+            }
+            j
+        }).collect::<Vec<_>>(),
+    });
+    if let Some((a, b)) = d.parts() {
+        f["at"] = json!({ "a": a, "b": b });
+    }
+    if let Some(n) = w.example {
+        f["example"] = json!(n);
+    }
+    f
+}
+
 /// The machine form of the underdetermination check: one object per
-/// mutant, one per underdetermined input, then a summary.
+/// mutant, one per underdetermined input, one per gap, then a summary.
 pub fn mutants_json_lines(r: &MutantReport) -> Vec<Json> {
     let mut out = Vec::new();
+    let gaps = gaps(r);
     for m in &r.mutants {
         let kind = match m.verdict {
             MutantVerdict::Slipped => "mutant_slipped",
@@ -1448,6 +1498,9 @@ pub fn mutants_json_lines(r: &MutantReport) -> Vec<Json> {
             caught_by.push(c);
         }
         f["caught_by"] = Json::Array(caught_by);
+        if let Some(g) = gaps.iter().position(|g| g.mutants.contains(&m.mutant)) {
+            f["gap"] = json!(g);
+        }
         if let Some(sh) = &m.shown {
             f["inputs"] = input_json(&sh.inputs);
             f = with_outputs(f, sh.expected.as_ref(), Some(&sh.output));
@@ -1457,7 +1510,8 @@ pub fn mutants_json_lines(r: &MutantReport) -> Vec<Json> {
         }
         out.push(f);
     }
-    for u in &r.search {
+    let gap_of = |i: usize| gaps.iter().position(|g| g.inputs.contains(&i));
+    for (i, u) in r.search.iter().enumerate() {
         let mut f = json!({
             "kind": if u.accepted_by.is_some() { "accepted" } else { "underdetermined" },
             "obligation": r.obligation,
@@ -1476,7 +1530,13 @@ pub fn mutants_json_lines(r: &MutantReport) -> Vec<Json> {
         if let Some(m) = u.same_as {
             f["same_as"] = json!(m.name());
         }
+        if let Some(g) = gap_of(i) {
+            f["gap"] = json!(g);
+        }
         out.push(f);
+    }
+    for (i, g) in gaps.iter().enumerate() {
+        out.push(gap_json(r, g, i));
     }
     out.push(json!({
         "kind": "mutant_report",
@@ -1486,6 +1546,7 @@ pub fn mutants_json_lines(r: &MutantReport) -> Vec<Json> {
         "generated_inputs": r.generated_inputs,
         "mutants": { "total": r.mutants.len(), "applicable": r.applicable(), "slipped": r.slipped().len(), "caught": r.caught() },
         "underdetermined_inputs": r.search.len(),
+        "gaps": gaps.len(),
         "accepted_inputs": r.accepted().len(),
         "underdetermined": r.underdetermined(),
         "uncaught": r.uncaught.iter().map(clause_json).collect::<Vec<_>>(),

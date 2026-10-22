@@ -24,6 +24,7 @@ const FINDING_KINDS: &[&str] = &[
     "mutant_caught",
     "mutant_not_applicable",
     "underdetermined",
+    "gap",
     "accepted",
     "dead_accept",
     "mutant_report",

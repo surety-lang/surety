@@ -120,9 +120,17 @@ suite('the verdict on save', () => {
         assert.ok(fix?.edit, JSON.stringify(actions.map(a => a.title)));
         assert.ok(await vscode.workspace.applyEdit(fix!.edit!));
         const written = doc.getText();
-        assert.ok(/\t\/\/ drafted: two outputs pass every clause on this input; keep the one you mean\n\te:\n\t\tin: \[\n/.test(written), written);
-        assert.ok(/\n<<<<<<< passes every clause\n\t\tout: [\s\S]*\n=======\n\t\tout: [\s\S]*\n>>>>>>> also passes every clause/.test(written), written);
+        assert.ok(/\n\te:\n\t\tin: \[\n/.test(written), written);
+        assert.ok(/\n<<<<<<< drafted: two outputs pass every clause on this input; keep the one you mean\n\t\tout: [\s\S]*\n=======\n\t\tout: [\s\S]*\n>>>>>>> or this one/.test(written), written);
+        assert.ok(!written.includes('// drafted'), 'no comment to outlive the choice');
         await ours(uri, all => all.some(d => d.message.startsWith('a choice left open')));
+        // Keeping one side leaves a plain example: nothing drafted remains.
+        const lines = doc.getText().split('\n');
+        const open = lines.findIndex(l => l.startsWith('<<<<<<<'));
+        const mid = lines.findIndex(l => l === '=======');
+        const close = lines.findIndex(l => l.startsWith('>>>>>>>'));
+        const kept = [...lines.slice(0, open), ...lines.slice(open + 1, mid), ...lines.slice(close + 1)].join('\n');
+        assert.ok(!kept.includes('drafted') && !kept.includes('<<<<<<<'), kept);
         await vscode.commands.executeCommand('workbench.action.files.revert');
         // `out unordered` claims nothing by design and gets no hint.
         assert.ok(!diags.some(d => d.severity === vscode.DiagnosticSeverity.Information && doc.lineAt(d.range.start.line).text.trim().endsWith('unordered')), JSON.stringify(diags.map(d => d.message)));

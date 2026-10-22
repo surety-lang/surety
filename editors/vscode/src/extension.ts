@@ -337,7 +337,9 @@ const QUICK_FIX_TITLE = 'Add this input as an example, with both outputs to choo
  * The quick fix on a gap: the gap's input as a drafted example whose two
  * `out:` lines sit between merge-conflict markers, so the author keeps the
  * one they mean (the editor offers Accept Current and Accept Incoming) and
- * the file does not parse until they do. Appended to the obligation's block.
+ * the file does not parse until they do; what is being chosen is the first
+ * marker's label, so nothing is left behind once the choice is made.
+ * Appended to the obligation's block.
  */
 function chooseOutput(doc: vscode.TextDocument, sig: number, g: any): vscode.WorkspaceEdit {
     let last = sig;
@@ -357,17 +359,18 @@ function chooseOutput(doc: vscode.TextDocument, sig: number, g: any): vscode.Wor
     }
     const body = unit + unit;
     const value = (head: string, v: string) => `${body}${head}: ${v.split('\n').join(`\n${body}`)}`;
+    // No comment to outlive the choice: the explanation is the first
+    // marker's label, gone with the markers once one side is kept.
     const text = [
         '',
         '',
-        `${unit}// drafted: two outputs pass every clause on this input; keep the one you mean`,
         `${unit}e:`,
         value('in', g.pretty.in),
-        '<<<<<<< passes every clause',
+        '<<<<<<< drafted: two outputs pass every clause on this input; keep the one you mean',
         value('out', g.pretty.a),
         '=======',
         value('out', g.pretty.b),
-        '>>>>>>> also passes every clause',
+        '>>>>>>> or this one',
     ].join('\n');
     const edit = new vscode.WorkspaceEdit();
     edit.insert(doc.uri, doc.lineAt(last).range.end, text);

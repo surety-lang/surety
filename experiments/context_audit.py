@@ -24,6 +24,7 @@ Usage:
   python3 context_audit.py                      # all projects, last 21 days
   python3 context_audit.py --days 14
   python3 context_audit.py --project surety     # substring of the project dir
+  python3 context_audit.py --by-project         # one line per project: the both-doors re-read share
   python3 context_audit.py path/to/session.jsonl ...
   python3 context_audit.py --json > audit.json
 
@@ -269,6 +270,7 @@ def main():
     ap.add_argument("--days", type=int, default=21)
     ap.add_argument("--project", default=None, help="substring of the project directory name")
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--by-project", action="store_true", help="one line per project, both doors, largest re-read share first")
     a = ap.parse_args()
     paths = a.paths or sorted(glob.glob(os.path.expanduser("~/.claude/projects/*/*.jsonl")))
     cutoff = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=a.days)).timestamp()
@@ -290,6 +292,30 @@ def main():
     by_project = collections.defaultdict(list)
     for s in sessions:
         by_project[s["project"]].append(s)
+    if a.by_project:
+        # A worktree's sessions count under their project.
+        grouped = collections.defaultdict(list)
+        for proj, ss in by_project.items():
+            name = proj.split("--claude-worktrees-")[0]
+            for prefix in ("-Users-bennett-projects-", "-Users-bennett-"):
+                if name.startswith(prefix):
+                    name = name[len(prefix):]
+                    break
+            grouped[name].extend(ss)
+        lines_out = []
+        for proj, ss in grouped.items():
+            tot = merge(ss)
+            c = tot["chars"]; total = sum(c.values()) or 1
+            allr = tot["reads"] + tot["bash_reads"]
+            allrr = tot["rereads"] + tot["bash_rereads"]
+            allrc = tot["reread_chars"] + tot["bash_reread_chars"]
+            lines_out.append((pct(allrc, total), proj, tot["sessions"], tot["turns"], total,
+                              pct(c["tool_result"], total), allrr, allr, pct(allrr, allr), allrc))
+        lines_out.sort(reverse=True)
+        print(f"{'project':<42}{'sessions':>9}{'turns':>7}{'context chars':>15}{'tool out':>10}{'re-reads, both doors':>24}{'chars':>12}{'share':>8}")
+        for share, proj, n, turns, total, tool, rr, r, rrp, rc in lines_out:
+            print(f"{proj[:41]:<42}{n:>9}{turns:>7}{total:>15,}{tool:>9.1f}%{rr:>12} of {r:<8}{rc:>12,}{share:>7.1f}%")
+        return
     for proj, ss in sorted(by_project.items(), key=lambda kv: -len(kv[1])):
         report(proj, merge(ss))
     report("ALL PROJECTS", merge(sessions))

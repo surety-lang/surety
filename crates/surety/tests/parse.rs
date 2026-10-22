@@ -99,6 +99,43 @@ fn a_second_domain_is_named() {
     );
 }
 
+/// Two lists whose elements differ: the error names each side by what was
+/// written, and when one side's elements are lists of the other's, it says
+/// so and gives the `flatten` that joins them, which then type-checks.
+#[test]
+fn a_relation_over_different_elements_names_both_sides() {
+    let check = |src: &str| -> Result<(), surety_syntax::Error> {
+        Graph::single("rel", parse(src)?).check_file(0)
+    };
+    let buckets = |relation: &str| {
+        format!(
+            "type Event = {{ id: Id, at: Text }}\ntype Bucket = {{ month: Text, events: Event[] }}\n\nbucket(events: Event[]) -> Bucket[]\n\t{relation}\n"
+        )
+    };
+    let e = check(&buckets("out.events same_order_as events")).unwrap_err();
+    assert_eq!(e.kind, surety_syntax::ErrorKind::ElementTypeMismatch);
+    assert_eq!(
+        e.message,
+        "`same_order_as` relates lists of different element types: each element of `out.events` is itself a list of { id: Id, at: Text }, while `events` holds { id: Id, at: Text }; `flatten(out.events)` joins those lists into one"
+    );
+    // The nested side on the right.
+    let e = check(&buckets("events same_elements_as out.events")).unwrap_err();
+    assert!(
+        e.message.ends_with("while each element of `out.events` is itself a list of { id: Id, at: Text }; `flatten(out.events)` joins those lists into one"),
+        "{}",
+        e.message
+    );
+    // The suggestion is a line that checks.
+    check(&buckets("flatten(out.events) same_elements_as events")).unwrap();
+    // Otherwise both sides by name, with no suggestion.
+    let text =
+        fs::read_to_string(common::corpus_dir().join("bad/element_type_mismatch.sur")).unwrap();
+    assert_eq!(
+        check(&text).unwrap_err().message,
+        "`same_order_as` relates lists of different element types: `out` holds { id: Id, amount: Int, user_name: Option<Text> }, and `orders` holds { id: Id, amount: Int }"
+    );
+}
+
 /// A minus sign before a number is part of it, wherever a number goes: a
 /// named value, a property, a float, an example, and the line the editor's
 /// quick fix writes for a gap whose input is negative. Rendered, it reads

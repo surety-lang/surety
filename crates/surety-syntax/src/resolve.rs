@@ -658,14 +658,28 @@ impl<'g> Scope<'g> {
                 let ea = self.expect_list(a, line, rel.symbol())?;
                 let eb = self.expect_list(b, line, rel.symbol())?;
                 if !same_type(&ea, &eb) {
-                    return Err(Error::new(
-                        ErrorKind::ElementTypeMismatch,
-                        line,
+                    let (sa, sb) = (crate::render::expr(a), crate::render::expr(b));
+                    // One side a list of lists of the other's elements, the
+                    // usual way to meet this: a field broadcast over a list
+                    // of records that each hold a list. `flatten` joins them.
+                    let nested = |outer: &Type, inner: &Type| matches!(outer, Type::List(t, _) if same_type(t, inner));
+                    let message = if nested(&ea, &eb) {
                         format!(
-                            "`{}` relates lists of different element types: {ea} and {eb}",
+                            "`{}` relates lists of different element types: each element of `{sa}` is itself a list of {eb}, while `{sb}` holds {eb}; `flatten({sa})` joins those lists into one",
                             rel.symbol()
-                        ),
-                    ));
+                        )
+                    } else if nested(&eb, &ea) {
+                        format!(
+                            "`{}` relates lists of different element types: `{sa}` holds {ea}, while each element of `{sb}` is itself a list of {ea}; `flatten({sb})` joins those lists into one",
+                            rel.symbol()
+                        )
+                    } else {
+                        format!(
+                            "`{}` relates lists of different element types: `{sa}` holds {ea}, and `{sb}` holds {eb}",
+                            rel.symbol()
+                        )
+                    };
+                    return Err(Error::new(ErrorKind::ElementTypeMismatch, line, message));
                 }
                 Ok(Type::Bool)
             }

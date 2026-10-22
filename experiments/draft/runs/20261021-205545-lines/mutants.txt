@@ -1,0 +1,4 @@
+filter_out_large_orders  inputs 0+500  mutants 6 of 13 apply  slipped 0  caught 6  underdetermined 3
+  underdetermined  in: [{amount: 100, customer_email: "a"}, {amount: 100, customer_email: "a"}, {amount…: two outputs pass every clause
+  underdetermined  in: [{amount: 100, customer_email: "a"}, {amount: 1, customer_email: "a"}, {amount: …: two outputs pass every clause
+  underdetermined  in: [{amount: 99, customer_email: "b"}, {amount: 100, customer_email: "b"}, {amount:…: two outputs pass every clause

@@ -1,0 +1,33 @@
+// draft
+// drafted
+type SignupForm = { email: Text, age: Int, password: Text }
+
+// drafted
+type SignupError = { code: Text, display: Text }
+
+validate_signup(form: SignupForm) -> Result<SignupForm, SignupError[]>
+	note "check a signup form's email shape, age and password length, and return the clean record or every error it has, not just the first"
+	# The result is Ok exactly when the email is well-shaped, the age is between 13 and 120 inclusive, and the password is at least 12 characters long.
+	// reaching for: (well_shaped(form.email) and form.age >= 13 and form.age <= 120 and length of form.password >= 12) <-> exactly_one Ok(_) in out, but the notation has no text operations to define well-shaped and no length of a Text (len is over lists)
+	# An Ok result is the input form, unchanged.
+	all Ok(f) in out: f == form
+	# An email is well-shaped when it has exactly one @, with text before it and a dot inside the text after it.
+	// reaching for: text operations on a Text (count the '@' characters in form.email, take the parts before and after it, check the part before is non-empty and the part after contains '.'), none of which the notation has
+	# An Err list contains the email error exactly when the email is not well-shaped.
+	// reaching for: all Err(errs) in out: email_err in errs <-> not well_shaped(form.email), but the file defines no named SignupError for the email error and the notation cannot define well-shaped over a Text
+	# An Err list contains the age error exactly when the age is below 13 or above 120.
+	// reaching for: all Err(errs) in out: age_err in errs <-> (form.age < 13 or form.age > 120), but the file defines no named SignupError value for the age error to refer to
+	# An age of exactly 13 or exactly 120 does not produce the age error.
+	// reaching for: all Err(errs) in out: (form.age == 13 or form.age == 120) -> age_err not in errs, but the file defines no named SignupError value for the age error to refer to
+	# An Err list contains the password error exactly when the password is shorter than 12 characters.
+	// reaching for: all Err(errs) in out: password_err in errs <-> length of form.password < 12, but the file defines no named SignupError for the password error and the notation has no length of a Text
+	# A password of exactly 12 characters does not produce the password error.
+	// reaching for: all Err(errs) in out: length of form.password == 12 -> password_err not in errs, but the file defines no named SignupError for the password error and the notation has no length of a Text
+	# Every error in an Err list is one of the email, age or password errors; nothing else appears.
+	// reaching for: all Err(errs) in out: errs drawn_from [email_err, age_err, password_err], but the file defines no named SignupError values for these three errors
+	# No error appears twice in an Err list.
+	all Err(errs) in out: all a in errs: exactly_one b in errs: b == a
+	# An Err list is never empty.
+	all Err(errs) in out: len(errs) > 0
+	# The order of errors in an Err list does not matter.
+	all Err(errs) in out: errs unordered

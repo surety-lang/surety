@@ -1,0 +1,1 @@
+p8.sur: ok validate_signup props=0 accepts=0 examples=0 abbrevs=0 pins=16

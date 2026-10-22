@@ -1,0 +1,10 @@
+validate_signup  inputs 0+36  mutants 3 of 13 apply  slipped 1  caught 2  underdetermined 8
+  slipped  identity: returns the input unchanged; through 4 clauses (lines 13, 29, 31, 33); caught by no example; in: {age: 0, email: "", password: ""}
+  underdetermined  in: {age: 0, email: "", password: ""}: two outputs pass every clause
+  underdetermined  in: {age: 0, email: "", password: "a"}: two outputs pass every clause
+  underdetermined  in: {age: 0, email: "", password: "b"}: two outputs pass every clause
+  underdetermined  in: {age: 1, email: "", password: ""}: two outputs pass every clause
+  underdetermined  in: {age: 1, email: "", password: "a"}: two outputs pass every clause
+  underdetermined  in: {age: 1, email: "", password: "b"}: two outputs pass every clause
+  underdetermined  in: {age: 2, email: "", password: ""}: two outputs pass every clause
+  underdetermined  in: {age: 2, email: "", password: "a"}: two outputs pass every clause

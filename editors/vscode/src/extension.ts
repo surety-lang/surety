@@ -101,13 +101,28 @@ export function signatureLine(doc: vscode.TextDocument): number {
     return 0;
 }
 
-function run(bin: string, args: string[], cwd: string | undefined): Promise<{ code: number; stdout: string; stderr: string }> {
-    return new Promise(resolve => {
-        cp.execFile(bin, args, { cwd, maxBuffer: 64 * 1024 * 1024 }, (err, stdout, stderr) => {
-            const code = err && typeof (err as cp.ExecFileException).code === 'number' ? (err as cp.ExecFileException).code as number : err ? 1 : 0;
-            resolve({ code, stdout: stdout.toString(), stderr: stderr.toString() });
+// One check per file at a time. A save runs `--json` alone and stops the
+// run still going from the save before, whose result is then dropped; the
+// text report runs only when asked for, from the verdict line. A run that
+// outlasts the limit is stopped and says so.
+const CHECK_LIMIT_MS = 120_000;
+const running = new Map<string, { child: cp.ChildProcess; generation: number }>();
+const lastVerb = new Map<string, string>();
+let generation = 0;
+let superseded = 0;
+
+type Ran = { code: number; stdout: string; stderr: string; stopped: boolean };
+
+function start(bin: string, args: string[], cwd: string | undefined): { child: cp.ChildProcess; done: Promise<Ran> } {
+    let child!: cp.ChildProcess;
+    const done = new Promise<Ran>(resolve => {
+        child = cp.execFile(bin, args, { cwd, maxBuffer: 64 * 1024 * 1024, timeout: CHECK_LIMIT_MS }, (err, stdout, stderr) => {
+            const e = err as cp.ExecFileException | null;
+            const code = e && typeof e.code === 'number' ? e.code : e ? 1 : 0;
+            resolve({ code, stdout: stdout.toString(), stderr: stderr.toString(), stopped: !!e && (e.killed === true || e.signal != null) });
         });
     });
+    return { child, done };
 }
 
 /** A line from its first character after the indentation to its end. */
@@ -131,20 +146,36 @@ async function checkDocument(doc: vscode.TextDocument, mode: Mode): Promise<void
     const cwd = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? path.dirname(file);
     const sig = signatureLine(doc);
     const started = Date.now();
-    output.appendLine(`$ ${s.path} ${verb} ${path.basename(file)}`);
-    const [json, text] = await Promise.all([
-        run(s.path, [verb, '--json', file], cwd),
-        run(s.path, [verb, file], cwd),
-    ]);
-    output.append(text.stdout);
-    if (text.stderr) {
-        output.append(text.stderr);
+    const key = doc.uri.toString();
+    const before = running.get(key);
+    // Counted only when the stop signal goes out: the test reads it.
+    if (before && before.child.kill()) {
+        superseded++;
     }
-    output.appendLine(`(${((Date.now() - started) / 1000).toFixed(1)} s)`);
+    const mine = ++generation;
+    const { child, done } = start(s.path, [verb, '--json', file], cwd);
+    running.set(key, { child, generation: mine });
+    lastVerb.set(key, verb);
+    output.appendLine(`$ ${s.path} ${verb} --json ${path.basename(file)}`);
+    const json = await done;
+    if (running.get(key)?.generation !== mine) {
+        output.appendLine(`(stopped: a newer save of ${path.basename(file)} took over)`);
+        return;
+    }
+    running.delete(key);
+    output.appendLine(`(${((Date.now() - started) / 1000).toFixed(1)} s; the full report is on the verdict line above the signature)`);
+    if (json.stopped) {
+        const d = new vscode.Diagnostic(lineRange(doc, sig), `surety ${verb} did not finish within ${CHECK_LIMIT_MS / 1000} s and was stopped`, vscode.DiagnosticSeverity.Warning);
+        d.source = 'surety';
+        verdicts.set(doc.uri, [d]);
+        gapDetail.delete(key);
+        setLens(doc, undefined);
+        return;
+    }
     if (json.code === 2 || !json.stdout.trim()) {
         // The file's own error names its line: say that line, not the path
         // twice, and link to it; the server underlines the term there.
-        const err = (json.stderr || text.stderr).trim();
+        const err = json.stderr.trim();
         const at = /line (\d+): (.*)$/m.exec(err);
         const message = at ? `surety ${verb} could not run: line ${at[1]}: ${at[2]}` : `surety ${verb} could not run: ${err}`;
         const d = new vscode.Diagnostic(lineRange(doc, sig), message, vscode.DiagnosticSeverity.Error);
@@ -311,6 +342,7 @@ const MUTANT: Finding = { label: 'Mutant gets through', code: 'mutant' };
 const UNNEEDED: Finding = { label: 'Unneeded clause', code: 'unneeded-clause' };
 const UNTESTED: Finding = { label: 'Untested clause', code: 'untested-clause' };
 const INPUT_ONLY: Finding = { label: 'Input-only clause', code: 'input-only-clause' };
+const UNCHECKED: Finding = { label: 'Unchecked clause', code: 'unchecked-clause' };
 
 function finding(range: vscode.Range, f: Finding, message: string, severity: vscode.DiagnosticSeverity): vscode.Diagnostic {
     const d = diagAt(range, `${f.label}: ${message}`, severity);
@@ -461,7 +493,18 @@ function mutantDiagnostics(doc: vscode.TextDocument, lines: any[], sig: number):
     }
     const report = lines.find(l => l.kind === 'mutant_report');
     // `x unordered` claims nothing by design: no hint for it.
+    // A clause that could not be evaluated (a graph reference with no
+    // performance yet, say) is said so, and not also called untested.
+    const unchecked: any[] = report?.unevaluable ?? [];
+    for (const c of unchecked) {
+        if (c.line !== undefined) {
+            out.push(finding(lineRange(doc, c.line - 1), UNCHECKED, `it could not be evaluated, so the check says nothing about it: ${c.message}`, vscode.DiagnosticSeverity.Information));
+        }
+    }
     for (const c of report?.uncaught ?? []) {
+        if (unchecked.some(u => u.line === c.line)) {
+            continue;
+        }
         if (c.line !== undefined && !/\bunordered$/.test(c.text ?? '')) {
             out.push(unbreakable(doc, c.line, c, (report.example_inputs ?? 0) + (report.generated_inputs ?? 0)));
         }
@@ -536,7 +579,12 @@ function watchBinary(bin: string): vscode.Disposable {
     };
 }
 
-export function activate(context: vscode.ExtensionContext): { restarts(): number; unverified(uri: vscode.Uri): vscode.Range[] } {
+export function activate(context: vscode.ExtensionContext): {
+    restarts(): number;
+    unverified(uri: vscode.Uri): vscode.Range[];
+    superseded(): number;
+    running(uri: vscode.Uri): number;
+} {
     const s = settings();
     output = vscode.window.createOutputChannel('Surety');
     verdicts = vscode.languages.createDiagnosticCollection('surety-check');
@@ -559,6 +607,8 @@ export function activate(context: vscode.ExtensionContext): { restarts(): number
         output,
         verdicts,
         { dispose: () => client?.stop() },
+        // A run still going when the editor closes is stopped, not orphaned.
+        { dispose: () => running.forEach(r => r.child.kill()) },
         watchBinary(s.path),
         unverifiedStyle,
         vscode.window.onDidChangeActiveTextEditor(markUnverifiedSoon),
@@ -598,10 +648,24 @@ export function activate(context: vscode.ExtensionContext): { restarts(): number
                     return [];
                 }
                 const range = doc.lineAt(signatureLine(doc)).range;
-                return [new vscode.CodeLens(range, { title: v.title, tooltip: v.tooltip, command: 'surety.report' })];
+                return [new vscode.CodeLens(range, { title: v.title, tooltip: v.tooltip, command: 'surety.report', arguments: [doc.uri] })];
             },
         }),
-        vscode.commands.registerCommand('surety.report', () => output.show(true)),
+        vscode.commands.registerCommand('surety.report', async (uri?: vscode.Uri) => {
+            output.show(true);
+            const doc = uri ? await vscode.workspace.openTextDocument(uri) : vscode.window.activeTextEditor?.document;
+            if (!doc || doc.languageId !== 'surety') {
+                return;
+            }
+            const verb = lastVerb.get(doc.uri.toString()) ?? 'mutants';
+            const cwd = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? path.dirname(doc.uri.fsPath);
+            output.appendLine(`$ ${settings().path} ${verb} ${path.basename(doc.uri.fsPath)}`);
+            const r = await start(settings().path, [verb, doc.uri.fsPath], cwd).done;
+            output.append(r.stdout);
+            if (r.stderr) {
+                output.append(r.stderr);
+            }
+        }),
         vscode.languages.registerCodeActionsProvider({ language: 'surety' }, {
             provideCodeActions(doc, _range, context) {
                 const gaps = gapDetail.get(doc.uri.toString()) ?? [];
@@ -657,6 +721,8 @@ export function activate(context: vscode.ExtensionContext): { restarts(): number
     return {
         restarts: () => restarts,
         unverified: uri => unverifiedRanges.get(uri.toString()) ?? [],
+        superseded: () => superseded,
+        running: uri => (running.has(uri.toString()) ? 1 : 0),
     };
 }
 

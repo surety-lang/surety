@@ -220,6 +220,42 @@ suite('the verdict on save', () => {
         assert.ok(!after.some(x => x.code === 'element_type_mismatch'), JSON.stringify(after.map(x => x.message)));
         await vscode.commands.executeCommand('workbench.action.files.revert');
     });
+
+    test('a save while a check runs stops it: one check per file at a time', async () => {
+        const uri = workspaceFile('settled.sur');
+        const doc = await vscode.workspace.openTextDocument(uri);
+        await vscode.window.showTextDocument(doc);
+        const api = vscode.extensions.getExtension('surety-lang.surety')!.exports as { superseded(): number; running(uri: vscode.Uri): number };
+        const before = api.superseded();
+        const first = vscode.commands.executeCommand('surety.mutants');
+        const second = vscode.commands.executeCommand('surety.mutants');
+        assert.strictEqual(api.running(uri), 1, 'one run for the file');
+        await Promise.all([first, second]);
+        assert.strictEqual(api.superseded(), before + 1, 'the first run was stopped by the second');
+        assert.strictEqual(api.running(uri), 0);
+        const verdict = await lens(uri, t => t.includes('ettled'));
+        assert.ok(verdict.command!.title.startsWith('$(pass) Settled'), verdict.command!.title);
+    });
+
+    test('a clause calling a graph reference with no performance yet is unchecked, and the save is quick', async () => {
+        const uri = workspaceFile('graphref.sur');
+        const doc = await vscode.workspace.openTextDocument(uri);
+        await vscode.window.showTextDocument(doc);
+        const started = Date.now();
+        await vscode.commands.executeCommand('surety.mutants');
+        assert.ok(Date.now() - started < 30000, `the check took ${Date.now() - started} ms`);
+        const diags = await ours(uri, all => all.some(d => d.code === 'unchecked-clause'));
+        const unchecked = diags.filter(d => d.code === 'unchecked-clause');
+        // The clause that calls it directly, and any that reach it through an
+        // abbreviation (`checks`), each naming the missing module.
+        const direct = doc.getText().split('\n').findIndex(l => l.includes('not well_formed_email(p.email)'));
+        assert.ok(unchecked.some(d => d.range.start.line === direct), JSON.stringify(unchecked.map(d => d.range.start.line)));
+        for (const d of unchecked) {
+            assert.ok(/^Unchecked clause: it could not be evaluated, so the check says nothing about it: no performance at .*graphref\.py$/.test(d.message), d.message);
+            assert.strictEqual(d.severity, vscode.DiagnosticSeverity.Information);
+        }
+        assert.ok(!diags.some(d => d.code === 'untested-clause' && unchecked.some(u => u.range.start.line === d.range.start.line)), 'not also called untested');
+    });
 });
 
 suite('formatting through the server', () => {

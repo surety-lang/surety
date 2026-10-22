@@ -287,6 +287,10 @@ pub fn lex(src: &str) -> Result<Lexed, Error> {
     let mut depth: i32 = 0;
     let mut current: Option<Line> = None;
     let mut pending_sentence: Option<String> = None;
+    // Whether the previous line was a `#` line: consecutive `#` lines are one
+    // sentence, joined by single spaces; a blank line, a comment or a line
+    // of code ends it.
+    let mut sentence_open = false;
     let mut seen_decl = false;
 
     for (idx, raw) in src.lines().enumerate() {
@@ -295,9 +299,11 @@ pub fn lex(src: &str) -> Result<Lexed, Error> {
             let indent = leading_ws(raw);
             let rest = &raw[indent.len()..];
             if rest.trim().is_empty() {
+                sentence_open = false;
                 continue;
             }
             if let Some(c) = rest.strip_prefix("//") {
+                sentence_open = false;
                 lexed.pins.push(Pin {
                     line: line_no,
                     kind: PinKind::Comment,
@@ -307,14 +313,32 @@ pub fn lex(src: &str) -> Result<Lexed, Error> {
             }
             if let Some(s) = rest.strip_prefix('#') {
                 let text = s.trim().to_string();
-                lexed.pins.push(Pin {
-                    line: line_no,
-                    kind: PinKind::Sentence,
-                    text: text.clone(),
-                });
-                pending_sentence = Some(text);
+                if sentence_open {
+                    // A continuation of the sentence above: the pin pushed for
+                    // its first line is the last one, since a comment or a
+                    // line of code would have ended the sentence.
+                    if !text.is_empty() {
+                        if let Some(pin) = lexed.pins.last_mut() {
+                            pin.text.push(' ');
+                            pin.text.push_str(&text);
+                        }
+                        if let Some(p) = pending_sentence.as_mut() {
+                            p.push(' ');
+                            p.push_str(&text);
+                        }
+                    }
+                } else {
+                    lexed.pins.push(Pin {
+                        line: line_no,
+                        kind: PinKind::Sentence,
+                        text: text.clone(),
+                    });
+                    pending_sentence = Some(text);
+                    sentence_open = true;
+                }
                 continue;
             }
+            sentence_open = false;
             if indent.is_empty() && !seen_decl && !is_decl_start(rest) {
                 lexed.header.push((line_no, rest.trim_end().to_string()));
                 continue;

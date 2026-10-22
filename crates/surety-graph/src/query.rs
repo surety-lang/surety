@@ -139,24 +139,45 @@ pub fn status(store: &Store) -> Result<Vec<StatusRow>, String> {
     Ok(rows)
 }
 
-/// A node by name or by a prefix of its hash.
-pub fn show(store: &Store, key: &str) -> Result<NodeView, String> {
-    let ns = store.namespace()?;
+/// The node a key names, by name or by a prefix of its hash, and the names
+/// that point at it.
+fn node(store: &Store, ns: &Namespace, key: &str) -> Result<(String, Vec<String>), String> {
     let hash = match ns.get(key) {
         Some(e) => e.obligation.clone(),
         None => store
             .find_node(key)?
             .ok_or_else(|| format!("no name or node `{key}` in the graph"))?,
     };
-    let names: Vec<String> = ns
+    let names = ns
         .iter()
         .filter(|(_, e)| e.obligation == hash)
         .map(|(n, _)| n.clone())
         .collect();
-    let state = match names.first() {
-        Some(n) => state_of_name(store, &ns, n)?,
-        None => State::Unnamed,
-    };
+    Ok((hash, names))
+}
+
+/// A node's state: its first name's, or unnamed when no name points at it.
+fn node_state(store: &Store, ns: &Namespace, names: &[String]) -> Result<State, String> {
+    match names.first() {
+        Some(n) => state_of_name(store, ns, n),
+        None => Ok(State::Unnamed),
+    }
+}
+
+/// A node's state by name or by a prefix of its hash: what `show` says it
+/// is, without reading its prose, its performances or the nodes one hop
+/// away.
+pub fn state(store: &Store, key: &str) -> Result<State, String> {
+    let ns = store.namespace()?;
+    let (_, names) = node(store, &ns, key)?;
+    node_state(store, &ns, &names)
+}
+
+/// A node by name or by a prefix of its hash.
+pub fn show(store: &Store, key: &str) -> Result<NodeView, String> {
+    let ns = store.namespace()?;
+    let (hash, names) = node(store, &ns, key)?;
+    let state = node_state(store, &ns, &names)?;
     let source = names
         .first()
         .and_then(|n| ns.get(n))

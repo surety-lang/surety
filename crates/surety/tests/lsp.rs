@@ -262,11 +262,14 @@ fn position_of(text: &str, needle: &str) -> (usize, usize) {
 
 impl Lsp {
     fn start_with_graph() -> Lsp {
-        let graph = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../graph");
+        Lsp::start_with_graph_at(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../graph"))
+    }
+
+    fn start_with_graph_at(graph: &Path) -> Lsp {
         let mut child = Command::new(env!("CARGO_BIN_EXE_surety"))
             .arg("lsp")
             .arg("--graph")
-            .arg(&graph)
+            .arg(graph)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit())
@@ -384,6 +387,72 @@ fn names_resolve_and_hover_says_what_a_thing_is() {
         children.contains(&"example 1") && children.contains(&"example 2"),
         "{children:?}"
     );
+    lsp.stop();
+}
+
+fn copy_dir(from: &Path, to: &Path) {
+    fs::create_dir_all(to).unwrap();
+    for e in fs::read_dir(from).unwrap() {
+        let p = e.unwrap().path();
+        let dest = to.join(p.file_name().unwrap());
+        if p.is_dir() {
+            copy_dir(&p, &dest);
+        } else {
+            fs::copy(&p, &dest).unwrap();
+        }
+    }
+}
+
+/// The committed graph and the corpus files it pins, copied to a directory
+/// of their own at the paths the namespace names.
+fn graph_copy(tag: &str) -> PathBuf {
+    let root = PathBuf::from(env!("CARGO_TARGET_TMPDIR"))
+        .join("lsp")
+        .join(tag);
+    let _ = fs::remove_dir_all(&root);
+    copy_dir(
+        &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../graph"),
+        &root.join("graph"),
+    );
+    let corpus = root.join("crates/surety/tests/corpus");
+    fs::create_dir_all(&corpus).unwrap();
+    for e in fs::read_dir(common::corpus_dir()).unwrap() {
+        let p = e.unwrap().path();
+        if p.extension().is_some_and(|x| x == "sur") {
+            fs::copy(&p, corpus.join(p.file_name().unwrap())).unwrap();
+        }
+    }
+    root
+}
+
+#[test]
+fn hover_reads_the_graph_for_the_obligations_state_alone() {
+    // The hover says one thing from the graph: the obligation's state. It
+    // reads that and not the nodes around it, so a caller whose record
+    // cannot be read leaves the hover as it was.
+    let root = graph_copy("hover-state");
+    let graph = root.join("graph");
+    let ns: Json =
+        serde_json::from_str(&fs::read_to_string(graph.join("namespace.json")).unwrap()).unwrap();
+    let caller = ns["snapshot_diff"]["obligation"].as_str().unwrap();
+    let refs =
+        fs::read_to_string(graph.join("nodes").join(caller).join("references.json")).unwrap();
+    assert!(
+        refs.contains("\"apply_diff\""),
+        "snapshot_diff calls apply_diff: {refs}"
+    );
+    let records = graph.join("nodes").join(caller).join("evidence/python");
+    for e in fs::read_dir(&records).unwrap() {
+        fs::write(e.unwrap().path(), "not a record").unwrap();
+    }
+    let mut lsp = Lsp::start_with_graph_at(&graph);
+    let apply = root.join("crates/surety/tests/corpus/apply_diff.sur");
+    assert!(
+        lsp.open(&apply).iter().all(|d| d["severity"] == 4),
+        "no error"
+    );
+    let value = hover_text(lsp.at("textDocument/hover", &apply, "apply_diff(old: "));
+    assert!(value.contains("state: **verified**"), "{value}");
     lsp.stop();
 }
 

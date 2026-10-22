@@ -417,8 +417,8 @@ fn graph_line(dir: &Path, name: &str, file: &Path) -> Option<String> {
     if pinned.is_none() || pinned != std::fs::canonicalize(file).ok() {
         return Some(format!("the graph pins `{name}` from `{}`", entry.source));
     }
-    let view = surety_graph::show(&store, name).ok()?;
-    Some(format!("state: **{}**", view.state.word()))
+    let state = surety_graph::state(&store, name).ok()?;
+    Some(format!("state: **{}**", state.word()))
 }
 
 fn describe(
@@ -577,12 +577,13 @@ fn builtin(name: &str) -> Option<&'static str> {
 fn from_store(dir: &Path, name: &str) -> Option<String> {
     let store = surety_graph::Store::open(dir);
     let entry = store.namespace().ok()?.get(name)?.clone();
-    let view = surety_graph::show(&store, name).ok()?;
+    let state = surety_graph::state(&store, name).ok()?;
     let graph = match load_with_siblings(&graph_base(dir).join(&entry.source)) {
         Ok((graph, _)) => graph,
         Err(_) => {
+            let hash = &entry.obligation;
             let text = store
-                .presentation(&view.hash, view.presentations.first()?)
+                .presentation(hash, store.presentations(hash).ok()?.first()?)
                 .ok()?;
             Graph::single(name, surety_syntax::parse(&text).ok()?)
         }
@@ -592,7 +593,7 @@ fn from_store(dir: &Path, name: &str) -> Option<String> {
         "{}\n\nin the graph, pinned from `{}` · state: **{}**",
         obligation_text(&graph, fidx, f),
         entry.source,
-        view.state.word()
+        state.word()
     ))
 }
 

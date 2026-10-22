@@ -59,6 +59,10 @@ pub struct Error {
     pub kind: ErrorKind,
     pub line: usize,
     pub message: String,
+    /// The columns on `line` the error is about, start inclusive and end
+    /// exclusive, counted in characters from 0; none when only the line is
+    /// known.
+    pub span: Option<(usize, usize)>,
 }
 
 impl Error {
@@ -67,7 +71,15 @@ impl Error {
             kind,
             line,
             message: message.into(),
+            span: None,
         }
+    }
+
+    /// The same error about these columns of its line; an empty span is
+    /// left out.
+    pub fn spanning(mut self, span: Option<(usize, usize)>) -> Self {
+        self.span = span.filter(|(from, to)| to > from);
+        self
     }
 }
 

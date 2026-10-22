@@ -76,14 +76,18 @@ pub fn long_prose_lines(text: &str) -> Vec<Json> {
         .collect()
 }
 
-/// An error as an LSP diagnostic: its line from the first character after
-/// the indentation to the end, severity Error, the kind as the code.
+/// An error as an LSP diagnostic: the columns it is about when it knows
+/// them, else its line from the first character after the indentation to
+/// the end; severity Error, the kind as the code.
 pub fn diagnostic(e: &Error, text: &str) -> Json {
     let line = e.line.saturating_sub(1);
     let l = text.lines().nth(line).unwrap_or_default();
     let len = l.chars().count();
     let indent = l.chars().take_while(|c| c.is_whitespace()).count();
-    let start = if indent < len { indent } else { 0 };
+    let (start, len) = match e.span {
+        Some((from, to)) if to <= len => (from, to),
+        _ => (if indent < len { indent } else { 0 }, len),
+    };
     json!({
         "range": { "start": { "line": line, "character": start }, "end": { "line": line, "character": len } },
         "severity": 1,

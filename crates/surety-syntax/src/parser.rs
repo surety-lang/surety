@@ -144,7 +144,8 @@ pub fn parse(src: &str) -> Result<File, Error> {
             ErrorKind::UnresolvedChoice,
             i + 1,
             "a choice left open: keep one side, and delete the side you do not mean and the three marker lines",
-        ));
+        )
+        .spanning(Some((0, 7))));
     }
     let lexed = lex(src)?;
     let mut pos = 0;
@@ -581,7 +582,7 @@ impl<'a> Cursor<'a> {
     }
     fn err(&self, msg: impl Into<String>) -> Error {
         let line = self.peek().map(|t| t.line).unwrap_or(self.line);
-        syntax(line, msg)
+        syntax(line, msg).spanning(self.peek().map(|t| (t.col, t.end)))
     }
     fn expect_sym(&mut self, s: &str) -> Result<(), Error> {
         match self.peek() {
@@ -830,7 +831,13 @@ impl<'a> ExprParser<'a> {
             .unwrap_or(self.line)
     }
     fn err(&self, msg: impl Into<String>) -> Error {
-        syntax(self.cur_line(), msg)
+        syntax(self.cur_line(), msg).spanning(self.peek().map(|t| (t.col, t.end)))
+    }
+    /// The columns tokens `from..to` cover, when they all sit on `line`.
+    fn span(&self, from: usize, to: usize, line: usize) -> Option<(usize, usize)> {
+        let toks = self.toks.get(from..to)?;
+        let (first, last) = (toks.first()?, toks.last()?);
+        (first.line == line && last.line == line).then_some((first.col, last.end))
     }
     fn peek_sym(&self, s: &str) -> bool {
         self.peek().is_some_and(|t| t.is_sym(s))
@@ -1235,7 +1242,10 @@ impl<'a> ExprParser<'a> {
             "none" => QKind::None,
             _ => QKind::ExactlyOne,
         };
+        let binder_at = self.pos;
         let binder = self.parse_binder()?;
+        let binder_end = self.pos;
+        let leftover_at = self.pos;
         let leftover = if self.peek_ident("leftover") {
             self.bump();
             true
@@ -1247,10 +1257,12 @@ impl<'a> ExprParser<'a> {
         }
         self.bump();
         let domain = self.parse_postfix()?;
+        let domain_end = self.pos;
         // A name straight after the domain is a second domain, not the
         // bodyless form: say so before the binder looks unused.
         if let Some(Tok::Ident(n)) = self.peek().map(|t| &t.tok) {
             if !is_reserved(n) {
+                let second_at = self.pos;
                 let second = self.parse_postfix()?;
                 return Err(syntax(
                     line,
@@ -1259,7 +1271,8 @@ impl<'a> ExprParser<'a> {
                         crate::render::expr(&domain),
                         crate::render::expr(&second)
                     ),
-                ));
+                )
+                .spanning(self.span(second_at, self.pos, line)));
             }
         }
         if leftover && matches!(&domain, Expr::Name(n, _) if n == "out") {
@@ -1267,7 +1280,8 @@ impl<'a> ExprParser<'a> {
                 ErrorKind::EmptyLeftover,
                 line,
                 "`leftover in out` ranges over nothing, since `out` takes all of its own elements; range over the input `out` is drawn from",
-            ));
+            )
+            .spanning(self.span(leftover_at, domain_end, line)));
         }
         let where_ = if self.peek_ident("where") {
             self.bump();
@@ -1281,7 +1295,9 @@ impl<'a> ExprParser<'a> {
             self.bump();
             if self.peek().is_none() {
                 if self.block.is_empty() {
-                    return Err(syntax(line, "quantifier ends in `:` but has no body"));
+                    let head_at = self.toks.iter().position(|t| std::ptr::eq(t, head));
+                    return Err(syntax(line, "quantifier ends in `:` but has no body")
+                        .spanning(head_at.and_then(|at| self.span(at, self.pos, line))));
                 }
                 if self.block.len() > 1 {
                     return Err(Error::new(
@@ -1344,7 +1360,8 @@ impl<'a> ExprParser<'a> {
                     ErrorKind::UnusedBinder,
                     line,
                     format!("binder `{name}` is never used"),
-                ));
+                )
+                .spanning(self.span(binder_at, binder_end, line)));
             }
         }
         self.q_done = true;

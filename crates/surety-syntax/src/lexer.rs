@@ -21,6 +21,10 @@ pub enum Tok {
 pub struct Token {
     pub tok: Tok,
     pub line: usize,
+    /// Where the token starts and ends on its physical line, in characters
+    /// from 0, the end exclusive.
+    pub col: usize,
+    pub end: usize,
 }
 
 impl Token {
@@ -132,6 +136,8 @@ struct Scanner<'a> {
     src: &'a str,
     pos: usize,
     line: usize,
+    /// The characters of the physical line before `src`: its indentation.
+    col0: usize,
 }
 
 impl Scanner<'_> {
@@ -154,8 +160,21 @@ impl Scanner<'_> {
         self.pos += c.len_utf8();
         Some(c)
     }
+    /// The column of a byte offset into `src`.
+    fn col(&self, pos: usize) -> usize {
+        self.col0 + self.src[..pos].chars().count()
+    }
+    fn token(&self, tok: Tok, start: usize) -> Token {
+        Token {
+            tok,
+            line: self.line,
+            col: self.col(start),
+            end: self.col(self.pos),
+        }
+    }
     fn err(&self, msg: impl Into<String>) -> Error {
-        Error::new(ErrorKind::Syntax, self.line, msg)
+        let at = self.col(self.pos);
+        Error::new(ErrorKind::Syntax, self.line, msg).spanning(Some((at, at + 1)))
     }
 
     /// Tokenize one physical line's remainder, updating the bracket depth.
@@ -166,6 +185,7 @@ impl Scanner<'_> {
                 continue;
             }
             if c == '"' {
+                let quote = self.pos;
                 self.bump();
                 let start = self.pos;
                 loop {
@@ -179,10 +199,7 @@ impl Scanner<'_> {
                 }
                 let s = self.src[start..self.pos].to_string();
                 self.bump();
-                out.push(Token {
-                    tok: Tok::Str(s),
-                    line: self.line,
-                });
+                out.push(self.token(Tok::Str(s), quote));
                 continue;
             }
             if c.is_ascii_digit() {
@@ -205,10 +222,7 @@ impl Scanner<'_> {
                 } else {
                     Tok::Int(text.parse().map_err(|_| self.err("bad number"))?)
                 };
-                out.push(Token {
-                    tok,
-                    line: self.line,
-                });
+                out.push(self.token(tok, start));
                 continue;
             }
             if is_ident_start(c) {
@@ -216,12 +230,10 @@ impl Scanner<'_> {
                 while matches!(self.peek(), Some(d) if is_ident_char(d)) {
                     self.bump();
                 }
-                out.push(Token {
-                    tok: Tok::Ident(self.src[start..self.pos].to_string()),
-                    line: self.line,
-                });
+                out.push(self.token(Tok::Ident(self.src[start..self.pos].to_string()), start));
                 continue;
             }
+            let start = self.pos;
             let c2 = self.peek2();
             let c3 = self.peek3();
             let (sym, len) = match (c, c2, c3) {
@@ -263,10 +275,7 @@ impl Scanner<'_> {
                 }
                 _ => {}
             }
-            out.push(Token {
-                tok: Tok::Sym(sym),
-                line: self.line,
-            });
+            out.push(self.token(Tok::Sym(sym), start));
         }
         Ok(())
     }
@@ -351,6 +360,7 @@ pub fn lex(src: &str) -> Result<Lexed, Error> {
                 src: rest,
                 pos: 0,
                 line: line_no,
+                col0: indent.chars().count(),
             };
             sc.run(&mut depth, &mut tokens)?;
             let line = Line {
@@ -393,6 +403,7 @@ pub fn lex(src: &str) -> Result<Lexed, Error> {
                 src: rest,
                 pos: 0,
                 line: line_no,
+                col0: raw.chars().count() - raw.trim_start().chars().count(),
             };
             sc.run(&mut depth, &mut cur.tokens)?;
             if depth == 0 {

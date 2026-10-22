@@ -1,4 +1,5 @@
 import * as assert from 'assert';
+import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 
@@ -128,5 +129,46 @@ suite('formatting through the server', () => {
         assert.ok(prose(after).every(l => columns(l) <= 100), `a prose line past the column:\n${after}`);
         assert.ok(after.includes('enrich_orders('), 'the obligation is still there');
         assert.ok(prose(after).length > prose(before).length, 'wrapping added prose lines');
+    });
+
+    test('a file that does not parse: the term underlined on its line, and the verdict linking to it', async () => {
+        const uri = workspaceFile('broken.sur');
+        const doc = await vscode.workspace.openTextDocument(uri);
+        await vscode.window.showTextDocument(doc);
+        const line = doc.getText().split('\n').findIndex(l => l.includes('all o leftover in out:'));
+        // The server's error covers `leftover in out`, not the line.
+        const parsed = await ours(uri, all => all.some(d => d.range.start.line === line && d.code === 'empty_leftover'));
+        const term = parsed.find(d => d.range.start.line === line)!;
+        const text = doc.lineAt(line).text;
+        assert.strictEqual(text.slice(term.range.start.character, term.range.end.character), 'leftover in out');
+        // The check cannot run; its verdict on the signature names the line and links to it.
+        await vscode.commands.executeCommand('surety.mutants');
+        const sig = 1;
+        const diags = await ours(uri, all => all.some(d => d.range.start.line === sig && d.message.startsWith('surety mutants could not run')));
+        const verdict = diags.find(d => d.range.start.line === sig && d.message.startsWith('surety mutants could not run'))!;
+        assert.ok(verdict.message.startsWith(`surety mutants could not run: line ${line + 1}: \`leftover in out\``), verdict.message);
+        assert.strictEqual(verdict.relatedInformation?.[0]?.location.range.start.line, line);
+    });
+
+    test('a rebuilt binary restarts the language server', async () => {
+        const api = vscode.extensions.getExtension('surety-lang.surety')!.exports as { restarts(): number };
+        const before = api.restarts();
+        const bin = vscode.workspace.getConfiguration('surety').get<string>('path')!;
+        const now = new Date();
+        fs.utimesSync(bin, now, now);
+        const started = Date.now();
+        while (api.restarts() === before) {
+            assert.ok(Date.now() - started < 20000, 'no restart within 20 s of the binary changing');
+            await new Promise(r => setTimeout(r, 200));
+        }
+        // The new server answers.
+        const uri = workspaceFile('p5a.sur');
+        await vscode.workspace.openTextDocument(uri);
+        let symbols: vscode.DocumentSymbol[] | undefined;
+        for (let i = 0; i < 50 && !symbols?.length; i++) {
+            symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>('vscode.executeDocumentSymbolProvider', uri);
+            await new Promise(r => setTimeout(r, 200));
+        }
+        assert.ok(symbols?.some(x => x.name.startsWith('get_first_customer_orders(')), JSON.stringify(symbols?.map(x => x.name)));
     });
 });

@@ -128,8 +128,18 @@ async function checkDocument(doc: vscode.TextDocument, mode: Mode): Promise<void
     }
     output.appendLine(`(${((Date.now() - started) / 1000).toFixed(1)} s)`);
     if (json.code === 2 || !json.stdout.trim()) {
-        const d = new vscode.Diagnostic(lineRange(doc, sig), `surety ${verb} could not run: ${(json.stderr || text.stderr).trim()}`, vscode.DiagnosticSeverity.Error);
+        // The file's own error names its line: say that line, not the path
+        // twice, and link to it; the server underlines the term there.
+        const err = (json.stderr || text.stderr).trim();
+        const at = /line (\d+): (.*)$/m.exec(err);
+        const message = at ? `surety ${verb} could not run: line ${at[1]}: ${at[2]}` : `surety ${verb} could not run: ${err}`;
+        const d = new vscode.Diagnostic(lineRange(doc, sig), message, vscode.DiagnosticSeverity.Error);
         d.source = 'surety';
+        if (at) {
+            d.relatedInformation = [
+                new vscode.DiagnosticRelatedInformation(new vscode.Location(doc.uri, lineRange(doc, Number(at[1]) - 1)), at[2]),
+            ];
+        }
         verdicts.set(doc.uri, [d]);
         gapDetail.delete(doc.uri.toString());
         return;
@@ -320,7 +330,43 @@ function mutantDiagnostics(doc: vscode.TextDocument, lines: any[], sig: number):
     return out;
 }
 
-export function activate(context: vscode.ExtensionContext): void {
+// The server is the binary at `surety.path`. A build that replaces it leaves
+// the running server the old one until a restart, so the extension watches
+// the file and restarts the client when it changes: a rebuild reaches the
+// editor without a reload. The count is what the test reads.
+let restarts = 0;
+
+function watchBinary(bin: string): vscode.Disposable {
+    if (!path.isAbsolute(bin) || !fs.existsSync(bin)) {
+        return { dispose() {} };
+    }
+    let timer: NodeJS.Timeout | undefined;
+    const changed = (now: fs.Stats, before: fs.Stats) => {
+        if (now.mtimeMs === before.mtimeMs || now.size === 0) {
+            return;
+        }
+        if (timer) {
+            clearTimeout(timer);
+        }
+        // A build writes the file more than once; restart when it settles.
+        timer = setTimeout(async () => {
+            output.appendLine(`${bin} changed; restarting the language server`);
+            await client?.restart();
+            restarts++;
+        }, 500);
+    };
+    fs.watchFile(bin, { interval: 500 }, changed);
+    return {
+        dispose() {
+            fs.unwatchFile(bin, changed);
+            if (timer) {
+                clearTimeout(timer);
+            }
+        },
+    };
+}
+
+export function activate(context: vscode.ExtensionContext): { restarts(): number } {
     const s = settings();
     output = vscode.window.createOutputChannel('Surety');
     verdicts = vscode.languages.createDiagnosticCollection('surety-check');
@@ -342,6 +388,7 @@ export function activate(context: vscode.ExtensionContext): void {
         output,
         verdicts,
         { dispose: () => client?.stop() },
+        watchBinary(s.path),
         vscode.workspace.onDidChangeTextDocument(holdEdit),
         vscode.window.onDidChangeTextEditorSelection(e => {
             const doc = e.textEditor.document;
@@ -415,6 +462,7 @@ export function activate(context: vscode.ExtensionContext): void {
             terminal.sendText(`${settings().python} ${script} lines ${doc.uri.fsPath} --surety ${settings().path}`);
         }),
     );
+    return { restarts: () => restarts };
 }
 
 export function deactivate(): Thenable<void> | undefined {

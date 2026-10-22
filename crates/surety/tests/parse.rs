@@ -99,6 +99,33 @@ fn a_second_domain_is_named() {
     );
 }
 
+/// An error that knows its tokens names their columns, so the editor
+/// underlines the term and not the line: each span here is checked against
+/// the text it should cover.
+#[test]
+fn an_error_names_the_columns_it_is_about() {
+    let covered = |name: &str| {
+        let text =
+            fs::read_to_string(common::corpus_dir().join(format!("bad/{name}.sur"))).unwrap();
+        let e = parse(&text).unwrap_err();
+        let (from, to) = e.span.unwrap_or_else(|| panic!("{name}: no span on {e}"));
+        let line = text.lines().nth(e.line - 1).unwrap();
+        line.chars().skip(from).take(to - from).collect::<String>()
+    };
+    assert_eq!(covered("two_domains"), "orders.amount");
+    assert_eq!(covered("empty_leftover"), "leftover in out");
+    assert_eq!(covered("unused_binder"), "Err(erors)");
+    assert_eq!(covered("unresolved_choice"), "<<<<<<<");
+    // A head ending in `:` with nothing under it: the head.
+    let e = parse("type A = { x: Int }\nf(a: A) -> Int\n\tall o in [a]:\n").unwrap_err();
+    assert_eq!(e.span, Some((1, 14)), "{e}");
+    // A token the parser did not expect, and a character the lexer cannot read.
+    let e = parse("type A = { x: Int }\nf(a: A) -> Int\n\tall o of [a]: o.x > 0\n").unwrap_err();
+    assert_eq!(e.span, Some((7, 9)), "`of`: {e}");
+    let e = parse("type A = { x: Int }\nf(a: A) -> Int\n\tout > 0 ; 1\n").unwrap_err();
+    assert_eq!(e.span, Some((9, 10)), "`;`: {e}");
+}
+
 /// Forms in the brief that no fixture exercises: `any`, `none`, `count`,
 /// `max`, `->`, `<`, `[0..3, unique f]`, `Bool`, `UUID`.
 #[test]

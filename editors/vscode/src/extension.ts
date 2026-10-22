@@ -69,6 +69,14 @@ function holdEdit(e: vscode.TextDocumentChangeEvent): void {
         }
         hold = block;
     }
+    // Typing happens at the cursor. An edit made away from it (a quick fix
+    // from the Problems panel, a script) is not a line half typed, and
+    // holding it would keep its errors back until the cursor happened by.
+    const cursor = vscode.window.activeTextEditor.selection.active.line;
+    if (cursor < hold!.start || cursor > hold!.end) {
+        release(doc.uri);
+        return;
+    }
     holds.set(doc.uri.toString(), hold!);
     client?.diagnostics?.set(doc.uri, shown(doc.uri));
 }

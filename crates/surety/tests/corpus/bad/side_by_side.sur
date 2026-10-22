@@ -1,0 +1,2 @@
+paginate(items: Int[], page: Int, size: Int) -> Int[]
+	all Err(err) in out: page < 0 or page x size > len(items) -> err == 0

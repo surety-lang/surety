@@ -798,6 +798,9 @@ fn parse_expr(toks: &[Token], block: &[Item], ctx: Ctx, line: usize) -> Result<E
                 "a quantifier must be the last operand on its line",
             ));
         }
+        if let Some(e) = p.stray_name() {
+            return Err(e);
+        }
         return Err(syntax(t.line, format!("unexpected {}", t.describe())));
     }
     if !block.is_empty() && !p.block_used {
@@ -832,6 +835,29 @@ impl<'a> ExprParser<'a> {
     }
     fn err(&self, msg: impl Into<String>) -> Error {
         syntax(self.cur_line(), msg).spanning(self.peek().map(|t| (t.col, t.end)))
+    }
+    /// A name straight after a complete term: two terms side by side, which
+    /// nothing in the language reads. Most often a multiplication, as in
+    /// `page x size`, and there is no arithmetic yet.
+    fn stray_name(&self) -> Option<Error> {
+        let t = self.peek()?;
+        let Tok::Ident(n) = &t.tok else {
+            return None;
+        };
+        if is_reserved(n) {
+            return None;
+        }
+        let before = self.pos.checked_sub(1).and_then(|i| self.toks.get(i))?;
+        Some(
+            syntax(
+                t.line,
+                format!(
+                    "unexpected `{n}` after {}: two terms cannot stand side by side, and the language has no multiplication or other arithmetic yet",
+                    before.describe()
+                ),
+            )
+            .spanning(Some((t.col, t.end))),
+        )
     }
     /// The columns tokens `from..to` cover, when they all sit on `line`.
     fn span(&self, from: usize, to: usize, line: usize) -> Option<(usize, usize)> {
@@ -1305,7 +1331,11 @@ impl<'a> ExprParser<'a> {
         }
         let where_ = if self.peek_ident("where") {
             self.bump();
-            Some(self.parse_iff()?)
+            let w = self.parse_iff()?;
+            if let Some(e) = self.stray_name() {
+                return Err(e);
+            }
+            Some(w)
         } else {
             None
         };
@@ -1336,6 +1366,10 @@ impl<'a> ExprParser<'a> {
                 self.block_used = true;
             } else {
                 body = Some(self.parse_iff()?);
+                // Before the binder can look unused: the line has a stray name.
+                if let Some(e) = self.stray_name() {
+                    return Err(e);
+                }
                 if !self.block.is_empty() && !self.block_used {
                     return Err(Error::new(
                         ErrorKind::TwoBodies,

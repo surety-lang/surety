@@ -148,6 +148,40 @@ fn a_relation_over_different_elements_names_both_sides() {
     assert!(e.fix.is_none(), "no edit beyond doubt");
 }
 
+/// A name straight after a complete term is two terms side by side, most
+/// often a multiplication the language does not have: said so and
+/// underlined on the name, wherever it sits, and before a quantifier's
+/// binder can look unused.
+#[test]
+fn two_terms_side_by_side_are_named() {
+    let text = fs::read_to_string(common::corpus_dir().join("bad/side_by_side.sur")).unwrap();
+    let e = parse(&text).unwrap_err();
+    assert_eq!(
+        e.message,
+        "unexpected `x` after `page`: two terms cannot stand side by side, and the language has no multiplication or other arithmetic yet"
+    );
+    let line = text.lines().nth(e.line - 1).unwrap();
+    let (from, to) = e.span.unwrap();
+    assert_eq!(
+        line.chars().skip(from).take(to - from).collect::<String>(),
+        "x"
+    );
+    for body in [
+        "page x size > 0",
+        "all i in items: page x size > i",
+        "all i in items where page x size > 0: i > 0",
+    ] {
+        let e = parse(&format!(
+            "f(items: Int[], page: Int, size: Int) -> Int\n\t{body}\n"
+        ))
+        .unwrap_err();
+        assert!(
+            e.message.starts_with("unexpected `x` after `page`"),
+            "{body}: {e}"
+        );
+    }
+}
+
 /// A minus sign before a number is part of it, wherever a number goes: a
 /// named value, a property, a float, an example, and the line the editor's
 /// quick fix writes for a gap whose input is negative. Rendered, it reads

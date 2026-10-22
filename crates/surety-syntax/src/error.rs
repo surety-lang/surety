@@ -56,6 +56,15 @@ impl ErrorKind {
     }
 }
 
+/// An edit that mends an error: on the error's line, the term `find`
+/// becomes `replace`. The editor offers it as a quick fix.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Fix {
+    pub title: String,
+    pub find: String,
+    pub replace: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Error {
     pub kind: ErrorKind,
@@ -65,6 +74,8 @@ pub struct Error {
     /// exclusive, counted in characters from 0; none when only the line is
     /// known.
     pub span: Option<(usize, usize)>,
+    /// The edit that mends it, when there is one beyond doubt.
+    pub fix: Option<Box<Fix>>,
 }
 
 impl Error {
@@ -74,7 +85,14 @@ impl Error {
             line,
             message: message.into(),
             span: None,
+            fix: None,
         }
+    }
+
+    /// The same error with the edit that mends it.
+    pub fn fixed_by(mut self, fix: Fix) -> Self {
+        self.fix = Some(Box::new(fix));
+        self
     }
 
     /// The same error about these columns of its line; an empty span is

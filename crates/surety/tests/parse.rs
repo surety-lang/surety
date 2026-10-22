@@ -118,8 +118,18 @@ fn a_relation_over_different_elements_names_both_sides() {
         e.message,
         "`same_order_as` relates lists of different element types: each element of `out.events` is itself a list of { id: Id, at: Text }, while `events` holds { id: Id, at: Text }; `flatten(out.events)` joins those lists into one"
     );
+    // It carries the edit: the editor offers it as a quick fix.
+    assert_eq!(
+        e.fix.as_deref(),
+        Some(&surety_syntax::Fix {
+            title: "Join the lists: flatten(out.events)".into(),
+            find: "out.events".into(),
+            replace: "flatten(out.events)".into(),
+        })
+    );
     // The nested side on the right.
     let e = check(&buckets("events same_elements_as out.events")).unwrap_err();
+    assert_eq!(e.fix.as_ref().map(|f| f.find.as_str()), Some("out.events"));
     assert!(
         e.message.ends_with("while each element of `out.events` is itself a list of { id: Id, at: Text }; `flatten(out.events)` joins those lists into one"),
         "{}",
@@ -130,10 +140,12 @@ fn a_relation_over_different_elements_names_both_sides() {
     // Otherwise both sides by name, with no suggestion.
     let text =
         fs::read_to_string(common::corpus_dir().join("bad/element_type_mismatch.sur")).unwrap();
+    let e = check(&text).unwrap_err();
     assert_eq!(
-        check(&text).unwrap_err().message,
+        e.message,
         "`same_order_as` relates lists of different element types: `out` holds { id: Id, amount: Int, user_name: Option<Text> }, and `orders` holds { id: Id, amount: Int }"
     );
+    assert!(e.fix.is_none(), "no edit beyond doubt");
 }
 
 /// A minus sign before a number is part of it, wherever a number goes: a

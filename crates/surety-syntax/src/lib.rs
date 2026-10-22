@@ -11,7 +11,7 @@ pub mod render;
 pub mod resolve;
 
 pub use ast::*;
-pub use error::{Error, ErrorKind};
+pub use error::{Error, ErrorKind, Fix};
 pub use load::load_with_siblings;
 pub use parser::parse;
 pub use resolve::Graph;

@@ -84,17 +84,65 @@ pub fn diagnostic(e: &Error, text: &str) -> Json {
     let l = text.lines().nth(line).unwrap_or_default();
     let len = l.chars().count();
     let indent = l.chars().take_while(|c| c.is_whitespace()).count();
-    let (start, len) = match e.span {
+    // A fix names the term it mends: underline that when no span is known.
+    let term = e.fix.as_ref().and_then(|f| term_at(l, &f.find));
+    let (start, len) = match e.span.or(term) {
         Some((from, to)) if to <= len => (from, to),
         _ => (if indent < len { indent } else { 0 }, len),
     };
-    json!({
+    let mut d = json!({
         "range": { "start": { "line": line, "character": start }, "end": { "line": line, "character": len } },
         "severity": 1,
         "code": e.kind.name(),
         "source": "surety",
         "message": e.message,
+    });
+    if let Some(f) = &e.fix {
+        d["data"] = json!({ "fix": { "title": f.title, "find": f.find, "replace": f.replace } });
+    }
+    d
+}
+
+/// The columns of the first whole term `find` on a line: not inside a
+/// longer name or field chain.
+pub fn term_at(line: &str, find: &str) -> Option<(usize, usize)> {
+    let chars: Vec<char> = line.chars().collect();
+    let want: Vec<char> = find.chars().collect();
+    let joins = |c: Option<&char>| c.is_some_and(|c| c.is_alphanumeric() || *c == '_' || *c == '.');
+    (0..=chars.len().checked_sub(want.len())?).find_map(|at| {
+        let end = at + want.len();
+        let whole = chars[at..end] == want[..]
+            && !joins(at.checked_sub(1).and_then(|i| chars.get(i)))
+            && !joins(chars.get(end));
+        whole.then_some((at, end))
     })
+}
+
+/// The quick fixes for diagnostics that carry one: the edit on the line the
+/// diagnostic is on, where the term it names stands now.
+pub fn code_actions(uri: &str, text: &str, diagnostics: &[Json]) -> Json {
+    let mut actions = Vec::new();
+    for d in diagnostics {
+        let fix = &d["data"]["fix"];
+        let (Some(find), Some(replace)) = (fix["find"].as_str(), fix["replace"].as_str()) else {
+            continue;
+        };
+        let line = d["range"]["start"]["line"].as_u64().unwrap_or(0) as usize;
+        let Some((from, to)) = text.lines().nth(line).and_then(|l| term_at(l, find)) else {
+            continue;
+        };
+        actions.push(json!({
+            "title": fix["title"],
+            "kind": "quickfix",
+            "diagnostics": [d],
+            "isPreferred": true,
+            "edit": { "changes": { uri: [{
+                "range": { "start": { "line": line, "character": from }, "end": { "line": line, "character": to } },
+                "newText": replace,
+            }] } },
+        }));
+    }
+    Json::Array(actions)
 }
 
 /// `file:///a/b%20c.sur` → `/a/b c.sur`.
@@ -190,6 +238,7 @@ impl Server {
                         "documentSymbolProvider": true,
                         "documentFormattingProvider": true,
                         "completionProvider": { "triggerCharacters": ["."] },
+                        "codeActionProvider": true,
                     },
                     "serverInfo": { "name": "surety-lsp", "version": env!("CARGO_PKG_VERSION") },
                 }),
@@ -236,6 +285,14 @@ impl Server {
                 let text = self.docs.get(&uri).cloned().unwrap_or_default();
                 let result = query::definition(&uri_to_path(&uri), &text, &params["position"]);
                 vec![Self::response(&id, result)]
+            }
+            ("textDocument/codeAction", Some(id)) => {
+                let text = self.docs.get(&uri).cloned().unwrap_or_default();
+                let diagnostics = params["context"]["diagnostics"]
+                    .as_array()
+                    .cloned()
+                    .unwrap_or_default();
+                vec![Self::response(&id, code_actions(&uri, &text, &diagnostics))]
             }
             ("surety/unverified", Some(id)) => {
                 let text = self.docs.get(&uri).cloned().unwrap_or_default();

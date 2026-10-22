@@ -194,6 +194,32 @@ suite('the verdict on save', () => {
         // A mark, not a diagnostic.
         assert.ok(!vscode.languages.getDiagnostics(uri).some(d => ranges.some(r => r.intersection(d.range))), 'no diagnostic on the call');
     });
+
+    test('a relation over a list of lists: the quick fix joins them with flatten', async () => {
+        const uri = workspaceFile('nested.sur');
+        const doc = await vscode.workspace.openTextDocument(uri);
+        await vscode.window.showTextDocument(doc);
+        const diags = await ours(uri, all => all.some(d => d.code === 'element_type_mismatch'));
+        const d = diags.find(x => x.code === 'element_type_mismatch')!;
+        assert.strictEqual(doc.getText(d.range), 'out.events', 'the term, not the line');
+        const actions = await vscode.commands.executeCommand<vscode.CodeAction[]>('vscode.executeCodeActionProvider', uri, d.range);
+        const fix = actions.find(a => a.title === 'Join the lists: flatten(out.events)');
+        assert.ok(fix?.edit, JSON.stringify(actions.map(a => a.title)));
+        // Applied with the cursor on the error, as from the lightbulb.
+        const editor = vscode.window.activeTextEditor!;
+        editor.selection = new vscode.Selection(4, 3, 4, 3);
+        assert.ok(await vscode.workspace.applyEdit(fix!.edit!));
+        assert.strictEqual(doc.lineAt(4).text, '\tflatten(out.events) same_order_as events');
+        // The server has the new text once it answers a request after it:
+        // it publishes a change's diagnostics before answering the next one.
+        await vscode.commands.executeCommand('vscode.executeHoverProvider', uri, new vscode.Position(0, 6));
+        // Off the edited block, so what shows is the server's own word on the new line.
+        editor.selection = new vscode.Selection(0, 0, 0, 0);
+        await new Promise(r => setTimeout(r, 500));
+        const after = vscode.languages.getDiagnostics(uri).filter(x => x.source === 'surety');
+        assert.ok(!after.some(x => x.code === 'element_type_mismatch'), JSON.stringify(after.map(x => x.message)));
+        await vscode.commands.executeCommand('workbench.action.files.revert');
+    });
 });
 
 suite('formatting through the server', () => {

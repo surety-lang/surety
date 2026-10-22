@@ -38,6 +38,8 @@ async function main(): Promise<void> {
     fs.writeFileSync(path.join(workspace, 'inputs.sur'), p2.replace('\tout same_order_as orders\n', '\tout same_order_as orders\n\tall o in orders: o.amount >= 0\n\tlen(orders) >= 0\n'));
     // P8 calls `well_formed_email`, which no obligation declares.
     fs.copyFileSync(path.join(corpus, 'p8.sur'), path.join(workspace, 'graphref.sur'));
+    // A relation over a list of lists: the error's quick fix joins them.
+    fs.writeFileSync(path.join(workspace, 'nested.sur'), 'type Event = { id: Id, at: Text }\ntype Bucket = { month: Text, events: Event[] }\n\nbucket(events: Event[]) -> Bucket[]\n\tout.events same_order_as events\n');
     // P2 as it is, for a run that settles.
     fs.writeFileSync(path.join(workspace, 'settled.sur'), p2);
     // P2 with its left-out clause over `out`: a file that does not parse.

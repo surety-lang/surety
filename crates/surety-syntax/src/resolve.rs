@@ -2,7 +2,7 @@
 //! type inference over expressions, and the static checks that need types.
 
 use crate::ast::*;
-use crate::error::{Error, ErrorKind};
+use crate::error::{Error, ErrorKind, Fix};
 use crate::parser::BUILTINS;
 
 #[derive(Debug, Clone)]
@@ -663,23 +663,41 @@ impl<'g> Scope<'g> {
                     // usual way to meet this: a field broadcast over a list
                     // of records that each hold a list. `flatten` joins them.
                     let nested = |outer: &Type, inner: &Type| matches!(outer, Type::List(t, _) if same_type(t, inner));
-                    let message = if nested(&ea, &eb) {
-                        format!(
-                            "`{}` relates lists of different element types: each element of `{sa}` is itself a list of {eb}, while `{sb}` holds {eb}; `flatten({sa})` joins those lists into one",
-                            rel.symbol()
+                    let join = |side: &str| Fix {
+                        title: format!("Join the lists: flatten({side})"),
+                        find: side.to_string(),
+                        replace: format!("flatten({side})"),
+                    };
+                    let (message, fix) = if nested(&ea, &eb) {
+                        (
+                            format!(
+                                "`{}` relates lists of different element types: each element of `{sa}` is itself a list of {eb}, while `{sb}` holds {eb}; `flatten({sa})` joins those lists into one",
+                                rel.symbol()
+                            ),
+                            Some(join(&sa)),
                         )
                     } else if nested(&eb, &ea) {
-                        format!(
-                            "`{}` relates lists of different element types: `{sa}` holds {ea}, while each element of `{sb}` is itself a list of {ea}; `flatten({sb})` joins those lists into one",
-                            rel.symbol()
+                        (
+                            format!(
+                                "`{}` relates lists of different element types: `{sa}` holds {ea}, while each element of `{sb}` is itself a list of {ea}; `flatten({sb})` joins those lists into one",
+                                rel.symbol()
+                            ),
+                            Some(join(&sb)),
                         )
                     } else {
-                        format!(
-                            "`{}` relates lists of different element types: `{sa}` holds {ea}, and `{sb}` holds {eb}",
-                            rel.symbol()
+                        (
+                            format!(
+                                "`{}` relates lists of different element types: `{sa}` holds {ea}, and `{sb}` holds {eb}",
+                                rel.symbol()
+                            ),
+                            None,
                         )
                     };
-                    return Err(Error::new(ErrorKind::ElementTypeMismatch, line, message));
+                    let e = Error::new(ErrorKind::ElementTypeMismatch, line, message);
+                    return Err(match fix {
+                        Some(f) => e.fixed_by(f),
+                        None => e,
+                    });
                 }
                 Ok(Type::Bool)
             }

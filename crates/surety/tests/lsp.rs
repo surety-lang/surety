@@ -687,3 +687,57 @@ fn the_server_lists_calls_no_obligation_declares() {
     );
     lsp.stop();
 }
+
+/// An error that knows its mend: the diagnostic underlines the term and
+/// carries the edit, and the server offers it as a quick fix whose edit,
+/// applied, leaves a file that checks.
+#[test]
+fn the_server_offers_the_flatten_an_error_names() {
+    let mut lsp = Lsp::start();
+    let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("lsp-fix");
+    fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("buckets.sur");
+    let text = "type Event = { id: Id, at: Text }\ntype Bucket = { month: Text, events: Event[] }\n\nbucket(events: Event[]) -> Bucket[]\n\tout.events same_order_as events\n";
+    fs::write(&path, text).unwrap();
+    let diagnostics = lsp.open(&path);
+    assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
+    let d = &diagnostics[0];
+    assert_eq!(d["code"], "element_type_mismatch");
+    assert_eq!(
+        d["range"]["start"]["character"], 1,
+        "the term, after the tab"
+    );
+    assert_eq!(d["range"]["end"]["character"], 11, "`out.events`");
+    assert_eq!(d["data"]["fix"]["replace"], "flatten(out.events)");
+    let uri = surety_lsp::path_to_uri(&fs::canonicalize(&path).unwrap());
+    let reply = lsp.request(
+        "textDocument/codeAction",
+        json!({ "textDocument": { "uri": uri }, "range": d["range"], "context": { "diagnostics": [d] } }),
+    );
+    let actions = reply["result"].as_array().cloned().unwrap_or_default();
+    assert_eq!(actions.len(), 1, "{actions:?}");
+    let a = &actions[0];
+    assert_eq!(a["title"], "Join the lists: flatten(out.events)");
+    assert_eq!(a["kind"], "quickfix");
+    let edit = &a["edit"]["changes"][&uri][0];
+    assert_eq!(edit["newText"], "flatten(out.events)");
+    // Applied by hand: the line becomes the suggestion, and the file checks.
+    let line = text.lines().nth(4).unwrap();
+    let (from, to) = (
+        edit["range"]["start"]["character"].as_u64().unwrap() as usize,
+        edit["range"]["end"]["character"].as_u64().unwrap() as usize,
+    );
+    let fixed_line: String = line
+        .chars()
+        .take(from)
+        .chain("flatten(out.events)".chars())
+        .chain(line.chars().skip(to))
+        .collect();
+    assert_eq!(fixed_line, "\tflatten(out.events) same_order_as events");
+    let fixed = text.replace(line, &fixed_line);
+    assert!(
+        lsp.change(&path, &fixed).is_empty(),
+        "the file checks after the fix"
+    );
+    lsp.stop();
+}

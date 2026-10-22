@@ -218,6 +218,67 @@ impl Divergence {
     }
 }
 
+/// A value as text that fits a hover: on one line when it fits in
+/// `WIDTH` columns at its indent, else a list's elements and a record's
+/// fields one to a line, each laid out the same way.
+pub fn pretty(v: &Value) -> String {
+    pretty_at(v, 0)
+}
+
+const WIDTH: usize = 72;
+
+fn pretty_at(v: &Value, indent: usize) -> String {
+    let flat = v.to_string();
+    if indent + flat.chars().count() <= WIDTH {
+        return flat;
+    }
+    let pad = "    ".repeat(indent + 1);
+    let close = "    ".repeat(indent);
+    match v {
+        Value::List(xs) if !xs.is_empty() => {
+            let items: Vec<String> = xs
+                .iter()
+                .map(|x| format!("{pad}{}", pretty_at(x, indent + 1)))
+                .collect();
+            format!("[\n{}\n{close}]", items.join(",\n"))
+        }
+        Value::Record(fs) if !fs.is_empty() => {
+            let items: Vec<String> = fs
+                .iter()
+                .map(|(n, x)| format!("{pad}{n}: {}", pretty_at(x, indent + 1)))
+                .collect();
+            format!("{{\n{}\n{close}}}", items.join(",\n"))
+        }
+        Value::Ok(x) => format!("Ok({})", pretty_at(x, indent)),
+        Value::Err(x) => format!("Err({})", pretty_at(x, indent)),
+        _ => flat,
+    }
+}
+
+/// The inputs as an `in:` would carry them: one value, or a tuple of them.
+pub fn pretty_inputs(inputs: &[Value]) -> String {
+    match inputs {
+        [one] => pretty(one),
+        many => {
+            let flat = format!(
+                "({})",
+                many.iter()
+                    .map(|v| v.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            );
+            if flat.chars().count() <= WIDTH {
+                return flat;
+            }
+            let items: Vec<String> = many
+                .iter()
+                .map(|v| format!("    {}", pretty_at(v, 1)))
+                .collect();
+            format!("(\n{}\n)", items.join(",\n"))
+        }
+    }
+}
+
 /// How big an input is to read: one per value, plus a text's length.
 fn size(v: &Value) -> usize {
     match v {

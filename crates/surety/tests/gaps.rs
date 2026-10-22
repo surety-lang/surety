@@ -66,6 +66,30 @@ fn two_outputs_part_where_they_first_differ() {
     assert!(matches!(d.change, Change::Values(..)));
 }
 
+#[test]
+fn a_value_is_laid_out_to_fit() {
+    use surety_check::{pretty, pretty_inputs};
+    let e = |id: &str| {
+        rec(&[
+            ("id", text(id)),
+            ("occurred_at", text("2026-10-22T10:00:00Z")),
+        ])
+    };
+    // Short: one line.
+    assert_eq!(
+        pretty(&Value::List(vec![e("k1")])),
+        "[{id: \"k1\", occurred_at: \"2026-10-22T10:00:00Z\"}]"
+    );
+    // Long: an element to a line, inside Ok.
+    let long = Value::Ok(Box::new(Value::List(vec![e("k1"), e("k2"), e("k3")])));
+    assert_eq!(
+        pretty(&long),
+        "Ok([\n    {id: \"k1\", occurred_at: \"2026-10-22T10:00:00Z\"},\n    {id: \"k2\", occurred_at: \"2026-10-22T10:00:00Z\"},\n    {id: \"k3\", occurred_at: \"2026-10-22T10:00:00Z\"}\n])"
+    );
+    // Two inputs that fit stay a one-line tuple.
+    assert_eq!(pretty_inputs(&[Value::Int(1), text("a")]), "(1, \"a\")");
+}
+
 fn scratch(name: &str, source: &str) -> PathBuf {
     let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("gaps");
     fs::create_dir_all(&dir).unwrap();
@@ -129,6 +153,14 @@ fn an_obligation_with_no_clauses_is_one_gap() {
     assert_eq!(gj["shown_by"], r.open().len());
     assert!(gj["says"].as_str().unwrap().starts_with("out can be "));
     assert!(gj["sur"]["a"].is_string() && gj["sur"]["b"].is_string());
+    // Laid out for a hover: the four-event input one event to a line.
+    let input = gj["pretty"]["in"].as_str().unwrap();
+    assert!(input.starts_with("[\n    {"), "{input}");
+    assert!(input.lines().all(|l| l.chars().count() <= 72), "{input}");
+    assert_eq!(
+        gj["pretty"]["a"], gj["sur"]["a"],
+        "a short output stays on one line"
+    );
     assert!(gj["inputs"][0]["sur"].as_str().unwrap().starts_with("in: "));
     assert_eq!(gj["mutants"].as_array().unwrap().len(), 2);
     assert!(gj["mutants"][0]["returns"].is_string(), "{gj}");

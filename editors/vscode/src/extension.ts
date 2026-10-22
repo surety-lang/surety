@@ -137,47 +137,51 @@ async function checkDocument(doc: vscode.TextDocument, mode: Mode): Promise<void
     const lines = json.stdout.split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
     const diags = useCheck ? checkDiagnostics(doc, lines, sig) : mutantDiagnostics(doc, lines, sig);
     verdicts.set(doc.uri, diags);
-    gapDetail.set(doc.uri.toString(), lines.filter(l => l.kind === 'gap').map(g => ({ range: lineRange(doc, sig), md: gapMarkdown(g) })));
+    gapDetail.set(doc.uri.toString(), lines.filter(l => l.kind === 'gap').map(g => ({ range: outputRange(doc, sig), md: gapMarkdown(g) })));
+}
+
+/** The output type on the signature line: what a gap, a claim about `out`, sits under. */
+function outputRange(doc: vscode.TextDocument, sig: number): vscode.Range {
+    const text = doc.lineAt(Math.max(0, Math.min(sig, doc.lineCount - 1))).text;
+    const arrow = text.lastIndexOf('->');
+    if (arrow < 0) {
+        return lineRange(doc, sig);
+    }
+    const start = arrow + 2 + (text.slice(arrow + 2).length - text.slice(arrow + 2).trimStart().length);
+    const end = text.trimEnd().length;
+    return new vscode.Range(sig, start, sig, Math.max(start, end));
 }
 
 // A gap is the underdetermination check's finding as an author reads it:
 // where two outputs that pass every clause differ, however many inputs
-// show it. Its diagnostic is that one line; the input and both outputs in
-// full, highlighted, are its hover. The inputs and mutants it holds carry
-// its index and get no diagnostic of their own.
+// show it. Its diagnostic is that one line, under the output type; its
+// hover is the example that shows it, laid out and highlighted. The inputs
+// and mutants it holds carry its index and get no diagnostic of their own.
 const gapDetail = new Map<string, { range: vscode.Range; md: vscode.MarkdownString }[]>();
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-function inline(s: string): string {
-    return s.includes('`') ? `\`\` ${s} \`\`` : `\`${s}\``;
-}
-
 function gapMessage(g: any): string {
-    return `gap: ${g.says}  (${plural(g.shown_by, 'input shows', 'inputs show')} it)`;
+    return `underdetermined: ${g.says}  (${plural(g.shown_by, 'input', 'inputs')})`;
 }
 
 function gapMarkdown(g: any): vscode.MarkdownString {
     const md = new vscode.MarkdownString();
-    md.appendMarkdown('**Two outputs pass every clause:** ');
-    md.appendText(`${g.says}.`);
-    md.appendMarkdown('\n\n');
-    const first = g.a_is_expected ? `example ${g.example}` : 'passes every clause';
-    md.appendCodeblock(`${g.inputs?.[0]?.sur ?? 'in: ?'}\nout: ${g.sur.a}    // ${first}\nout: ${g.sur.b}    // also passes every clause`, 'surety');
-    if (g.at && g.says.includes('\u2026')) {
-        md.appendMarkdown(`\n\nAt ${inline(g.place)}: ${g.at.a ? inline(g.at.a) : 'nothing'} or ${g.at.b ? inline(g.at.b) : 'nothing'}.`);
-    }
-    md.appendMarkdown(`\n\n${plural(g.shown_by, 'input shows', 'inputs show')} it; this is the smallest.`);
-    const mutants: any[] = g.mutants ?? [];
+    const a = g.a_is_expected ? `    // example ${g.example}` : '';
+    md.appendCodeblock(`in: ${g.pretty.in}\nout: ${g.pretty.a}${a}\nout: ${g.pretty.b}`, 'surety');
+    const mutants: string[] = (g.mutants ?? []).map((m: any) => `\`${m.mutant}\``);
     if (mutants.length) {
-        const named = mutants.map(m => `${inline(m.mutant)} (${m.describes}${m.returns ? `: ${inline(m.returns)}` : ''})`);
-        md.appendMarkdown(` The same hole is what ${named.join(' and ')} ${mutants.length === 1 ? 'returns' : 'return'}.`);
+        md.appendMarkdown(`Also what ${mutants.join(' and ')} ${mutants.length === 1 ? 'returns' : 'return'}.`);
     }
     return md;
 }
 
 function diag(doc: vscode.TextDocument, line: number, message: string, severity: vscode.DiagnosticSeverity): vscode.Diagnostic {
-    const d = new vscode.Diagnostic(lineRange(doc, line - 1), message, severity);
+    return diagAt(lineRange(doc, line - 1), message, severity);
+}
+
+function diagAt(range: vscode.Range, message: string, severity: vscode.DiagnosticSeverity): vscode.Diagnostic {
+    const d = new vscode.Diagnostic(range, message, severity);
     d.source = 'surety';
     return d;
 }
@@ -203,7 +207,7 @@ function checkDiagnostics(doc: vscode.TextDocument, lines: any[], sig: number): 
             continue;
         }
         if (l.kind === 'gap') {
-            out.push(diag(doc, sig + 1, gapMessage(l), vscode.DiagnosticSeverity.Warning));
+            out.push(diagAt(outputRange(doc, sig), gapMessage(l), vscode.DiagnosticSeverity.Warning));
             continue;
         }
         const party = l.party ? ` (${l.party})` : '';
@@ -225,14 +229,17 @@ function mutantDiagnostics(doc: vscode.TextDocument, lines: any[], sig: number):
     const accepted = lines.filter(l => l.kind === 'accepted');
     const applicable = lines.filter(l => l.kind === 'mutant_slipped' || l.kind === 'mutant_caught').length;
     const total = applicable + lines.filter(l => l.kind === 'mutant_not_applicable').length;
-    const parts = [plural(gaps.length, 'gap', 'gaps'), `mutants: ${applicable} of ${total} apply, ${slipped.length} slipped`];
+    const parts = [`mutants: ${applicable} of ${total} apply, ${slipped.length} slipped`];
     if (accepted.length) {
         parts.push(`${accepted.length} accepted`);
     }
     const clean = slipped.length === 0 && underdetermined.length === 0;
-    out.push(diag(doc, sig + 1, `${clean ? 'NOT UNDERDETERMINED' : 'UNDERDETERMINED'}  ${parts.join('; ')}`, clean ? vscode.DiagnosticSeverity.Information : vscode.DiagnosticSeverity.Warning));
+    // Gaps say it themselves; the counts go to the output channel.
+    if (gaps.length === 0) {
+        out.push(diag(doc, sig + 1, `${clean ? 'NOT UNDERDETERMINED' : 'UNDERDETERMINED'}  ${parts.join('; ')}`, clean ? vscode.DiagnosticSeverity.Information : vscode.DiagnosticSeverity.Warning));
+    }
     for (const g of gaps) {
-        out.push(diag(doc, sig + 1, gapMessage(g), vscode.DiagnosticSeverity.Warning));
+        out.push(diagAt(outputRange(doc, sig), gapMessage(g), vscode.DiagnosticSeverity.Warning));
     }
     for (const m of slipped.filter(m => m.gap === undefined)) {
         const name = `${m.candidate?.mutant} (${m.candidate?.describes})`;

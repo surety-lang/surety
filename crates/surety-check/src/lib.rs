@@ -16,7 +16,7 @@ pub use checker::{
     GenRun, LookHere, LookKind, Outcome, Party, PropVerdict, PropertyReport, Report, Verdict,
 };
 pub use diff::{Class, DiffReport, Difference};
-pub use gap::{Change, Divergence, Gap, Step, diverge, gaps};
+pub use gap::{Change, Divergence, Gap, Step, diverge, gaps, pretty, pretty_inputs};
 pub use generate::{Bucket, Budget, Domain, Generated};
 pub use mutants::{Clause, Mutant, MutantReport, MutantRun, MutantVerdict, Underdetermined};
 pub use value::{BoundaryError, Value};

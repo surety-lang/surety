@@ -1429,8 +1429,9 @@ fn clause_json(c: &Clause) -> Json {
 }
 
 /// A gap as one object: the line that says it, the place and what each
-/// output holds there, the smallest input with both outputs in full, how
-/// many inputs show it, and the slipped mutants that return one of them.
+/// output holds there, the smallest input with both outputs in full (flat
+/// and laid out to fit a hover), how many inputs show it, and the slipped
+/// mutants that return one of them.
 fn gap_json(r: &MutantReport, g: &Gap, index: usize) -> Json {
     let w = g.witness(r);
     let d = &g.divergence;
@@ -1445,6 +1446,7 @@ fn gap_json(r: &MutantReport, g: &Gap, index: usize) -> Json {
         "inputs": input_json(&w.inputs),
         "outputs": { "a": to_json(&w.a), "b": to_json(&w.b) },
         "sur": { "a": w.a.to_string(), "b": w.b.to_string() },
+        "pretty": { "in": surety_check::pretty_inputs(&w.inputs), "a": surety_check::pretty(&w.a), "b": surety_check::pretty(&w.b) },
         "a_is_expected": w.a_is_expected,
         "shown_by": g.inputs.len(),
         "mutants": g.mutants.iter().map(|m| {

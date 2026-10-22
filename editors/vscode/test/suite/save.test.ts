@@ -62,20 +62,20 @@ suite('the verdict on save', () => {
         await vscode.window.showTextDocument(doc);
         await vscode.commands.executeCommand('surety.mutants');
         const sig = 2;
-        const diags = await ours(uri, all => all.some(d => onSignature(sig)(d) && /UNDERDETERMINED/.test(d.message)));
-        const summary = diags.find(d => d.message.startsWith('UNDERDETERMINED'))!;
-        assert.ok(summary, JSON.stringify(diags.map(d => d.message)));
+        const diags = await ours(uri, all => all.some(d => onSignature(sig)(d) && d.message.startsWith('underdetermined: ')));
         // The ties are one gap, read where the two passing outputs differ,
-        // and no input gets a diagnostic of its own.
-        const gaps = diags.filter(d => d.message.startsWith('gap: '));
+        // under the output type; no input gets a diagnostic of its own, and
+        // no summary line stacks on it.
+        const gaps = diags.filter(d => d.message.startsWith('underdetermined: '));
         assert.strictEqual(gaps.length, 1, JSON.stringify(diags.map(d => d.message)));
         assert.ok(gaps[0].message.includes('].amount can be '), gaps[0].message);
-        assert.ok(!diags.some(d => d.message.startsWith('underdetermined: ')), JSON.stringify(diags.map(d => d.message)));
-        // The hover on the signature line has the input and both outputs, highlighted as Surety.
+        assert.ok(!diags.some(d => /^UNDERDETERMINED|^underdetermined: two outputs/.test(d.message)), JSON.stringify(diags.map(d => d.message)));
+        const signature = doc.lineAt(sig).text;
+        assert.strictEqual(gaps[0].range.start.character, signature.indexOf('-> ') + 3, 'under the output type');
+        // The hover on it is the example, laid out and highlighted as Surety.
         const hovers = await vscode.commands.executeCommand<vscode.Hover[]>('vscode.executeHoverProvider', uri, gaps[0].range.start);
         const text = hovers.flatMap(h => h.contents.map(c => (typeof c === 'string' ? c : c.value))).join('\n');
-        assert.ok(text.includes('**Two outputs pass every clause:**'), text);
-        assert.ok(/```surety\nin: \[/.test(text) && text.includes('// also passes every clause'), text);
-        assert.ok(text.includes('inputs show it; this is the smallest.'), text);
+        assert.ok(/```surety\nin: \[\n    \{/.test(text), text);
+        assert.strictEqual((text.match(/\nout: /g) ?? []).length, 2, text);
     });
 });

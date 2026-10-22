@@ -420,8 +420,15 @@ fn cause_block(s: &mut String, index: usize, c: &Cause) {
             ));
         }
         Party::Performance => {
+            // The search runs only when the examples leave the claim open;
+            // otherwise the examples are the evidence, and nothing was found.
+            let why = if c.passing.is_some() {
+                "an output that passes every clause exists"
+            } else {
+                "the performance already fails on the examples"
+            };
             s.push_str(&format!(
-                "  PERFORMANCE FAILS  cause {}: {clauses} on {where_}; an output that passes every clause exists\n",
+                "  PERFORMANCE FAILS  cause {}: {clauses} on {where_}; {why}\n",
                 index + 1
             ));
         }

@@ -61,6 +61,15 @@ pub enum PropVerdict {
     Skipped,
 }
 
+impl PropVerdict {
+    /// Whether the examples speak against the claim: false on one, or not
+    /// evaluable. A claim with no example to run over is not contradicted,
+    /// so a generated failure of it goes to the search like any other.
+    pub fn contradicted(&self) -> bool {
+        matches!(self, PropVerdict::Fail { .. } | PropVerdict::Error(_))
+    }
+}
+
 /// A generated run on which a claim did not hold.
 #[derive(Debug, Clone)]
 pub struct Counterexample {
@@ -828,7 +837,7 @@ impl<'g> Checker<'g> {
                     line: p.line,
                     label: format!("property (line {})", p.line),
                     text: p.text.clone(),
-                    binding_pass: p.verdict == PropVerdict::Pass,
+                    binding_pass: !p.verdict.contradicted(),
                     cex: p.counterexamples.clone(),
                     suggest: p.suggest.clone(),
                     note: p.note.clone(),
@@ -845,7 +854,7 @@ impl<'g> Checker<'g> {
                         f.description,
                         f.preserved.join(", ")
                     ),
-                    binding_pass: f.verdict == PropVerdict::Pass,
+                    binding_pass: !f.verdict.contradicted(),
                     cex: f.counterexamples.clone(),
                     suggest: f.suggest.clone(),
                     note: f.note.clone(),

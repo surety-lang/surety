@@ -1,0 +1,74 @@
+//! Whose a generated-input failure is, when the obligation has no examples:
+//! no example speaks against the claim, so the search decides, as it does
+//! when the examples pass. Before, a claim with no example run was read as
+//! contradicted, and every such failure was put on the performance with no
+//! search and a line saying a passing output existed.
+
+use std::fs;
+use std::path::PathBuf;
+
+use surety_check::Party;
+
+fn scratch(dir: &str, sur: &str, py: &str) -> PathBuf {
+    let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR"))
+        .join("attribution")
+        .join(dir);
+    fs::create_dir_all(&dir).unwrap();
+    fs::write(dir.join("keep_small.py"), py).unwrap();
+    let path = dir.join("keep_small.sur");
+    fs::write(&path, sur).unwrap();
+    path
+}
+
+const CLAUSES: &str = "type Order = { amount: Int }\n\nkeep_small(orders: Order[]) -> Order[]\n\tall o in out: o.amount <= 100\n\tout same_order_as orders\n\tall o leftover in orders: o.amount > 100\n";
+
+const RIGHT: &str =
+    "def keep_small(orders):\n    return [o for o in orders if o[\"amount\"] <= 100]\n";
+
+/// A claim about the inputs alone, false on the generated negative amounts
+/// whatever the output: the obligation's, found by a search that comes up
+/// empty, and the right performance passes.
+#[test]
+fn no_examples_and_no_passing_output_is_the_obligations() {
+    let sur = format!("{CLAUSES}\tall a in orders.amount: a >= 0\n");
+    let path = scratch("unsatisfiable", &sur, RIGHT);
+    let r = surety::check_file(&path, &path.with_extension("py")).unwrap();
+    let text = surety::render(&r);
+    assert_eq!(r.causes.len(), 1, "{text}");
+    let c = &r.causes[0];
+    assert_eq!(c.party, Party::Obligation, "{text}");
+    assert!(
+        c.passing.is_none() && c.candidates_tried > 0,
+        "searched and found none:\n{text}"
+    );
+    let first = text.lines().next().unwrap();
+    assert!(first.ends_with("performance: passes"), "{first}");
+    assert!(text.contains("  UNSATISFIABLE ON  cause 1: "), "{text}");
+    assert!(!text.contains("PERFORMANCE FAILS"), "{text}");
+}
+
+/// A wrong performance on the same clauses, still no examples: the search
+/// finds an output that passes, so the failure is the performance's, and
+/// only then does the report say a passing output exists.
+#[test]
+fn no_examples_and_a_passing_output_is_the_performances() {
+    let path = scratch(
+        "wrong",
+        CLAUSES,
+        "def keep_small(orders):\n    return orders\n",
+    );
+    let r = surety::check_file(&path, &path.with_extension("py")).unwrap();
+    let text = surety::render(&r);
+    assert!(!r.causes.is_empty(), "{text}");
+    for c in &r.causes {
+        assert_eq!(c.party, Party::Performance, "{text}");
+        assert!(
+            c.passing.is_some(),
+            "the search found the passing output:\n{text}"
+        );
+    }
+    assert!(
+        text.contains("; an output that passes every clause exists\n"),
+        "{text}"
+    );
+}

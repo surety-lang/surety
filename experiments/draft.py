@@ -333,6 +333,35 @@ def stage1_file(reply: str) -> tuple[str | None, list[str]]:
     return text, notes
 
 
+def plural(n: int, one: str, many: str | None = None) -> str:
+    return f"{n} {one}" if n == 1 else f"{n} {many or one + 's'}"
+
+
+def stage1_summary(out: pathlib.Path, text: str, parse: str) -> str:
+    """What stage 1 wrote, part by part: the declarations drafted, the
+    sentences, the examples wanted (listed, since they are the author's to
+    act on), and the examples, none by rule."""
+    lines = text.split("\n")
+    types = values = 0
+    for i, line in enumerate(lines):
+        if line.strip() == "// drafted":
+            nxt = next((l for l in lines[i + 1:] if l.strip()), "")
+            if nxt.startswith("type "):
+                types += 1
+            elif re.match(r"^[a-z_][A-Za-z0-9_]*\s*:", nxt):
+                values += 1
+    sentences = sentences_without_lines(text)
+    wanted = [l.strip()[len("// example wanted:"):].strip() for l in lines if l.strip().startswith("// example wanted:")]
+    s = [f"wrote {out}: parse {parse}"]
+    s.append(f"  drafted: {plural(types, 'type')}, {plural(values, 'named value')}; each under // drafted, read first")
+    s.append(f"  sentences: {len(sentences)}, no property lines yet; stage 2 asks for them")
+    s.append(f"  examples wanted: {len(wanted)}, as // example wanted lines; yours to turn into e: blocks or delete")
+    for w in wanted:
+        s.append(f"    {w}")
+    s.append("  examples: none, by rule")
+    return "\n".join(s)
+
+
 def cmd_sentences(args: argparse.Namespace) -> int:
     prose = read(pathlib.Path(args.problem))
     types = read(pathlib.Path(args.types)) if args.types else ""
@@ -372,9 +401,8 @@ def cmd_sentences(args: argparse.Namespace) -> int:
             break
         print(f"round {round_no}: {errors.strip()}")
     (d / "after.sur").write_text(text, encoding="utf-8")
-    sentences = sentences_without_lines(text)
     parse = "ok" if code == 0 else f"still failing after {args.rounds} rounds: {errors.strip()}"
-    print(f"wrote {out}: {len(sentences)} sentences, no property lines, no examples; parse: {parse}")
+    print(stage1_summary(out, text, parse))
     print(f"run written to {d}")
     return 0 if code == 0 else 1
 

@@ -13,11 +13,14 @@ see the author's answer.
 and the public docs and corpus, and takes back the types it had to add (each
 under a `// drafted` line, so the author reads them first), the signature,
 and `#` sentences, one claim each, with no property line beneath any of them
-and no examples. The file starts with `// draft`. The author then edits the
-sentences in the editor.
+and no examples. The file starts with `// draft`. The types are this stage's
+output, so the file is parsed and an error goes back to the model for up to
+three rounds, as in stage 2. The author then edits the sentences in the editor.
 
-`lines` asks, for every sentence with no property line beneath it, for one
-line in the notation; inserts it; runs `surety parse`; feeds errors back for
+`lines` refuses a file that does not parse (exit 2, with the error: it only
+adds lines under sentences, and the types are stage 1's). Otherwise it asks,
+for every sentence with no property line beneath it, for one line in the
+notation; inserts it; runs `surety parse`; feeds errors back for
 up to three rounds; then runs `surety mutants` and prints its report. A
 sentence the model cannot express gets `// reaching for: <what it wanted>`
 beneath it, and the run ends with those listed, for the sheet.
@@ -76,6 +79,8 @@ type <Name> = { ... }          (each type you had to add, each under its own `//
 	note "<one sentence of intent>"
 	# <sentence>
 	# <sentence>
+
+Every type the file names must be declared in the file. The built-in types are Int, Float, Text, Bool, Id, Time and UUID, with `T[]`, `Option<T>` and `Result<T, E>` over them; there is no library of types beyond these, and no type from another obligation or from the corpus is in scope (a corpus file may name a type declared in a file beside it; the draft stands alone). A type you need that the author did not give, you declare under its own `// drafted` line, with its fields. A file that names an undeclared type does not parse and comes back to you with the error.
 
 Use the vocabulary of the problem. Prefer several short claims to one long one. Say what must be in the output, what must not be, what is preserved, and what the order means or that it does not matter. If the problem has an error case, say what each error means and when exactly one of them is reported.
 
@@ -188,6 +193,10 @@ def find_surety(given: str | None) -> str:
 def run_dir(stage: str) -> pathlib.Path:
     stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
     d = RUNS / f"{stamp}-{stage}"
+    n = 2
+    while d.exists():  # two runs in one second
+        d = RUNS / f"{stamp}-{n}-{stage}"
+        n += 1
     d.mkdir(parents=True)
     return d
 
@@ -251,6 +260,28 @@ def parse_pairs(block: str) -> tuple[dict[str, str], list[str]]:
     return pairs, refused
 
 
+def stage1_file(reply: str) -> tuple[str | None, list[str]]:
+    """The file stage 1 writes from a reply: the block, the human parts and
+    any property line stripped, the mark first; None when there is no block."""
+    block = code_block(reply)
+    if block is None:
+        return None, []
+    text, removed = strip_human_parts(block)
+    notes = [f"stripped {r} (the author's, never the model's)" for r in removed]
+    # Sentences only: a property line the model wrote beneath a sentence is dropped.
+    kept = []
+    for line in text.split("\n"):
+        t = line.strip()
+        if line.startswith("\t") and not line.startswith("\t\t") and t and not t.startswith(("#", "//", "note")) and not re.match(r"^[a-z_][A-Za-z0-9_]* *=[^=]", t):
+            notes.append(f"dropped a property line from stage 1: {t}")
+            continue
+        kept.append(line)
+    text = "\n".join(kept).strip("\n") + "\n"
+    if not text.startswith(MARK + "\n"):
+        text = MARK + "\n" + text
+    return text, notes
+
+
 def cmd_sentences(args: argparse.Namespace) -> int:
     prose = read(pathlib.Path(args.problem))
     types = read(pathlib.Path(args.types)) if args.types else ""
@@ -262,40 +293,37 @@ def cmd_sentences(args: argparse.Namespace) -> int:
     parts.append("Write the first stage for this problem: the types you had to add, the signature, and the sentences.")
     prompt = "\n\n".join(p for p in parts if p)
     d = run_dir("sentences")
-    (d / "prompt.md").write_text(prompt, encoding="utf-8")
-    if args.reply:
-        reply, usage = read(pathlib.Path(args.reply)), {}
-    else:
-        reply, usage = call_model(SYSTEM_SENTENCES, prompt, args.model, args.effort, args.workspace)
-    (d / "reply.md").write_text(reply, encoding="utf-8")
-    block = code_block(reply)
-    if block is None:
-        print("no ```surety block in the reply; see", d / "reply.md", file=sys.stderr)
-        return 1
-    text, removed = strip_human_parts(block)
-    for r in removed:
-        print(f"stripped {r} (the author's, never the model's)")
-    # Sentences only: a property line the model wrote beneath a sentence is dropped.
-    kept = []
-    for line in text.split("\n"):
-        t = line.strip()
-        if line.startswith("\t") and not line.startswith("\t\t") and t and not t.startswith(("#", "//", "note")) and not re.match(r"^[a-z_][A-Za-z0-9_]* *=[^=]", t):
-            print(f"dropped a property line from stage 1: {t}")
-            continue
-        kept.append(line)
-    text = "\n".join(kept).strip("\n") + "\n"
-    if not text.startswith(MARK + "\n"):
-        text = MARK + "\n" + text
     out = pathlib.Path(args.out)
-    out.write_text(text, encoding="utf-8")
-    (d / "after.sur").write_text(text, encoding="utf-8")
     surety = find_surety(args.surety)
-    code, report = run_surety(surety, "parse", str(out))
-    (d / "parse.txt").write_text(report, encoding="utf-8")
+    replies = args.reply if args.reply else []
+    text, errors, code = "", "", 1
+    for round_no in range(1, args.rounds + 1):
+        ask = prompt if round_no == 1 else prompt + f"\n\nYour file did not parse. The checker reports:\n\n```\n{errors.strip()}\n```\n\nGive the whole block again, corrected: every type the file names declared in it, the signature, the sentences."
+        (d / f"prompt{round_no}.md").write_text(ask, encoding="utf-8")
+        if replies:
+            reply, usage = read(pathlib.Path(replies[min(round_no, len(replies)) - 1])), {}
+        else:
+            reply, usage = call_model(SYSTEM_SENTENCES, ask, args.model, args.effort, args.workspace)
+        (d / f"reply{round_no}.md").write_text(reply, encoding="utf-8")
+        text, notes = stage1_file(reply)
+        if text is None:
+            print(f"round {round_no}: no ```surety block in the reply; see", d / f"reply{round_no}.md", file=sys.stderr)
+            return 1
+        for n in notes:
+            print(n)
+        out.write_text(text, encoding="utf-8")
+        (d / f"after{round_no}.sur").write_text(text, encoding="utf-8")
+        code, errors = run_surety(surety, "parse", str(out))
+        (d / f"parse{round_no}.txt").write_text(errors, encoding="utf-8")
+        if usage:
+            print(f"round {round_no}: tokens {usage['input']}/{usage['output']}")
+        if code == 0:
+            break
+        print(f"round {round_no}: {errors.strip()}")
+    (d / "after.sur").write_text(text, encoding="utf-8")
     sentences = sentences_without_lines(text)
-    print(f"wrote {out}: {len(sentences)} sentences, no property lines, no examples; parse: {'ok' if code == 0 else report.strip()}")
-    if usage:
-        print(f"tokens {usage['input']}/{usage['output']}")
+    parse = "ok" if code == 0 else f"still failing after {args.rounds} rounds: {errors.strip()}"
+    print(f"wrote {out}: {len(sentences)} sentences, no property lines, no examples; parse: {parse}")
     print(f"run written to {d}")
     return 0 if code == 0 else 1
 
@@ -303,13 +331,17 @@ def cmd_sentences(args: argparse.Namespace) -> int:
 def cmd_lines(args: argparse.Namespace) -> int:
     path = pathlib.Path(args.file)
     original = read(path)
+    surety = find_surety(args.surety)
+    code, errors = run_surety(surety, "parse", str(path))
+    if code != 0:
+        print(f"{path} does not parse, so stage 2 does not start: it only adds lines under the sentences, and the types are stage 1's. The checker reports:\n{errors.strip()}", file=sys.stderr)
+        return 2
     d = run_dir("lines")
     (d / "before.sur").write_text(original, encoding="utf-8")
     todo = sentences_without_lines(original)
     if not todo:
         print("every sentence already has a line beneath it")
         return 0
-    surety = find_surety(args.surety)
     header = [f"The obligation, with its author's sentences:\n\n```\n{original}```",
               "The sentences with no property line beneath them, one line each wanted:\n\n" + "\n".join(f"# {s}" for s in todo),
               docs_text(), corpus_text(args.withhold)]
@@ -370,15 +402,14 @@ def main() -> int:
         p.add_argument("--workspace", default=os.environ.get("ANTHROPIC_WORKSPACE_ID"))
         p.add_argument("--withhold", action="append", default=[], metavar="NAME",
                        help="keep this corpus obligation out of the prompt, by file stem (p2); repeatable")
+        p.add_argument("--rounds", type=int, default=3, help="parse-feedback rounds (default 3)")
+        p.add_argument("--reply", action="append", help="a saved reply per round, instead of calling the model")
         if name == "sentences":
             p.add_argument("problem", help="the problem's prose, a markdown or text file")
             p.add_argument("--types", help="the author's types, a .sur file, used verbatim")
             p.add_argument("--out", required=True, help="the .sur file to write")
-            p.add_argument("--reply", help="a saved model reply to use instead of calling the model")
         else:
             p.add_argument("file", help="the .sur file whose sentences want lines")
-            p.add_argument("--rounds", type=int, default=3)
-            p.add_argument("--reply", action="append", help="a saved reply per round, instead of calling the model")
     args = ap.parse_args()
     return cmd_sentences(args) if args.stage == "sentences" else cmd_lines(args)
 

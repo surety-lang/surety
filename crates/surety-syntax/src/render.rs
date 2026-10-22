@@ -329,12 +329,14 @@ pub fn file(f: &File, fresh: bool) -> String {
         .map(|x| (x, slot_of(x.line, &f.decls)))
         .collect();
     let top_level = |out: &mut String, slot: Slot| {
+        let mut after_sentence = false;
         for (pin, _) in pins.iter().filter(|(_, s)| *s == slot) {
-            let prefix = if pin.kind == PinKind::Sentence {
-                "# "
-            } else {
-                "// "
-            };
+            let is_sentence = pin.kind == PinKind::Sentence;
+            if is_sentence && after_sentence {
+                out.push('\n');
+            }
+            after_sentence = is_sentence;
+            let prefix = if is_sentence { "# " } else { "// " };
             out.push_str(&wrap(prefix, &pin.text));
         }
     };
@@ -400,11 +402,19 @@ pub fn file(f: &File, fresh: bool) -> String {
                 items.sort_by_key(line_of);
                 let mut after_sentence = false;
                 for item in items {
-                    let is_sentence = matches!(item, Item::Sentence(_));
-                    if is_sentence && after_sentence {
+                    // Any `#` line after a sentence standing alone starts a
+                    // sentence of its own, so a blank line keeps the two
+                    // apart: another sentence standing alone, or one over a
+                    // property or an accept line.
+                    let opens_with_sentence = match &item {
+                        Item::Sentence(_) => true,
+                        Item::Property(pr) | Item::Accept(pr) => pr.sentence.is_some(),
+                        _ => false,
+                    };
+                    if opens_with_sentence && after_sentence {
                         out.push('\n');
                     }
-                    after_sentence = is_sentence;
+                    after_sentence = matches!(item, Item::Sentence(_));
                     match item {
                         Item::Abbrev(a) => {
                             let line = p.abbrev(a);

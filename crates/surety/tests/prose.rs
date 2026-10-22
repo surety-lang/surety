@@ -272,3 +272,32 @@ fn a_draft_renders_with_its_mark_first_and_everything_in_place() {
         "rendering the rendering changes nothing"
     );
 }
+
+/// A sentence standing alone, then a sentence over a property: the blank
+/// line between them survives the renderer, so a second save does not read
+/// them as one sentence and wrap them together; at the top of a file too.
+#[test]
+fn a_sentence_standing_alone_stays_apart_from_the_next() {
+    let text = "# A first sentence about the file.\n\n# A second one, before the type.\ntype A = { x: Int }\n\nf(xs: A[]) -> Int\n\t# It depends on the items only through their sum.\n\n\t# If every x is at least 0,\n\t# the output is at least 0.\n\tall a in xs: a.x >= 0 -> out >= 0\n";
+    let sentences = |src: &str| -> Vec<String> {
+        surety_syntax::parse(src)
+            .unwrap()
+            .pins
+            .iter()
+            .filter(|p| p.kind == PinKind::Sentence)
+            .map(|p| p.text.clone())
+            .collect()
+    };
+    let before = sentences(text);
+    assert_eq!(before.len(), 4, "{before:?}");
+    let once = surety_syntax::render::file(&surety_syntax::parse(text).unwrap(), false);
+    assert_eq!(
+        sentences(&once),
+        before,
+        "the same four sentences after a save:\n{once}"
+    );
+    let twice = surety_syntax::render::file(&surety_syntax::parse(&once).unwrap(), false);
+    assert_eq!(twice, once, "a second save changes nothing");
+    assert!(once.contains("their sum.\n\n\t# If every x"), "{once}");
+    assert!(once.contains("about the file.\n\n# A second one"), "{once}");
+}

@@ -208,6 +208,15 @@ fn a_claim_about_the_input_alone_catches_nothing() {
     assert_eq!(r.input_only.len(), 1, "{text}");
     assert_eq!(r.input_only[0].line(), Some(5));
     assert!(r.uncaught.contains(&r.input_only[0]), "{text}");
+    // It is false wherever an amount is negative, and no output passes there.
+    let tried = r.example_inputs + r.generated_inputs;
+    assert!(
+        r.input_only_false[0] > 0 && r.input_only_false[0] < tried,
+        "{:?}",
+        r.input_only_false
+    );
+    assert_eq!(r.excluded_inputs, r.input_only_false[0]);
+    assert!(text.contains(&format!("  input only  line 5: all a in orders.amount: a >= 0: never reads `out`; false on {} of {tried} inputs, where no output passes", r.input_only_false[0])), "{text}");
     let lines = surety::mutants_json_lines(&r);
     let report = lines.iter().find(|j| j["kind"] == "mutant_report").unwrap();
     let flagged: Vec<&Json> = report["uncaught"]
@@ -218,6 +227,8 @@ fn a_claim_about_the_input_alone_catches_nothing() {
         .collect();
     assert_eq!(flagged.len(), 1, "{report}");
     assert_eq!(flagged[0]["line"], 5);
+    assert_eq!(flagged[0]["false_on"], r.input_only_false[0]);
+    assert_eq!(report["excluded_inputs"], r.excluded_inputs);
 }
 
 /// A mutant whose output depends on the input joins a gap only on the
@@ -279,4 +290,25 @@ fn every_corpus_clause_reads_the_output() {
         .unwrap();
         assert!(r.input_only.is_empty(), "{name}: {:?}", r.input_only);
     }
+}
+
+/// A clause about the inputs alone that holds on every input rules nothing
+/// out: unneeded, and no input is excluded.
+#[test]
+fn a_claim_about_the_input_that_always_holds_excludes_nothing() {
+    let path = scratch(
+        "always.sur",
+        "type Order = { amount: Int }\n\nkeep_small(orders: Order[]) -> Order[]\n\tall o in out: o.amount <= 100\n\tlen(orders) >= 0\n",
+    );
+    let r = surety::mutants_file(&path, None, Budget::default()).unwrap();
+    assert_eq!(r.input_only.len(), 1);
+    assert_eq!(r.input_only_false, [0]);
+    assert_eq!(r.excluded_inputs, 0);
+    let text = surety::render_mutants(&r, false);
+    assert!(
+        text.contains(
+            "  unneeded  line 5: len(orders) >= 0: never reads `out` and holds on every input"
+        ),
+        "{text}"
+    );
 }

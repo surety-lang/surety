@@ -626,6 +626,11 @@ pub struct MutantReport {
     /// credited with no catch, since on an input where one is false it is
     /// false whatever the output.
     pub input_only: Vec<Clause>,
+    /// For each of `input_only`, the inputs tried on which it is false.
+    pub input_only_false: Vec<usize>,
+    /// Inputs tried on which some clause about the inputs alone is false:
+    /// no output passes there, so the obligation is unsatisfiable on them.
+    pub excluded_inputs: usize,
 }
 
 impl MutantReport {
@@ -999,6 +1004,28 @@ impl<'g> Checker<'g> {
             .iter()
             .map(|(c, e)| matches!(c, Clause::Frame { .. }) || self.reads_output(e))
             .collect();
+        // Where a clause about the inputs alone is false, it is false whatever
+        // the output: count those inputs, per clause and in all.
+        let only: Vec<Expr> = clauses
+            .iter()
+            .zip(&reads)
+            .filter(|(_, r)| !**r)
+            .map(|((_, e), _)| e.clone())
+            .collect();
+        let mut input_only_false = vec![0; only.len()];
+        let mut excluded_inputs = 0;
+        for case in &cases {
+            let mut any = false;
+            for (k, e) in only.iter().enumerate() {
+                if matches!(self.holds(e, &case.inputs, &Value::None), Ok(false)) {
+                    input_only_false[k] += 1;
+                    any = true;
+                }
+            }
+            if any {
+                excluded_inputs += 1;
+            }
+        }
         let unordered: Vec<Vec<Step>> = self.unordered().to_vec();
         let mut mutants = Vec::new();
         for m in LIBRARY {
@@ -1122,6 +1149,8 @@ impl<'g> Checker<'g> {
                 .filter(|(_, r)| !**r)
                 .map(|((c, _), _)| c.clone())
                 .collect(),
+            input_only_false,
+            excluded_inputs,
         }
     }
 

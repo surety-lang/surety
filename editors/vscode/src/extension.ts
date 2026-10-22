@@ -212,7 +212,14 @@ export function mutantLens(lines: any[]): { title: string; tooltip: string } {
     const open = accepted ? ` · ${plural(accepted, 'input', 'inputs')} left open by \`accept\`` : '';
     const ran = `${MUTANTS_ARE} ${applicable} of the ${total} fit this signature and ran on ${inputs} inputs. `
         + `The search looked at ${plural(searched, 'input', 'inputs')}, up to ${cap} candidate outputs each, for two different outputs that both pass every clause`;
-    if (gaps || slipped) {
+    const excluded: number = report.excluded_inputs ?? 0;
+    if (gaps || slipped || excluded) {
+        const problems = [];
+        // No output at all on some inputs comes first: there the question of
+        // which output does not arise, which is why a gap can vanish.
+        if (excluded) {
+            problems.push(`Unsatisfiable on ${excluded} of ${inputs} inputs, which a clause about the input alone rules out`);
+        }
         const parts = [];
         if (gaps) {
             parts.push(`${plural(gaps, 'gap', 'gaps')}, where two different outputs both pass every clause`);
@@ -220,8 +227,11 @@ export function mutantLens(lines: any[]): { title: string; tooltip: string } {
         if (slipped) {
             parts.push(`${slipped} of the ${applicable} mutants that fit ${slipped === 1 ? 'passes' : 'pass'} every clause`);
         }
+        if (parts.length) {
+            problems.push(`Not settled: ${parts.join('; ')}`);
+        }
         return {
-            title: `$(warning) Not settled: ${parts.join('; ')}${open}`,
+            title: `$(warning) ${problems.join(' · ')}${open}`,
             tooltip: `${ran}. Each problem is a warning in the file. Click for the full report.`,
         };
     }
@@ -292,6 +302,7 @@ const GAP: Finding = { label: 'Gap', code: 'gap' };
 const MUTANT: Finding = { label: 'Mutant gets through', code: 'mutant' };
 const UNNEEDED: Finding = { label: 'Unneeded clause', code: 'unneeded-clause' };
 const UNTESTED: Finding = { label: 'Untested clause', code: 'untested-clause' };
+const INPUT_ONLY: Finding = { label: 'Input-only clause', code: 'input-only-clause' };
 
 function finding(range: vscode.Range, f: Finding, message: string, severity: vscode.DiagnosticSeverity): vscode.Diagnostic {
     const d = diagAt(range, `${f.label}: ${message}`, severity);
@@ -300,15 +311,20 @@ function finding(range: vscode.Range, f: Finding, message: string, severity: vsc
 }
 
 /**
- * A clause no mutant breaks. One that never reads `out` rules out no output
- * at all: unneeded, faded the way the editor fades unused code. One that
- * reads `out` may still mean something the library cannot exercise:
- * untested, a hint to read it again.
+ * A clause no mutant breaks. One that never reads `out` limits the inputs,
+ * not the output: where it is false no output passes, so it makes the
+ * obligation unsatisfiable there, which is a warning; if it is false on
+ * no input it rules nothing out at all, unneeded, faded the way the editor
+ * fades unused code. One that reads `out` may still mean something the
+ * library cannot exercise: untested, a hint to read it again.
  */
-function unbreakable(doc: vscode.TextDocument, line: number, inputOnly: boolean): vscode.Diagnostic {
+function unbreakable(doc: vscode.TextDocument, line: number, c: { input_only?: boolean; false_on?: number }, tried: number): vscode.Diagnostic {
     const range = lineRange(doc, line - 1);
-    if (inputOnly) {
-        const d = finding(range, UNNEEDED, 'it never reads `out`, so it rules out no output; it can only make the obligation unsatisfiable on inputs that break it', vscode.DiagnosticSeverity.Hint);
+    if (c.input_only && (c.false_on ?? 0) > 0) {
+        return finding(range, INPUT_ONLY, `it never reads \`out\`, so it limits the inputs, not the output: it is false on ${c.false_on} of the ${tried} inputs tried, and no output passes there, so the obligation is unsatisfiable on them. To rule those inputs out, give them an \`Err\` case`, vscode.DiagnosticSeverity.Warning);
+    }
+    if (c.input_only) {
+        const d = finding(range, UNNEEDED, 'it never reads `out` and holds on every input tried, so it rules nothing out', vscode.DiagnosticSeverity.Hint);
         d.tags = [vscode.DiagnosticTag.Unnecessary];
         return d;
     }
@@ -396,7 +412,8 @@ function checkDiagnostics(doc: vscode.TextDocument, lines: any[], sig: number): 
         }
         if (l.kind === 'look_here' && l.clause?.line !== undefined) {
             if (!/\bunordered$/.test(l.clause.text ?? '')) {
-                out.push(unbreakable(doc, l.clause.line, !!l.input_only));
+                const tried = (evidence?.types?.example_inputs ?? 0) + (evidence?.types?.generated_inputs ?? 0);
+                out.push(unbreakable(doc, l.clause.line, l, tried));
             }
             continue;
         }
@@ -435,7 +452,7 @@ function mutantDiagnostics(doc: vscode.TextDocument, lines: any[], sig: number):
     // `x unordered` claims nothing by design: no hint for it.
     for (const c of report?.uncaught ?? []) {
         if (c.line !== undefined && !/\bunordered$/.test(c.text ?? '')) {
-            out.push(unbreakable(doc, c.line, !!c.input_only));
+            out.push(unbreakable(doc, c.line, c, (report.example_inputs ?? 0) + (report.generated_inputs ?? 0)));
         }
     }
     for (const u of underdetermined.filter(u => u.gap === undefined)) {

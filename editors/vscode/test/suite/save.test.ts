@@ -128,29 +128,46 @@ suite('the verdict on save', () => {
         assert.ok(!diags.some(d => d.severity === vscode.DiagnosticSeverity.Information && doc.lineAt(d.range.start.line).text.trim().endsWith('unordered')), JSON.stringify(diags.map(d => d.message)));
     });
 
-    test('a clause about the input alone: labelled unneeded on its line, and faded', async () => {
+    test('clauses about the input alone: one that rules inputs out is a warning, one that rules nothing out is faded', async () => {
         const uri = workspaceFile('inputs.sur');
         const doc = await vscode.workspace.openTextDocument(uri);
         await vscode.window.showTextDocument(doc);
         await vscode.commands.executeCommand('surety.mutants');
-        const line = doc.getText().split('\n').findIndex(l => l.includes('all o in orders: o.amount >= 0'));
-        const diags = await ours(uri, all => all.some(d => d.range.start.line === line));
-        const hint = diags.find(d => d.range.start.line === line)!;
-        // Labelled for what it is, and faded like unused code.
-        assert.strictEqual(hint.severity, vscode.DiagnosticSeverity.Hint);
-        assert.ok(hint.message.startsWith('Unneeded clause: it never reads `out`, so it rules out no output'), hint.message);
-        assert.strictEqual(hint.code, 'unneeded-clause');
-        assert.deepStrictEqual(hint.tags, [vscode.DiagnosticTag.Unnecessary]);
-        // Every mutant is caught: the pass is the line above the signature, with no squiggle under it.
-        const verdict = await lens(uri, t => t.includes('ettled'));
+        const lines = doc.getText().split('\n');
+        const amounts = lines.findIndex(l => l.includes('all o in orders: o.amount >= 0'));
+        const always = lines.findIndex(l => l.includes('len(orders) >= 0'));
+        const diags = await ours(uri, all => all.some(d => d.range.start.line === amounts) && all.some(d => d.range.start.line === always));
+        // False on the negative amounts the generator brings: no output passes there.
+        const ruling = diags.find(d => d.range.start.line === amounts)!;
+        assert.strictEqual(ruling.severity, vscode.DiagnosticSeverity.Warning);
+        assert.strictEqual(ruling.code, 'input-only-clause');
+        assert.ok(/^Input-only clause: it never reads `out`, so it limits the inputs, not the output: it is false on \d+ of the \d+ inputs tried, and no output passes there/.test(ruling.message), ruling.message);
+        assert.strictEqual(ruling.range.start.character, 1, 'after the tab');
+        // True on every input: unneeded, faded like unused code.
+        const idle = diags.find(d => d.range.start.line === always)!;
+        assert.strictEqual(idle.severity, vscode.DiagnosticSeverity.Hint);
+        assert.strictEqual(idle.code, 'unneeded-clause');
+        assert.ok(idle.message.startsWith('Unneeded clause: it never reads `out` and holds on every input tried'), idle.message);
+        assert.deepStrictEqual(idle.tags, [vscode.DiagnosticTag.Unnecessary]);
+        // The verdict says why there is nothing to settle on those inputs.
+        const verdict = await lens(uri, t => t.includes('Unsatisfiable') || t.includes('ettled'));
+        assert.ok(/^\$\(warning\) Unsatisfiable on \d+ of \d+ inputs, which a clause about the input alone rules out$/.test(verdict.command!.title), verdict.command!.title);
+    });
+
+    test('a run that settles: the pass is the line above the signature, with no squiggle under it', async () => {
+        const uri = workspaceFile('settled.sur');
+        const doc = await vscode.workspace.openTextDocument(uri);
+        await vscode.window.showTextDocument(doc);
+        await vscode.commands.executeCommand('surety.mutants');
+        const verdict = await lens(uri, t => t.includes('ettled') || t.includes('Unsatisfiable'));
         assert.ok(/^\$\(pass\) Settled: all \d+ mutants that fit are caught; no second passing output on the \d+ inputs searched$/.test(verdict.command!.title), verdict.command!.title);
         const tip = mutantLens(run('mutants', uri)).tooltip;
         assert.ok(tip.startsWith('Mutants are deliberately wrong performances from a fixed library'), tip);
         assert.ok(/fit this signature and ran on \d+ inputs\. The search looked at \d+ inputs, up to \d+ candidate outputs each, for two different outputs that both pass every clause, and found none\./.test(tip), tip);
         const sig = signature(doc);
         assert.ok(!vscode.languages.getDiagnostics(uri).some(d => d.source === 'surety' && d.range.start.line === sig), 'nothing on the signature');
-        assert.strictEqual(hint.range.start.character, 1, 'after the tab');
     });
+
 });
 
 suite('formatting through the server', () => {

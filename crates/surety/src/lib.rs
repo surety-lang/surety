@@ -1111,8 +1111,11 @@ pub fn json_lines(r: &Report) -> Vec<Json> {
             LookKind::Uncaught(c) => {
                 f["clause"] = clause_json(c);
                 f["why"] = json!("no mutant can violate it");
-                if r.mutants.as_ref().is_some_and(|m| m.input_only.contains(c)) {
-                    f["input_only"] = json!(true);
+                if let Some(m) = &r.mutants {
+                    if let Some(k) = m.input_only.iter().position(|x| x == c) {
+                        f["input_only"] = json!(true);
+                        f["false_on"] = json!(m.input_only_false[k]);
+                    }
                 }
             }
             LookKind::Accept {
@@ -1283,6 +1286,20 @@ pub fn render_mutants(r: &MutantReport, full: bool) -> String {
     ));
     for g in &gaps {
         s.push_str(&format!("  gap  {}\n", gap_line(r, g)));
+    }
+    let tried = r.example_inputs + r.generated_inputs;
+    for (c, &false_on) in r.input_only.iter().zip(&r.input_only_false) {
+        if false_on > 0 {
+            s.push_str(&format!(
+                "  input only  {}: never reads `out`; false on {false_on} of {tried} inputs, where no output passes\n",
+                clause_label(c)
+            ));
+        } else {
+            s.push_str(&format!(
+                "  unneeded  {}: never reads `out` and holds on every input\n",
+                clause_label(c)
+            ));
+        }
     }
     for m in &slipped {
         s.push_str(&format!("  slipped  {}\n", slipped_line(m)));
@@ -1559,12 +1576,14 @@ pub fn mutants_json_lines(r: &MutantReport) -> Vec<Json> {
         "mutants": { "total": r.mutants.len(), "applicable": r.applicable(), "slipped": r.slipped().len(), "caught": r.caught() },
         "underdetermined_inputs": r.search.len(),
         "gaps": gaps.len(),
+        "excluded_inputs": r.excluded_inputs,
         "accepted_inputs": r.accepted().len(),
         "underdetermined": r.underdetermined(),
         "uncaught": r.uncaught.iter().map(|c| {
             let mut j = clause_json(c);
-            if r.input_only.contains(c) {
+            if let Some(k) = r.input_only.iter().position(|x| x == c) {
                 j["input_only"] = json!(true);
+                j["false_on"] = json!(r.input_only_false[k]);
             }
             j
         }).collect::<Vec<_>>(),

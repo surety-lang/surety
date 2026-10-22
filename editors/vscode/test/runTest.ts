@@ -33,7 +33,11 @@ async function main(): Promise<void> {
     fs.copyFileSync(path.join(corpus, 'p7.sur'), path.join(workspace, 'p7.sur'));
     // P2 with a clause about the input alone: a hint that no output can break it.
     const p2 = fs.readFileSync(path.join(corpus, 'p2.sur'), 'utf8');
-    fs.writeFileSync(path.join(workspace, 'inputs.sur'), p2.replace('\tout same_order_as orders\n', '\tout same_order_as orders\n\tall o in orders: o.amount >= 0\n'));
+    // P2 with two clauses about the input alone: one false on negative
+    // amounts, which the generator brings, and one that always holds.
+    fs.writeFileSync(path.join(workspace, 'inputs.sur'), p2.replace('\tout same_order_as orders\n', '\tout same_order_as orders\n\tall o in orders: o.amount >= 0\n\tlen(orders) >= 0\n'));
+    // P2 as it is, for a run that settles.
+    fs.writeFileSync(path.join(workspace, 'settled.sur'), p2);
     // P2 with its left-out clause over `out`: a file that does not parse.
     fs.writeFileSync(path.join(workspace, 'broken.sur'), p2.replace('all o leftover in orders:', 'all o leftover in out:'));
     fs.mkdirSync(path.join(workspace, '.vscode'));

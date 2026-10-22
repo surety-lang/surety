@@ -2,6 +2,15 @@ import * as assert from 'assert';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
+import * as cp from 'child_process';
+import { checkLens, mutantLens, signatureLine as signature } from '../../src/extension';
+
+/** A run's `--json` lines, as the extension reads them. */
+function run(verb: string, uri: vscode.Uri): any[] {
+    const bin = vscode.workspace.getConfiguration('surety').get<string>('path')!;
+    const out = cp.spawnSync(bin, [verb, '--json', uri.fsPath], { encoding: 'utf8' }).stdout;
+    return out.split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
+}
 
 function workspaceFile(name: string): vscode.Uri {
     const root = vscode.workspace.workspaceFolders![0].uri.fsPath;
@@ -24,8 +33,24 @@ async function ours(uri: vscode.Uri, want: (d: vscode.Diagnostic[]) => boolean, 
 
 const onSignature = (sig: number) => (d: vscode.Diagnostic) => d.range.start.line === sig;
 
+/** The verdict line above a file's signature, once a run has written it. */
+async function lens(uri: vscode.Uri, want: (title: string) => boolean, timeoutMs = 90000): Promise<vscode.CodeLens> {
+    const started = Date.now();
+    for (;;) {
+        const lenses = await vscode.commands.executeCommand<vscode.CodeLens[]>('vscode.executeCodeLensProvider', uri);
+        const hit = lenses?.find(l => l.command && want(l.command.title));
+        if (hit) {
+            return hit;
+        }
+        if (Date.now() - started > timeoutMs) {
+            throw new Error(`timed out waiting for the verdict line on ${uri.fsPath}: ${JSON.stringify(lenses?.map(l => l.command?.title))}`);
+        }
+        await new Promise(r => setTimeout(r, 500));
+    }
+}
+
 suite('the verdict on save', () => {
-    test('P5a with its performance: ACCEPTED on the signature line', async () => {
+    test('P5a with its performance: accepted, in the line above the signature and not as a squiggle', async () => {
         const uri = workspaceFile('p5a.sur');
         const doc = await vscode.workspace.openTextDocument(uri);
         const editor = await vscode.window.showTextDocument(doc);
@@ -33,10 +58,15 @@ suite('the verdict on save', () => {
         await editor.edit(e => e.insert(new vscode.Position(doc.lineCount, 0), '\n'));
         assert.ok(await doc.save(), 'the document saves');
         const sig = 2; // get_first_customer_orders(orders: Order[]) -> Order[] is line 3
-        const diags = await ours(uri, all => all.some(d => onSignature(sig)(d) && /^(ACCEPTED|NOT ACCEPTED)/.test(d.message)));
-        const verdict = diags.find(onSignature(sig))!;
-        assert.ok(verdict.message.startsWith('ACCEPTED'), verdict.message);
-        assert.strictEqual(verdict.severity, vscode.DiagnosticSeverity.Information);
+        const verdict = await lens(uri, t => /Accepted|Not accepted/.test(t));
+        assert.ok(verdict.command!.title.startsWith('$(pass) Accepted: the performance passes every example and clause'), verdict.command!.title);
+        assert.strictEqual(verdict.range.start.line, sig);
+        // The tooltip, which the lens API does not hand back: what was run.
+        const tip = checkLens(run('check', uri))!.tooltip;
+        assert.ok(tip.startsWith('Examples: 3 of 3 pass. Clauses: 5 of 5 hold over 503 runs, 500 of them on generated inputs.'), tip);
+        assert.strictEqual(verdict.command!.command, 'surety.report');
+        const diags = vscode.languages.getDiagnostics(uri).filter(d => d.source === 'surety');
+        assert.ok(!diags.some(d => onSignature(sig)(d) && d.severity === vscode.DiagnosticSeverity.Information), JSON.stringify(diags.map(d => d.message)));
     });
 
     test('P1 with a wrong performance: NOT ACCEPTED, the finding on its clause', async () => {
@@ -55,6 +85,8 @@ suite('the verdict on save', () => {
         assert.ok(finding, JSON.stringify(diags.map(d => d.message)));
         assert.strictEqual(finding!.range.start.line, sig);
         assert.ok(diags.some(d => d.message.startsWith('example_mismatch (performance)')), 'the examples fail too');
+        const above = await lens(uri, t => t.includes('Not accepted'));
+        assert.ok(above.command!.title.startsWith('$(warning) Not accepted: '), above.command!.title);
     });
 
     test('P5a without its accept line and no performance: the mutants\' findings', async () => {
@@ -69,6 +101,8 @@ suite('the verdict on save', () => {
         // no summary line stacks on it.
         const gaps = diags.filter(d => d.message.startsWith('underdetermined: '));
         assert.strictEqual(gaps.length, 1, JSON.stringify(diags.map(d => d.message)));
+        const verdict = await lens(uri, t => t.includes('settled'));
+        assert.ok(verdict.command!.title.startsWith('$(warning) Not settled: 1 gap, where two different outputs both pass every clause'), verdict.command!.title);
         assert.ok(gaps[0].message.includes('].amount can be '), gaps[0].message);
         assert.ok(!diags.some(d => /^UNDERDETERMINED|^underdetermined: two outputs/.test(d.message)), JSON.stringify(diags.map(d => d.message)));
         const signature = doc.lineAt(sig).text;
@@ -103,6 +137,14 @@ suite('the verdict on save', () => {
         const hint = diags.find(d => d.range.start.line === line)!;
         assert.strictEqual(hint.severity, vscode.DiagnosticSeverity.Information);
         assert.ok(hint.message.startsWith('this clause never reads `out`'), hint.message);
+        // Every mutant is caught: the pass is the line above the signature, with no squiggle under it.
+        const verdict = await lens(uri, t => t.includes('ettled'));
+        assert.ok(/^\$\(pass\) Settled: all \d+ mutants that fit are caught; no second passing output on the \d+ inputs searched$/.test(verdict.command!.title), verdict.command!.title);
+        const tip = mutantLens(run('mutants', uri)).tooltip;
+        assert.ok(tip.startsWith('Mutants are deliberately wrong performances from a fixed library'), tip);
+        assert.ok(/fit this signature and ran on \d+ inputs\. The search looked at \d+ inputs, up to \d+ candidate outputs each, for two different outputs that both pass every clause, and found none\./.test(tip), tip);
+        const sig = signature(doc);
+        assert.ok(!vscode.languages.getDiagnostics(uri).some(d => d.source === 'surety' && d.range.start.line === sig), 'nothing on the signature');
         assert.strictEqual(hint.range.start.character, 1, 'after the tab');
     });
 });

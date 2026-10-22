@@ -142,11 +142,13 @@ async function checkDocument(doc: vscode.TextDocument, mode: Mode): Promise<void
         }
         verdicts.set(doc.uri, [d]);
         gapDetail.delete(doc.uri.toString());
+        setLens(doc, undefined);
         return;
     }
     const lines = json.stdout.split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
     const diags = useCheck ? checkDiagnostics(doc, lines, sig) : mutantDiagnostics(doc, lines, sig);
     verdicts.set(doc.uri, diags);
+    setLens(doc, useCheck ? checkLens(lines) : mutantLens(lines));
     gapDetail.set(doc.uri.toString(), lines.filter(l => l.kind === 'gap').map(g => ({ range: outputRange(doc, sig), md: gapMarkdown(g), gap: g, sig })));
 }
 
@@ -170,6 +172,90 @@ function outputRange(doc: vscode.TextDocument, sig: number): vscode.Range {
 const gapDetail = new Map<string, { range: vscode.Range; md: vscode.MarkdownString; gap: any; sig: number }[]>();
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+// The verdict of the last run on a file, as one line above its signature:
+// a CodeLens, not a diagnostic, so a pass is not drawn as a squiggle. What
+// is wrong (a gap, a slipped mutant, a failing clause, a run that could not
+// start) stays a warning or an error on its own line.
+const verdictLens = new Map<string, { title: string; tooltip: string }>();
+const lensChanged = new vscode.EventEmitter<void>();
+
+function setLens(doc: vscode.TextDocument, lens: { title: string; tooltip: string } | undefined): void {
+    if (lens) {
+        verdictLens.set(doc.uri.toString(), lens);
+    } else {
+        verdictLens.delete(doc.uri.toString());
+    }
+    lensChanged.fire();
+}
+
+const MUTANTS_ARE = 'Mutants are deliberately wrong performances from a fixed library: return nothing, return the input unchanged, drop, repeat or swap an element, and others.';
+
+/** The mutants run in a line: settled or not, and why, with the counts in the tooltip. */
+export function mutantLens(lines: any[]): { title: string; tooltip: string } {
+    const report = lines.find(l => l.kind === 'mutant_report') ?? {};
+    const m = report.mutants ?? {};
+    const applicable: number = m.applicable ?? 0;
+    const total: number = m.total ?? 0;
+    const slipped: number = m.slipped ?? 0;
+    const gaps = lines.filter(l => l.kind === 'gap').length;
+    const inputs = (report.example_inputs ?? 0) + (report.generated_inputs ?? 0);
+    const searched: number = report.search?.inputs ?? 0;
+    const cap: number = report.search?.candidates_cap ?? 0;
+    const accepted: number = report.accepted_inputs ?? 0;
+    const open = accepted ? ` · ${plural(accepted, 'input', 'inputs')} left open by \`accept\`` : '';
+    const ran = `${MUTANTS_ARE} ${applicable} of the ${total} fit this signature and ran on ${inputs} inputs. `
+        + `The search looked at ${plural(searched, 'input', 'inputs')}, up to ${cap} candidate outputs each, for two different outputs that both pass every clause`;
+    if (gaps || slipped) {
+        const parts = [];
+        if (gaps) {
+            parts.push(`${plural(gaps, 'gap', 'gaps')}, where two different outputs both pass every clause`);
+        }
+        if (slipped) {
+            parts.push(`${slipped} of the ${applicable} mutants that fit ${slipped === 1 ? 'passes' : 'pass'} every clause`);
+        }
+        return {
+            title: `$(warning) Not settled: ${parts.join('; ')}${open}`,
+            tooltip: `${ran}. Each problem is a warning in the file. Click for the full report.`,
+        };
+    }
+    const mutants = applicable ? `all ${applicable} mutants that fit are caught` : `none of the ${total} mutants fits this signature`;
+    return {
+        title: `$(pass) Settled: ${mutants}; no second passing output on the ${plural(searched, 'input', 'inputs')} searched${open}`,
+        tooltip: `${ran}, and found none. ${applicable ? 'A clause rejected every mutant. ' : ''}Click for the full report.`,
+    };
+}
+
+/** The check in a line: accepted or not, with what was run in the tooltip. */
+export function checkLens(lines: any[]): { title: string; tooltip: string } | undefined {
+    const e = lines.find(l => l.kind === 'evidence');
+    if (!e) {
+        return undefined;
+    }
+    const u = e.underdetermination;
+    const mutants = typeof u === 'object' && u
+        ? `${MUTANTS_ARE} ${u.applicable} of the ${u.total} fit this signature; ${u.caught} caught, ${u.slipped} passing every clause.`
+        : 'The mutants did not run.';
+    const ran = `Examples: ${e.examples?.passed} of ${e.examples?.total} pass. `
+        + `Clauses: ${e.properties?.passed} of ${e.properties?.total} hold over ${e.properties?.runs} runs, ${e.types?.generated_inputs} of them on generated inputs. ${mutants}`;
+    if (e.verdict === 'ACCEPTED') {
+        return {
+            title: '$(pass) Accepted: the performance passes every example and clause, and the obligation has no findings',
+            tooltip: `${ran} Click for the full report.`,
+        };
+    }
+    const parts = [];
+    if ((e.obligation_findings ?? []).length) {
+        parts.push(`obligation: ${e.obligation_findings.join('; ')}`);
+    }
+    if ((e.performance_findings ?? []).length) {
+        parts.push(`performance: ${e.performance_findings.join('; ')}`);
+    }
+    return {
+        title: `$(warning) Not accepted: ${parts.join(' · ')}`,
+        tooltip: `${ran} Each finding is a warning in the file. Click for the full report.`,
+    };
+}
 
 function gapMessage(g: any): string {
     return `underdetermined: ${g.says}  (${plural(g.shown_by, 'input', 'inputs')})`;
@@ -258,8 +344,10 @@ function checkDiagnostics(doc: vscode.TextDocument, lines: any[], sig: number): 
         if ((evidence.performance_findings ?? []).length) {
             parts.push(`performance: ${evidence.performance_findings.join('; ')}`);
         }
-        const severity = verdict === 'ACCEPTED' ? vscode.DiagnosticSeverity.Information : vscode.DiagnosticSeverity.Warning;
-        out.push(diag(doc, sig + 1, parts.join('  '), severity));
+        // A pass is the line above the signature, not a squiggle.
+        if (verdict !== 'ACCEPTED') {
+            out.push(diag(doc, sig + 1, parts.join('  '), vscode.DiagnosticSeverity.Warning));
+        }
     }
     const binding = evidence && evidence.passed === false;
     for (const l of lines) {
@@ -292,18 +380,8 @@ function mutantDiagnostics(doc: vscode.TextDocument, lines: any[], sig: number):
     const gaps = lines.filter(l => l.kind === 'gap');
     const slipped = lines.filter(l => l.kind === 'mutant_slipped');
     const underdetermined = lines.filter(l => l.kind === 'underdetermined');
-    const accepted = lines.filter(l => l.kind === 'accepted');
-    const applicable = lines.filter(l => l.kind === 'mutant_slipped' || l.kind === 'mutant_caught').length;
-    const total = applicable + lines.filter(l => l.kind === 'mutant_not_applicable').length;
-    const parts = [`mutants: ${applicable} of ${total} apply, ${slipped.length} slipped`];
-    if (accepted.length) {
-        parts.push(`${accepted.length} accepted`);
-    }
-    const clean = slipped.length === 0 && underdetermined.length === 0;
-    // Gaps say it themselves; the counts go to the output channel.
-    if (gaps.length === 0) {
-        out.push(diag(doc, sig + 1, `${clean ? 'NOT UNDERDETERMINED' : 'UNDERDETERMINED'}  ${parts.join('; ')}`, clean ? vscode.DiagnosticSeverity.Information : vscode.DiagnosticSeverity.Warning));
-    }
+    // The run's verdict is the line above the signature; only problems are
+    // diagnostics, each on its own line.
     for (const g of gaps) {
         out.push(diagAt(outputRange(doc, sig), gapMessage(g), vscode.DiagnosticSeverity.Warning));
     }
@@ -409,7 +487,21 @@ export function activate(context: vscode.ExtensionContext): { restarts(): number
             holds.delete(doc.uri.toString());
             latest.delete(doc.uri.toString());
             gapDetail.delete(doc.uri.toString());
+            verdictLens.delete(doc.uri.toString());
         }),
+        lensChanged,
+        vscode.languages.registerCodeLensProvider({ language: 'surety' }, {
+            onDidChangeCodeLenses: lensChanged.event,
+            provideCodeLenses(doc) {
+                const v = verdictLens.get(doc.uri.toString());
+                if (!v) {
+                    return [];
+                }
+                const range = doc.lineAt(signatureLine(doc)).range;
+                return [new vscode.CodeLens(range, { title: v.title, tooltip: v.tooltip, command: 'surety.report' })];
+            },
+        }),
+        vscode.commands.registerCommand('surety.report', () => output.show(true)),
         vscode.languages.registerCodeActionsProvider({ language: 'surety' }, {
             provideCodeActions(doc, _range, context) {
                 const gaps = gapDetail.get(doc.uri.toString()) ?? [];

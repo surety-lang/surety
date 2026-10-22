@@ -633,7 +633,7 @@ fn describe_call(
         "?"
     };
     Some(format!(
-        "{}\n\nA graph reference: no obligation in this directory declares `{name}`, so this is its shape as this file calls it. The performance supplies it, unchecked, until a sibling obligation declares it.",
+        "{}\n\n**Unverified.** A graph reference: no obligation in this directory declares `{name}`, so this is its shape as this file calls it. The performance supplies it, unchecked, until a sibling obligation declares it.",
         code(&format!("{name}({}) -> {output}", args.join(", ")))
     ))
 }
@@ -1122,3 +1122,74 @@ pub fn completion(path: &Path, text: &str, pos: &Json) -> Json {
     Json::Array(items)
 }
 
+// ---- unverified references ----
+
+/// The calls in a file to names nothing declares: not a built-in, not an
+/// abbreviation, no obligation in the directory, and none the graph pins
+/// when a graph is given. The performance supplies each, unchecked; the
+/// editor marks them in a style of their own, not as a problem. Each with
+/// the columns of its name.
+pub fn unverified(path: &Path, text: &str, graph_dir: Option<&Path>) -> Json {
+    let Ok((graph, idx)) = load_with_siblings_text(path, text) else {
+        return json!([]);
+    };
+    let pinned: Vec<String> = graph_dir
+        .and_then(|d| surety_graph::Store::open(d).namespace().ok())
+        .map(|ns| ns.keys().cloned().collect())
+        .unwrap_or_default();
+    let file = graph.file(idx);
+    let mut abbrevs: Vec<&str> = Vec::new();
+    let mut bodies: Vec<&Expr> = Vec::new();
+    for d in &file.decls {
+        match d {
+            Decl::Abbrev(a) => {
+                abbrevs.push(&a.name);
+                bodies.push(&a.body);
+            }
+            Decl::Function(f) => {
+                for a in &f.abbrevs {
+                    abbrevs.push(&a.name);
+                    bodies.push(&a.body);
+                }
+                bodies.extend(f.properties.iter().chain(&f.accepts).map(|p| &p.expr));
+            }
+            _ => {}
+        }
+    }
+    let mut calls: Vec<(String, usize)> = Vec::new();
+    for b in bodies {
+        b.walk(&mut |e| {
+            if let Expr::Call(name, _, line) = e {
+                let declared = BUILTINS.contains(&name.as_str())
+                    || abbrevs.contains(&name.as_str())
+                    || graph.find_function(name).is_some()
+                    || pinned.contains(name);
+                if !declared && !calls.contains(&(name.clone(), *line)) {
+                    calls.push((name.clone(), *line));
+                }
+            }
+        });
+    }
+    let mut out = Vec::new();
+    for (name, line) in calls {
+        let Some(l) = text.lines().nth(line.saturating_sub(1)) else {
+            continue;
+        };
+        let chars: Vec<char> = l.chars().collect();
+        let word: Vec<char> = name.chars().collect();
+        let is_word = |c: char| c.is_alphanumeric() || c == '_';
+        for at in 0..chars.len().saturating_sub(word.len()) {
+            let end = at + word.len();
+            if chars[at..end] == word[..]
+                && (at == 0 || !is_word(chars[at - 1]))
+                && chars.get(end) == Some(&'(')
+            {
+                out.push(json!({
+                    "name": name,
+                    "range": { "start": { "line": line - 1, "character": at }, "end": { "line": line - 1, "character": end } },
+                }));
+            }
+        }
+    }
+    Json::Array(out)
+}

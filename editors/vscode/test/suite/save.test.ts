@@ -168,6 +168,24 @@ suite('the verdict on save', () => {
         assert.ok(!vscode.languages.getDiagnostics(uri).some(d => d.source === 'surety' && d.range.start.line === sig), 'nothing on the signature');
     });
 
+    test('a call to a name nothing declares is marked as unverified, not as a problem', async () => {
+        const uri = workspaceFile('graphref.sur');
+        const doc = await vscode.workspace.openTextDocument(uri);
+        await vscode.window.showTextDocument(doc);
+        const api = vscode.extensions.getExtension('surety-lang.surety')!.exports as { unverified(uri: vscode.Uri): vscode.Range[] };
+        const started = Date.now();
+        while (api.unverified(uri).length === 0) {
+            assert.ok(Date.now() - started < 20000, 'no unverified call marked within 20 s');
+            await new Promise(r => setTimeout(r, 200));
+        }
+        const ranges = api.unverified(uri);
+        assert.strictEqual(ranges.length, (doc.getText().match(/\bwell_formed_email\(/g) ?? []).length);
+        for (const r of ranges) {
+            assert.strictEqual(doc.getText(r), 'well_formed_email');
+        }
+        // A mark, not a diagnostic.
+        assert.ok(!vscode.languages.getDiagnostics(uri).some(d => ranges.some(r => r.intersection(d.range))), 'no diagnostic on the call');
+    });
 });
 
 suite('formatting through the server', () => {

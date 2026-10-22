@@ -237,6 +237,11 @@ impl Server {
                 let result = query::definition(&uri_to_path(&uri), &text, &params["position"]);
                 vec![Self::response(&id, result)]
             }
+            ("surety/unverified", Some(id)) => {
+                let text = self.docs.get(&uri).cloned().unwrap_or_default();
+                let result = query::unverified(&uri_to_path(&uri), &text, self.graph.as_deref());
+                vec![Self::response(&id, result)]
+            }
             ("textDocument/completion", Some(id)) => {
                 let text = self.docs.get(&uri).cloned().unwrap_or_default();
                 let result = query::completion(&uri_to_path(&uri), &text, &params["position"]);

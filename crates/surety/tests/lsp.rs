@@ -639,3 +639,51 @@ fn completion_offers_the_words_the_language_has_and_the_names_in_scope() {
     lsp.stop();
 }
 
+/// The calls to names nothing declares, each with the columns of its name:
+/// P8's `well_formed_email`, which no obligation in the directory or the
+/// graph declares; none in P14, whose `apply_diff` a sibling declares.
+#[test]
+fn the_server_lists_calls_no_obligation_declares() {
+    let mut lsp = Lsp::start_with_graph();
+    let unverified = |lsp: &mut Lsp, path: &Path| -> Vec<Json> {
+        lsp.open(path);
+        let uri = surety_lsp::path_to_uri(&fs::canonicalize(path).unwrap());
+        let reply = lsp.request(
+            "surety/unverified",
+            json!({ "textDocument": { "uri": uri } }),
+        );
+        reply["result"].as_array().cloned().unwrap_or_default()
+    };
+    let p8 = common::corpus_dir().join("p8.sur");
+    let text = fs::read_to_string(&p8).unwrap();
+    let found = unverified(&mut lsp, &p8);
+    assert_eq!(
+        found.len(),
+        text.matches("well_formed_email(").count(),
+        "{found:?}"
+    );
+    for f in &found {
+        assert_eq!(f["name"], "well_formed_email");
+        let line = text
+            .lines()
+            .nth(f["range"]["start"]["line"].as_u64().unwrap() as usize)
+            .unwrap();
+        let (from, to) = (
+            f["range"]["start"]["character"].as_u64().unwrap() as usize,
+            f["range"]["end"]["character"].as_u64().unwrap() as usize,
+        );
+        assert_eq!(
+            line.chars().skip(from).take(to - from).collect::<String>(),
+            "well_formed_email"
+        );
+    }
+    assert!(unverified(&mut lsp, &common::corpus_dir().join("p14.sur")).is_empty());
+    // The hover says so in its first word.
+    let hover = lsp.at("textDocument/hover", &p8, "well_formed_email(p.email)");
+    let value = hover["contents"]["value"].as_str().unwrap_or_default();
+    assert!(
+        value.contains("**Unverified.** A graph reference"),
+        "{value}"
+    );
+    lsp.stop();
+}

@@ -461,6 +461,33 @@ function mutantDiagnostics(doc: vscode.TextDocument, lines: any[], sig: number):
     return out;
 }
 
+// A call to a name nothing declares is a graph reference whose performance
+// is supplied unchecked: not an error, so not a squiggle, but marked in a
+// style of its own, italic with a dotted underline, the hover saying why.
+// The server lists them; the ranges are kept per file for the test.
+let unverifiedStyle: vscode.TextEditorDecorationType;
+const unverifiedRanges = new Map<string, vscode.Range[]>();
+let unverifiedTimer: NodeJS.Timeout | undefined;
+
+async function markUnverified(editor: vscode.TextEditor | undefined): Promise<void> {
+    if (!editor || editor.document.languageId !== 'surety' || !client?.isRunning()) {
+        return;
+    }
+    const doc = editor.document;
+    const found = await client.sendRequest<{ range: { start: { line: number; character: number }; end: { line: number; character: number } } }[]>(
+        'surety/unverified', { textDocument: { uri: doc.uri.toString() } });
+    const ranges = found.map(f => new vscode.Range(f.range.start.line, f.range.start.character, f.range.end.line, f.range.end.character));
+    unverifiedRanges.set(doc.uri.toString(), ranges);
+    editor.setDecorations(unverifiedStyle, ranges);
+}
+
+function markUnverifiedSoon(): void {
+    if (unverifiedTimer) {
+        clearTimeout(unverifiedTimer);
+    }
+    unverifiedTimer = setTimeout(() => void markUnverified(vscode.window.activeTextEditor), 300);
+}
+
 // The server is the binary at `surety.path`. A build that replaces it leaves
 // the running server the old one until a restart, so the extension watches
 // the file and restarts the client when it changes: a rebuild reaches the
@@ -484,6 +511,7 @@ function watchBinary(bin: string): vscode.Disposable {
             output.appendLine(`${bin} changed; restarting the language server`);
             await client?.restart();
             restarts++;
+            markUnverifiedSoon();
         }, 500);
     };
     fs.watchFile(bin, { interval: 500 }, changed);
@@ -497,7 +525,7 @@ function watchBinary(bin: string): vscode.Disposable {
     };
 }
 
-export function activate(context: vscode.ExtensionContext): { restarts(): number } {
+export function activate(context: vscode.ExtensionContext): { restarts(): number; unverified(uri: vscode.Uri): vscode.Range[] } {
     const s = settings();
     output = vscode.window.createOutputChannel('Surety');
     verdicts = vscode.languages.createDiagnosticCollection('surety-check');
@@ -514,12 +542,20 @@ export function activate(context: vscode.ExtensionContext): { restarts(): number
         },
     };
     client = new LanguageClient('surety', 'Surety', serverOptions, clientOptions);
-    client.start();
+    unverifiedStyle = vscode.window.createTextEditorDecorationType({ fontStyle: 'italic', textDecoration: 'underline dotted' });
+    void client.start().then(() => markUnverified(vscode.window.activeTextEditor));
     context.subscriptions.push(
         output,
         verdicts,
         { dispose: () => client?.stop() },
         watchBinary(s.path),
+        unverifiedStyle,
+        vscode.window.onDidChangeActiveTextEditor(markUnverifiedSoon),
+        vscode.workspace.onDidChangeTextDocument(e => {
+            if (e.document === vscode.window.activeTextEditor?.document) {
+                markUnverifiedSoon();
+            }
+        }),
         vscode.workspace.onDidChangeTextDocument(holdEdit),
         vscode.window.onDidChangeTextEditorSelection(e => {
             const doc = e.textEditor.document;
@@ -607,7 +643,10 @@ export function activate(context: vscode.ExtensionContext): { restarts(): number
             terminal.sendText(`${settings().python} ${script} lines ${doc.uri.fsPath} --surety ${settings().path}`);
         }),
     );
-    return { restarts: () => restarts };
+    return {
+        restarts: () => restarts,
+        unverified: uri => unverifiedRanges.get(uri.toString()) ?? [],
+    };
 }
 
 export function deactivate(): Thenable<void> | undefined {

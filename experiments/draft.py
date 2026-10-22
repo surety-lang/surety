@@ -10,7 +10,8 @@ of the prompt by its file stem, so a draft against a solved problem does not
 see the author's answer.
 
 `sentences` hands the model the problem's prose, the author's types if any,
-and the public docs and corpus, and takes back the types it had to add (each
+the spec's two summary paragraphs (generated inputs; the property fragment as
+it stands), the decision notes and the corpus, and takes back the types it had to add (each
 under a `// drafted` line, so the author reads them first), the signature,
 and `#` sentences, one claim each, with no property line beneath any of them
 and no examples. The file starts with `// draft`. The types are this stage's
@@ -115,12 +116,38 @@ def corpus_text(withhold: list[str]) -> str:
     return f"The corpus, {len(parts)} obligations written by hand:\n\n" + "\n\n".join(parts)
 
 
+SPEC = DOCS / "Surety Spec v2.md"
+SPEC_PARAGRAPHS = ("**Generated inputs", "**The property fragment as of")
+
+
+def spec_text() -> str:
+    """The two paragraphs of the spec that define the notation as it stands:
+    the generated-inputs paragraph and the fragment summary under Layers.
+    The whole spec is too long to hand over; these are its summary of it."""
+    if not SPEC.exists():
+        print(f"no {SPEC}; the draft runs without the spec's fragment summary", file=sys.stderr)
+        return ""
+    paragraphs = [p.strip() for p in read(SPEC).split("\n\n")]
+    found = []
+    for marker in SPEC_PARAGRAPHS:
+        hits = [p for p in paragraphs if p.startswith(marker)]
+        if not hits:
+            print(f"{SPEC.name} has no paragraph starting {marker!r}; the draft runs without it", file=sys.stderr)
+            continue
+        found.append(hits[-1])
+    if not found:
+        return ""
+    return "The spec's summary of the notation (`docs/Surety Spec v2.md`):\n\n" + "\n\n".join(found)
+
+
 def docs_text() -> str:
-    """The public docs' decision notes: short, and the rules the notation rests on."""
+    """What the public docs say about the notation: the spec's two summary
+    paragraphs, then the decision notes."""
     parts = []
     for f in sorted(DOCS.glob("Decision - *.md")):
         parts.append(f"`{f.name}`:\n\n{read(f).strip()}")
-    return "The decisions the notation rests on:\n\n" + "\n\n".join(parts) if parts else ""
+    decisions = "The decisions the notation rests on:\n\n" + "\n\n".join(parts) if parts else ""
+    return "\n\n".join(t for t in (spec_text(), decisions) if t)
 
 
 def call_model(system: str, prompt: str, model: str, effort: str, workspace: str | None) -> tuple[str, dict]:

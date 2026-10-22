@@ -1,13 +1,18 @@
 //! Hover, go to definition and document symbols, answered from the file's
 //! syntax tree and its siblings on disk. A line belongs to a presentation,
 //! so everything here reads the text the editor holds and nothing reads
-//! the graph except a sibling's state on hover, when a graph is given.
+//! the graph except a sibling's state on hover, and an obligation only the
+//! graph holds, when a graph is given.
 
 use std::path::{Path, PathBuf};
 
 use serde_json::{Value as Json, json};
-use surety_syntax::load::load_with_siblings_text;
-use surety_syntax::{Decl, File, Function, Graph, render};
+use surety_syntax::load::{load_with_siblings, load_with_siblings_text};
+use surety_syntax::parser::BUILTINS;
+use surety_syntax::resolve::Scope;
+use surety_syntax::{
+    Abbrev, BinOp, Decl, Expr, File, Function, Graph, NamedValue, Type, TypeDecl, render,
+};
 
 use crate::path_to_uri;
 
@@ -33,6 +38,19 @@ fn word_at(text: &str, line: usize, character: usize) -> Option<String> {
     Some(chars[start..end].iter().collect())
 }
 
+/// Whether the identifier under a position is called: `(` right after it.
+fn called_at(text: &str, line: usize, character: usize) -> bool {
+    let Some(l) = text.lines().nth(line) else {
+        return false;
+    };
+    let chars: Vec<char> = l.chars().collect();
+    let mut end = character.min(chars.len());
+    while end < chars.len() && (chars[end].is_alphanumeric() || chars[end] == '_') {
+        end += 1;
+    }
+    chars.get(end) == Some(&'(')
+}
+
 fn line_range(line: usize, text: &str) -> Json {
     let l = line.saturating_sub(1);
     let len = text.lines().nth(l).map(|x| x.chars().count()).unwrap_or(0);
@@ -49,39 +67,47 @@ fn sibling_path(file: &Path, graph: &Graph, fidx: usize) -> PathBuf {
         .join(format!("{}.sur", graph.files[fidx].name))
 }
 
-/// Where a name is declared: a type, a named value, an abbreviation (file
-/// or function level) or an obligation, in this file or a sibling.
-enum Found {
-    Type(usize, String),
-    Value(usize, String),
-    Abbrev(usize, String),
-    Obligation(usize, String),
+/// The path of the file at `fidx`, given the path of the one at `idx`.
+fn file_path(path: &Path, graph: &Graph, idx: usize, fidx: usize) -> PathBuf {
+    if fidx == idx {
+        path.to_path_buf()
+    } else {
+        sibling_path(path, graph, fidx)
+    }
 }
 
-fn find_in(file: &File, name: &str) -> Option<Found> {
+/// Where a name is declared: a type, a named value, an abbreviation (file
+/// or function level) or an obligation, in this file or a sibling.
+enum Found<'a> {
+    Type(&'a TypeDecl),
+    Value(&'a NamedValue),
+    Abbrev(&'a Abbrev),
+    Obligation(&'a Function),
+}
+
+impl Found<'_> {
+    fn line(&self) -> usize {
+        match self {
+            Found::Type(t) => t.line,
+            Found::Value(nv) => nv.line,
+            Found::Abbrev(a) => a.line,
+            Found::Obligation(f) => f.line,
+        }
+    }
+}
+
+fn find_in<'a>(file: &'a File, name: &str) -> Option<Found<'a>> {
     for d in &file.decls {
         match d {
-            Decl::Type(t) if t.name == name => {
-                return Some(Found::Type(t.line, format!("type {} = {}", t.name, t.ty)));
-            }
-            Decl::NamedValue(nv) if nv.name == name => {
-                let text = match &nv.ty {
-                    Some(t) => format!("{}: {t} = {}", nv.name, render::expr(&nv.value)),
-                    None => format!("{} = {}", nv.name, render::expr(&nv.value)),
-                };
-                return Some(Found::Value(nv.line, text));
-            }
-            Decl::Abbrev(a) if a.name == name => {
-                return Some(Found::Abbrev(a.line, render::abbrev(a)));
-            }
+            Decl::Type(t) if t.name == name => return Some(Found::Type(t)),
+            Decl::NamedValue(nv) if nv.name == name => return Some(Found::Value(nv)),
+            Decl::Abbrev(a) if a.name == name => return Some(Found::Abbrev(a)),
             Decl::Function(f) => {
                 if f.name == name {
-                    return Some(Found::Obligation(f.line, signature(f)));
+                    return Some(Found::Obligation(f));
                 }
-                for a in &f.abbrevs {
-                    if a.name == name {
-                        return Some(Found::Abbrev(a.line, render::abbrev(a)));
-                    }
+                if let Some(a) = f.abbrevs.iter().find(|a| a.name == name) {
+                    return Some(Found::Abbrev(a));
                 }
             }
             _ => {}
@@ -96,7 +122,7 @@ fn signature(f: &Function) -> String {
 }
 
 /// The name's declaration: (the file index it is in, what was found).
-fn resolve(graph: &Graph, idx: usize, name: &str) -> Option<(usize, Found)> {
+fn resolve<'g>(graph: &'g Graph, idx: usize, name: &str) -> Option<(usize, Found<'g>)> {
     if let Some(f) = find_in(graph.file(idx), name) {
         return Some((idx, f));
     }
@@ -128,15 +154,12 @@ pub fn definition(path: &Path, text: &str, pos: &Json) -> Json {
     let Some((fidx, found)) = resolve(&graph, idx, &word) else {
         return Json::Null;
     };
-    let decl_line = match found {
-        Found::Type(l, _) | Found::Value(l, _) | Found::Abbrev(l, _) | Found::Obligation(l, _) => l,
-    };
     if fidx == idx {
-        location(path, decl_line, text)
+        location(path, found.line(), text)
     } else {
         let sibling = sibling_path(path, &graph, fidx);
         let sibling_text = std::fs::read_to_string(&sibling).unwrap_or_default();
-        location(&sibling, decl_line, &sibling_text)
+        location(&sibling, found.line(), &sibling_text)
     }
 }
 
@@ -144,60 +167,519 @@ fn markdown(value: String) -> Json {
     json!({ "contents": { "kind": "markdown", "value": value } })
 }
 
+fn code(text: &str) -> String {
+    format!("```surety\n{text}\n```")
+}
+
+fn push_unique(names: &mut Vec<String>, name: &str) {
+    if !names.iter().any(|n| n == name) {
+        names.push(name.to_string());
+    }
+}
+
+/// The type names a type mentions: named types and spreads, at any depth.
+fn named_in(ty: &Type, out: &mut Vec<String>) {
+    match ty {
+        Type::Named(n) => push_unique(out, n),
+        Type::Record { spreads, fields } => {
+            for s in spreads {
+                push_unique(out, s);
+            }
+            for (_, t) in fields {
+                named_in(t, out);
+            }
+        }
+        Type::List(t, _) | Type::Option(t) => named_in(t, out),
+        Type::Result(t, e) => {
+            named_in(t, out);
+            named_in(e, out);
+        }
+        _ => {}
+    }
+}
+
+/// One field of a record with its spreads flattened: its type as written,
+/// and the spreads it came through, outermost first (empty for the
+/// record's own fields).
+struct Field {
+    name: String,
+    ty: Type,
+    via: Vec<String>,
+}
+
+/// A record's fields in order, spreads flattened; None when a spread does
+/// not resolve to a record.
+fn fields_of(
+    graph: &Graph,
+    from: usize,
+    ty: &Type,
+    line: usize,
+    depth: usize,
+) -> Option<Vec<Field>> {
+    if depth > 32 {
+        return None;
+    }
+    match ty {
+        Type::Named(n) => {
+            let (idx, decl) = graph.find_type(from, n, line).ok()?;
+            fields_of(graph, idx, &decl.ty, decl.line, depth + 1)
+        }
+        Type::Record { spreads, fields } => {
+            let mut out = Vec::new();
+            for s in spreads {
+                let (idx, decl) = graph.find_type(from, s, line).ok()?;
+                for mut f in fields_of(graph, idx, &decl.ty, decl.line, depth + 1)? {
+                    f.via.insert(0, s.clone());
+                    out.push(f);
+                }
+            }
+            for (n, t) in fields {
+                out.push(Field {
+                    name: n.clone(),
+                    ty: t.clone(),
+                    via: Vec::new(),
+                });
+            }
+            Some(out)
+        }
+        _ => None,
+    }
+}
+
+/// The comment over a group of fields: the type that declares them, and
+/// the spreads between, or `own`.
+fn origin(via: &[String]) -> String {
+    match via {
+        [] => "own".to_string(),
+        [one] => format!("from {one}"),
+        [between @ .., last] => format!("from {last}, through {}", between.join(", ")),
+    }
+}
+
+/// A record that spreads others, written out a field to a line, each run
+/// of fields under a comment saying where it came from.
+fn expanded(name: &str, fields: &[Field]) -> String {
+    let mut s = format!("type {name} = {{\n");
+    let mut group: Option<&[String]> = None;
+    for (i, f) in fields.iter().enumerate() {
+        if group != Some(f.via.as_slice()) {
+            s.push_str(&format!("    // {}\n", origin(&f.via)));
+            group = Some(&f.via);
+        }
+        let comma = if i + 1 < fields.len() { "," } else { "" };
+        s.push_str(&format!("    {}: {}{comma}\n", f.name, f.ty));
+    }
+    s.push('}');
+    s
+}
+
+/// A type's declaration for a hover: a record that spreads others written
+/// out field by field, an alias followed by what it names, anything else
+/// as declared. Every type name the text mentions goes into `mentioned`.
+fn type_block(
+    graph: &Graph,
+    fidx: usize,
+    t: &TypeDecl,
+    mentioned: &mut Vec<String>,
+    depth: usize,
+) -> String {
+    let declared = format!("type {} = {}", t.name, t.ty);
+    match &t.ty {
+        Type::Named(n) if depth < 32 => {
+            push_unique(mentioned, n);
+            match graph.find_type(fidx, n, t.line) {
+                Ok((j, target)) => format!(
+                    "{declared}\n{}",
+                    type_block(graph, j, target, mentioned, depth + 1)
+                ),
+                Err(_) => declared,
+            }
+        }
+        Type::Record { spreads, .. } if !spreads.is_empty() => {
+            match fields_of(graph, fidx, &t.ty, t.line, 0) {
+                Some(fields) => {
+                    for f in &fields {
+                        for v in &f.via {
+                            push_unique(mentioned, v);
+                        }
+                        named_in(&f.ty, mentioned);
+                    }
+                    expanded(&t.name, &fields)
+                }
+                None => {
+                    named_in(&t.ty, mentioned);
+                    declared
+                }
+            }
+        }
+        _ => {
+            named_in(&t.ty, mentioned);
+            declared
+        }
+    }
+}
+
+/// A link to a type's declaration, which an editor opens at the line.
+fn type_link(graph: &Graph, path: &Path, idx: usize, from: usize, name: &str) -> Option<String> {
+    let (j, decl) = graph.find_type(from, name, 0).ok()?;
+    let target = file_path(path, graph, idx, j);
+    Some(format!(
+        "[`{name}`]({}#L{})",
+        path_to_uri(&target),
+        decl.line
+    ))
+}
+
+fn type_text(graph: &Graph, path: &Path, idx: usize, fidx: usize, t: &TypeDecl) -> String {
+    let mut mentioned = Vec::new();
+    let mut s = code(&type_block(graph, fidx, t, &mut mentioned, 0));
+    let links: Vec<String> = mentioned
+        .iter()
+        .filter(|n| **n != t.name)
+        .filter_map(|n| type_link(graph, path, idx, fidx, n))
+        .collect();
+    if !links.is_empty() {
+        s.push_str(&format!("\n\ntypes: {}", links.join(" · ")));
+    }
+    s
+}
+
+/// The declarations of the types a signature names, and of the types those
+/// spread or alias, in the order they are reached.
+fn signature_types<'g>(graph: &'g Graph, fidx: usize, f: &Function) -> Vec<&'g TypeDecl> {
+    let mut names = Vec::new();
+    for (_, t) in &f.inputs {
+        named_in(t, &mut names);
+    }
+    named_in(&f.output, &mut names);
+    let mut queue: Vec<(usize, String)> = names.into_iter().map(|n| (fidx, n)).collect();
+    let mut out: Vec<(usize, &TypeDecl)> = Vec::new();
+    let mut i = 0;
+    while let Some((from, name)) = queue.get(i).cloned() {
+        i += 1;
+        let Ok((j, decl)) = graph.find_type(from, &name, f.line) else {
+            continue;
+        };
+        if out.iter().any(|(k, d)| *k == j && d.name == decl.name) {
+            continue;
+        }
+        out.push((j, decl));
+        match &decl.ty {
+            Type::Named(n) => queue.push((j, n.clone())),
+            Type::Record { spreads, .. } => {
+                queue.extend(spreads.iter().map(|s| (j, s.clone())));
+            }
+            _ => {}
+        }
+    }
+    out.into_iter().map(|(_, d)| d).collect()
+}
+
+/// An obligation's interface: its signature, its note, and the types the
+/// signature names.
+fn obligation_text(graph: &Graph, fidx: usize, f: &Function) -> String {
+    let mut s = code(&signature(f));
+    if let Some(note) = &f.note {
+        s.push_str(&format!("\n\n{note}"));
+    }
+    let types: Vec<String> = signature_types(graph, fidx, f)
+        .iter()
+        .map(|t| format!("type {} = {}", t.name, t.ty))
+        .collect();
+    if !types.is_empty() {
+        s.push_str(&format!("\n\n{}", code(&types.join("\n"))));
+    }
+    s
+}
+
+fn value_text(nv: &NamedValue) -> String {
+    match &nv.ty {
+        Some(t) => format!("{}: {t} = {}", nv.name, render::expr(&nv.value)),
+        None => format!("{} = {}", nv.name, render::expr(&nv.value)),
+    }
+}
+
+/// The directory a namespace's source paths are relative to: the graph's
+/// parent.
+fn graph_base(dir: &Path) -> &Path {
+    dir.parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or(Path::new("."))
+}
+
+/// What the graph says about an obligation declared in `file`: its state
+/// from `show` when the namespace pins the name from that file, else
+/// where the name is pinned from, since that state is another file's.
+fn graph_line(dir: &Path, name: &str, file: &Path) -> Option<String> {
+    let store = surety_graph::Store::open(dir);
+    let entry = store.namespace().ok()?.get(name)?.clone();
+    let pinned = std::fs::canonicalize(graph_base(dir).join(&entry.source)).ok();
+    if pinned.is_none() || pinned != std::fs::canonicalize(file).ok() {
+        return Some(format!("the graph pins `{name}` from `{}`", entry.source));
+    }
+    let view = surety_graph::show(&store, name).ok()?;
+    Some(format!("state: **{}**", view.state.word()))
+}
+
+fn describe(
+    graph: &Graph,
+    path: &Path,
+    idx: usize,
+    fidx: usize,
+    found: &Found<'_>,
+    graph_dir: Option<&Path>,
+) -> String {
+    let mut value = match found {
+        Found::Type(t) => type_text(graph, path, idx, fidx, t),
+        Found::Value(nv) => code(&value_text(nv)),
+        Found::Abbrev(a) => code(&render::abbrev(a)),
+        Found::Obligation(f) => obligation_text(graph, fidx, f),
+    };
+    let mut meta = Vec::new();
+    if fidx != idx {
+        meta.push(format!("in `{}.sur`", graph.files[fidx].name));
+    }
+    if let (Found::Obligation(f), Some(dir)) = (found, graph_dir) {
+        if let Some(line) = graph_line(dir, &f.name, &file_path(path, graph, idx, fidx)) {
+            meta.push(line);
+        }
+    }
+    if !meta.is_empty() {
+        value.push_str(&format!("\n\n{}", meta.join(" · ")));
+    }
+    value
+}
+
+/// A call to a name with no declaration: its line, the type of each
+/// argument where the scope it sits in can say, and whether it stands
+/// where a truth value goes.
+struct Use {
+    line: usize,
+    args: Vec<Type>,
+    truth: bool,
+}
+
+fn calls_to(scope: &Scope<'_>, e: &Expr, name: &str, truth: bool, out: &mut Vec<Use>) {
+    match e {
+        Expr::Call(n, args, line) => {
+            if n == name {
+                out.push(Use {
+                    line: *line,
+                    args: args
+                        .iter()
+                        .map(|a| scope.infer(a, *line).unwrap_or(Type::Unknown))
+                        .collect(),
+                    truth,
+                });
+            }
+            for a in args {
+                calls_to(scope, a, name, false, out);
+            }
+        }
+        Expr::Not(x) => calls_to(scope, x, name, true, out),
+        Expr::Binary(op, a, b) => {
+            let t = matches!(op, BinOp::Iff | BinOp::Implies | BinOp::Or | BinOp::And);
+            calls_to(scope, a, name, t, out);
+            calls_to(scope, b, name, t, out);
+        }
+        Expr::Quantifier(q) => {
+            calls_to(scope, &q.domain, name, false, out);
+            let elem = scope.domain_elem(q).unwrap_or(Type::Unknown);
+            let inner = match &q.binder.name {
+                Some(n) => scope.bind(n, elem),
+                None => scope.clone(),
+            };
+            for part in [&q.where_, &q.body, &q.else_].into_iter().flatten() {
+                calls_to(&inner, part, name, true, out);
+            }
+        }
+        Expr::Field(x, _, _)
+        | Expr::Ok(x)
+        | Expr::Err(x)
+        | Expr::Unordered(x)
+        | Expr::Unique(x)
+        | Expr::SortedBy(x, _) => calls_to(scope, x, name, false, out),
+        Expr::List(xs) | Expr::Tuple(xs) => {
+            for x in xs {
+                calls_to(scope, x, name, false, out);
+            }
+        }
+        Expr::Record(fields, _) => {
+            for (_, x) in fields {
+                calls_to(scope, x, name, false, out);
+            }
+        }
+        Expr::Relation(_, a, b) => {
+            calls_to(scope, a, name, false, out);
+            calls_to(scope, b, name, false, out);
+        }
+        Expr::Before { a, b, list } => {
+            for x in [a, b, list] {
+                calls_to(scope, x, name, false, out);
+            }
+        }
+        Expr::Int(_) | Expr::Float(_) | Expr::Text(_) | Expr::None | Expr::Name(..) => {}
+    }
+}
+
+fn with_params<'g>(scope: &Scope<'g>, graph: &Graph, idx: usize, a: &Abbrev) -> Scope<'g> {
+    let mut s = scope.clone();
+    for (n, t) in &a.params {
+        s = s.bind(n, graph.expand(idx, t, a.line).unwrap_or(Type::Unknown));
+    }
+    s
+}
+
+/// Every call to `name` in the file: in abbreviations, properties and
+/// accept lines.
+fn uses_of(graph: &Graph, idx: usize, name: &str) -> Vec<Use> {
+    let mut out = Vec::new();
+    for d in &graph.file(idx).decls {
+        match d {
+            Decl::Abbrev(a) => {
+                let scope = with_params(&Scope::top_level(graph, idx), graph, idx, a);
+                calls_to(&scope, &a.body, name, false, &mut out);
+            }
+            Decl::Function(f) => {
+                let Ok(scope) = Scope::for_function(graph, idx, f) else {
+                    continue;
+                };
+                for a in &f.abbrevs {
+                    let inner = with_params(&scope, graph, idx, a);
+                    calls_to(&inner, &a.body, name, false, &mut out);
+                }
+                for p in f.properties.iter().chain(&f.accepts) {
+                    calls_to(&scope, &p.expr, name, true, &mut out);
+                }
+            }
+            _ => {}
+        }
+    }
+    out
+}
+
+fn builtin(name: &str) -> Option<&'static str> {
+    Some(match name {
+        "sum" => "the sum of a list of numbers, of the list's element type",
+        "len" => "the length of a list or a `Text`, an `Int`",
+        "count" => "the number of elements in a list, an `Int`",
+        "min" => "the least of two or more values of one ordered type",
+        "max" => "the greatest of two or more values of one ordered type",
+        "flatten" => "a list of lists as one list, in order",
+        _ => return None,
+    })
+}
+
+/// An obligation the graph holds and no file in this directory declares:
+/// its interface read from its source with that file's siblings, or from
+/// the pinned presentation when the source is gone; where it is pinned
+/// from, and its state.
+fn from_store(dir: &Path, name: &str) -> Option<String> {
+    let store = surety_graph::Store::open(dir);
+    let entry = store.namespace().ok()?.get(name)?.clone();
+    let view = surety_graph::show(&store, name).ok()?;
+    let graph = match load_with_siblings(&graph_base(dir).join(&entry.source)) {
+        Ok((graph, _)) => graph,
+        Err(_) => {
+            let text = store
+                .presentation(&view.hash, view.presentations.first()?)
+                .ok()?;
+            Graph::single(name, surety_syntax::parse(&text).ok()?)
+        }
+    };
+    let (fidx, f) = graph.find_function(name)?;
+    Some(format!(
+        "{}\n\nin the graph, pinned from `{}` · state: **{}**",
+        obligation_text(&graph, fidx, f),
+        entry.source,
+        view.state.word()
+    ))
+}
+
+/// A call to a name nothing in the directory declares: a built-in, an
+/// obligation only the graph holds, or a graph reference with no obligation
+/// yet, typed as this file calls it.
+fn describe_call(
+    graph: &Graph,
+    idx: usize,
+    name: &str,
+    cursor: usize,
+    graph_dir: Option<&Path>,
+) -> Option<String> {
+    if BUILTINS.contains(&name) {
+        return builtin(name).map(|what| format!("`{name}`: built-in, {what}."));
+    }
+    if let Some(s) = graph_dir.and_then(|dir| from_store(dir, name)) {
+        return Some(s);
+    }
+    let uses = uses_of(graph, idx, name);
+    let here = uses
+        .iter()
+        .find(|u| u.line == cursor)
+        .or_else(|| uses.first())?;
+    let args: Vec<String> = (0..here.args.len())
+        .map(|i| {
+            uses.iter()
+                .filter(|u| u.args.len() == here.args.len())
+                .map(|u| &u.args[i])
+                .find(|t| !t.is_unknown())
+                .unwrap_or(&here.args[i])
+                .to_string()
+        })
+        .collect();
+    let output = if uses.iter().any(|u| u.truth) {
+        "Bool"
+    } else {
+        "?"
+    };
+    Some(format!(
+        "{}\n\nA graph reference: no obligation in this directory declares `{name}`, so this is its shape as this file calls it. The performance supplies it, unchecked, until a sibling obligation declares it.",
+        code(&format!("{name}({}) -> {output}", args.join(", ")))
+    ))
+}
+
 pub fn hover(path: &Path, text: &str, pos: &Json, graph_dir: Option<&Path>) -> Json {
     let (line, character) = position(pos);
-    let parsed = load_with_siblings_text(path, text);
+    let Ok((graph, idx)) = load_with_siblings_text(path, text) else {
+        return Json::Null;
+    };
     if let Some(word) = word_at(text, line, character) {
-        if let Ok((graph, idx)) = &parsed {
-            if let Some((fidx, found)) = resolve(graph, *idx, &word) {
-                let mut value = match &found {
-                    Found::Type(_, t) | Found::Value(_, t) | Found::Abbrev(_, t) => {
-                        format!("```surety\n{t}\n```")
-                    }
-                    Found::Obligation(_, t) => format!("```surety\n{t}\n```"),
-                };
-                if fidx != *idx {
-                    value.push_str(&format!("\n\nin `{}.sur`", graph.files[fidx].name));
-                }
-                if let (Found::Obligation(..), Some(dir)) = (&found, graph_dir) {
-                    let store = surety_graph::Store::open(dir);
-                    if let Ok(view) = surety_graph::show(&store, &word) {
-                        value.push_str(&format!("\n\nstate: **{}**", view.state.word()));
-                    }
-                }
+        if let Some((fidx, found)) = resolve(&graph, idx, &word) {
+            return markdown(describe(&graph, path, idx, fidx, &found, graph_dir));
+        }
+        if called_at(text, line, character) {
+            if let Some(value) = describe_call(&graph, idx, &word, line + 1, graph_dir) {
                 return markdown(value);
             }
         }
     }
     // Not a name: a property line, or a continuation line of a vertical
     // body, shows the sentence above the property.
-    if let Ok((graph, idx)) = &parsed {
-        let cursor = line + 1;
-        for f in graph.functions_in(*idx) {
-            let first_example = f
-                .examples
-                .iter()
-                .map(|e| e.line)
-                .min()
-                .unwrap_or(usize::MAX);
-            if cursor >= first_example {
-                continue;
-            }
-            let mut items: Vec<_> = f.properties.iter().chain(&f.accepts).collect();
-            items.sort_by_key(|p| p.line);
-            let at = items
-                .iter()
-                .enumerate()
-                .find(|(i, p)| {
-                    p.line <= cursor && items.get(i + 1).is_none_or(|next| next.line > cursor)
-                })
-                .map(|(_, p)| *p);
-            if let Some(p) = at {
-                return match &p.sentence {
-                    Some(s) => markdown(s.clone()),
-                    None => Json::Null,
-                };
-            }
+    let cursor = line + 1;
+    for f in graph.functions_in(idx) {
+        let first_example = f
+            .examples
+            .iter()
+            .map(|e| e.line)
+            .min()
+            .unwrap_or(usize::MAX);
+        if cursor >= first_example {
+            continue;
+        }
+        let mut items: Vec<_> = f.properties.iter().chain(&f.accepts).collect();
+        items.sort_by_key(|p| p.line);
+        let at = items
+            .iter()
+            .enumerate()
+            .find(|(i, p)| {
+                p.line <= cursor && items.get(i + 1).is_none_or(|next| next.line > cursor)
+            })
+            .map(|(_, p)| *p);
+        if let Some(p) = at {
+            return match &p.sentence {
+                Some(s) => markdown(s.clone()),
+                None => Json::Null,
+            };
         }
     }
     Json::Null

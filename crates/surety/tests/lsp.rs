@@ -7,7 +7,7 @@ mod common;
 
 use std::fs;
 use std::io::BufReader;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 
 use serde_json::{Value as Json, json};
@@ -311,6 +311,117 @@ fn names_resolve_and_hover_says_what_a_thing_is() {
     assert!(
         children.contains(&"example 1") && children.contains(&"example 2"),
         "{children:?}"
+    );
+    lsp.stop();
+}
+
+fn hover_text(reply: Json) -> String {
+    reply["contents"]["value"]
+        .as_str()
+        .unwrap_or_default()
+        .to_string()
+}
+
+#[test]
+fn hover_writes_out_spreads_and_gives_every_callee_its_interface() {
+    let mut lsp = Lsp::start_with_graph();
+    let p7 = common::corpus_dir().join("p7.sur");
+    let p8 = common::corpus_dir().join("p8.sur");
+    let p14 = common::corpus_dir().join("p14.sur");
+    for p in [&p7, &p8, &p14] {
+        assert!(lsp.open(p).is_empty());
+    }
+
+    // A record that spreads another is written out field by field: the
+    // inherited under the type they came from, the own under `own`, and a
+    // link to the spread type's line.
+    let value = hover_text(lsp.at("textDocument/hover", &p7, "EnrichedOrder[]"));
+    assert!(
+        value.contains("type EnrichedOrder = {\n    // from Order\n    id: Id,"),
+        "{value}"
+    );
+    assert!(
+        value.contains("    // own\n    user_name: Option<Text>\n}"),
+        "{value}"
+    );
+    let p7_uri = surety_lsp::path_to_uri(&fs::canonicalize(&p7).unwrap());
+    assert!(
+        value.contains(&format!("[`Order`]({p7_uri}#L2)")),
+        "{value}"
+    );
+
+    // An alias is followed by what it names, across the directory.
+    let apply = common::corpus_dir().join("apply_diff.sur");
+    assert!(lsp.open(&apply).is_empty());
+    let value = hover_text(lsp.at("textDocument/hover", &apply, "DiffError = "));
+    assert!(
+        value.contains(
+            "type DiffError = ValidationError\ntype ValidationError = { code: Text, display: Text }"
+        ),
+        "{value}"
+    );
+
+    // An obligation shows its interface: the signature, the note, and the
+    // types the signature names with what they alias.
+    let value = hover_text(lsp.at("textDocument/hover", &p14, "snapshot_diff(old"));
+    assert!(
+        value.contains("snapshot_diff(old: Item[unique sku], new: Item[unique sku]) -> Diff"),
+        "{value}"
+    );
+    assert!(
+        value.contains("return the added, removed, and changed items"),
+        "{value}"
+    );
+    assert!(
+        value.contains("type Item = { sku: Id, qty: Int }\ntype Diff = {"),
+        "{value}"
+    );
+    let value = hover_text(lsp.at("textDocument/hover", &p14, "apply_diff(old, out)"));
+    assert!(
+        value.contains("type DiffError = ValidationError\ntype ValidationError = "),
+        "{value}"
+    );
+
+    // A bodiless predicate is a graph reference: typed as the file calls it.
+    let value = hover_text(lsp.at("textDocument/hover", &p8, "well_formed_email(p.email)"));
+    assert!(value.contains("well_formed_email(Text) -> Bool"), "{value}");
+    assert!(value.contains("A graph reference"), "{value}");
+
+    // A built-in says so.
+    let value = hover_text(lsp.at("textDocument/hover", &p8, "len(password)"));
+    assert!(value.contains("`len`: built-in"), "{value}");
+
+    // Outside the corpus: an obligation sharing a pinned name does not
+    // borrow that node's state, and a call to an obligation only the graph
+    // holds shows its interface, read from its source with the siblings.
+    let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("lsp-hover");
+    fs::create_dir_all(&dir).unwrap();
+    let elsewhere = dir.join("elsewhere.sur");
+    fs::write(
+        &elsewhere,
+        "type Item = { sku: Id, qty: Int }\n\napply_diff(old: Item[]) -> Item[]\n\tall i in out: i in old\n\tsnapshot_diff(old, out) == snapshot_diff(out, old)\n",
+    )
+    .unwrap();
+    lsp.open(&elsewhere);
+    let value = hover_text(lsp.at("textDocument/hover", &elsewhere, "apply_diff(old: "));
+    assert!(
+        value.contains(
+            "the graph pins `apply_diff` from `crates/surety/tests/corpus/apply_diff.sur`"
+        ),
+        "{value}"
+    );
+    assert!(!value.contains("state:"), "{value}");
+    let value = hover_text(lsp.at("textDocument/hover", &elsewhere, "snapshot_diff(old, out)"));
+    assert!(
+        value.contains("snapshot_diff(old: Item[unique sku], new: Item[unique sku]) -> Diff"),
+        "{value}"
+    );
+    assert!(value.contains("type Diff = {"), "{value}");
+    assert!(
+        value.contains(
+            "in the graph, pinned from `crates/surety/tests/corpus/p14.sur` · state: **verified**"
+        ),
+        "{value}"
     );
     lsp.stop();
 }

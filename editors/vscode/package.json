@@ -85,6 +85,7 @@
     "compile": "tsc -p ./",
     "watch": "tsc -w -p ./",
     "test:grammar": "node ./out/test/grammar.test.js",
+    "test:block": "node ./out/test/block.test.js",
     "test:extension": "node ./out/test/runTest.js"
   },
   "dependencies": {

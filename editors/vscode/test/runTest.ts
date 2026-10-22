@@ -1,5 +1,5 @@
 // Slice 4, acceptance test 4: the verdict on save, in VS Code's own test
-// host. Prepares a workspace of corpus copies, points the extension at the
+// host, and parse's diagnostics waiting while a clause is typed. Prepares a workspace of corpus copies, points the extension at the
 // repository's debug binary, and runs the suite under test/suite.
 
 import * as fs from 'fs';
@@ -27,6 +27,8 @@ async function main(): Promise<void> {
     const p5a = fs.readFileSync(path.join(corpus, 'p5a.sur'), 'utf8');
     const withoutAccept = p5a.split('\n').filter(l => !l.trim().startsWith('accept ')).join('\n');
     fs.writeFileSync(path.join(workspace, 'ties.sur'), withoutAccept);
+    // P2 to type a half-finished clause into: its diagnostics wait while the cursor is in that clause.
+    fs.copyFileSync(path.join(corpus, 'p2.sur'), path.join(workspace, 'typing.sur'));
     fs.mkdirSync(path.join(workspace, '.vscode'));
     fs.writeFileSync(path.join(workspace, '.vscode', 'settings.json'), JSON.stringify({ 'surety.path': binary }, null, 2));
     await runTests({

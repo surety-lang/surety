@@ -142,6 +142,18 @@ fn every_bad_fixture_gets_parses_diagnostic_and_the_corpus_gets_none() {
             "{}: the line",
             path.display()
         );
+        // The range starts after the indentation, where the line's text does.
+        let text = fs::read_to_string(&path).unwrap();
+        let at = text.lines().nth(line as usize - 1).unwrap_or_default();
+        let indent = at.chars().take_while(|c| c.is_whitespace()).count();
+        if indent < at.chars().count() {
+            assert_eq!(
+                d["range"]["start"]["character"].as_u64().unwrap() as usize,
+                indent,
+                "{}: the first character",
+                path.display()
+            );
+        }
         assert_eq!(d["severity"], 1);
         assert_eq!(d["source"], "surety");
         assert!(d["message"].as_str().is_some_and(|m| !m.is_empty()));

@@ -33,17 +33,16 @@ pub fn diagnostics_for(path: &Path, text: &str) -> Vec<Error> {
     }
 }
 
-/// An error as an LSP diagnostic: the whole of its line, severity Error,
-/// the kind as the code.
+/// An error as an LSP diagnostic: its line from the first character after
+/// the indentation to the end, severity Error, the kind as the code.
 pub fn diagnostic(e: &Error, text: &str) -> Json {
     let line = e.line.saturating_sub(1);
-    let len = text
-        .lines()
-        .nth(line)
-        .map(|l| l.chars().count())
-        .unwrap_or(0);
+    let l = text.lines().nth(line).unwrap_or_default();
+    let len = l.chars().count();
+    let indent = l.chars().take_while(|c| c.is_whitespace()).count();
+    let start = if indent < len { indent } else { 0 };
     json!({
-        "range": { "start": { "line": line, "character": 0 }, "end": { "line": line, "character": len } },
+        "range": { "start": { "line": line, "character": start }, "end": { "line": line, "character": len } },
         "severity": 1,
         "code": e.kind.name(),
         "source": "surety",

@@ -40,4 +40,5 @@ jobs:
       - run: npm ci
       - run: npm run compile
       - run: npm run test:grammar
+      - run: npm run test:block
       - run: xvfb-run -a npm run test:extension

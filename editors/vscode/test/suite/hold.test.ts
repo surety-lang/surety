@@ -1,0 +1,59 @@
+import * as assert from 'assert';
+import * as path from 'path';
+import * as vscode from 'vscode';
+
+function workspaceFile(name: string): vscode.Uri {
+    const root = vscode.workspace.workspaceFolders![0].uri.fsPath;
+    return vscode.Uri.file(path.join(root, name));
+}
+
+const parseErrors = (uri: vscode.Uri) =>
+    vscode.languages.getDiagnostics(uri).filter(d => d.source === 'surety' && d.severity === vscode.DiagnosticSeverity.Error);
+
+async function until(what: string, ok: () => boolean, timeoutMs = 30000): Promise<void> {
+    const started = Date.now();
+    while (!ok()) {
+        if (Date.now() - started > timeoutMs) {
+            throw new Error(`timed out waiting for ${what}`);
+        }
+        await new Promise(r => setTimeout(r, 100));
+    }
+}
+
+async function never(what: string, bad: () => boolean, forMs = 2000): Promise<void> {
+    const started = Date.now();
+    while (Date.now() - started < forMs) {
+        assert.ok(!bad(), what);
+        await new Promise(r => setTimeout(r, 100));
+    }
+}
+
+suite('diagnostics wait while a clause is typed', () => {
+    test('a quantifier head with no body yet: held in its block, shown on leaving it', async () => {
+        const uri = workspaceFile('typing.sur');
+        const doc = await vscode.workspace.openTextDocument(uri);
+        const editor = await vscode.window.showTextDocument(doc);
+        await until('the server to see the file clean', () => parseErrors(uri).length === 0);
+        // Typed as an author types it: Enter after the note, the head, Enter.
+        const at = (line: number, ch: number) => new vscode.Position(line, ch);
+        await editor.edit(e => e.insert(at(2, doc.lineAt(2).text.length), '\n\t'));
+        await editor.edit(e => e.insert(at(3, 1), 'all o in out:'));
+        await editor.edit(e => e.insert(at(3, doc.lineAt(3).text.length), '\n\t\t'));
+        editor.selection = new vscode.Selection(at(4, 2), at(4, 2));
+        const onHead = () => parseErrors(uri).some(d => d.range.start.line === 3);
+        await never('no error on the head while the cursor is under it', onHead);
+        // Moving within the block keeps it held.
+        editor.selection = new vscode.Selection(at(3, 5), at(3, 5));
+        await never('no error while the cursor is on the head', onHead, 1000);
+        // Leaving the block shows parse's error on the head.
+        editor.selection = new vscode.Selection(at(0, 0), at(0, 0));
+        await until('the error on the head', onHead);
+        const d = parseErrors(uri).find(x => x.range.start.line === 3)!;
+        assert.ok(d.message.includes('no body'), d.message);
+        assert.strictEqual(d.range.start.character, 1, 'the squiggle starts after the tab');
+        // Back into the block without an edit: the error stays where it is.
+        editor.selection = new vscode.Selection(at(4, 2), at(4, 2));
+        await never('the error stays shown when the cursor only returns', () => !onHead(), 1000);
+        await vscode.commands.executeCommand('workbench.action.files.revert');
+    });
+});

@@ -8,10 +8,64 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { LanguageClient, LanguageClientOptions, ServerOptions } from 'vscode-languageclient/node';
+import { Block, blockAt } from './block';
 
 let client: LanguageClient | undefined;
 let verdicts: vscode.DiagnosticCollection;
 let output: vscode.OutputChannel;
+
+// The server's diagnostics are parse's on every change, and a clause is
+// wrong until it is finished: `all Ok(r) in out:` has no body the moment
+// it is typed. So the server's diagnostics inside the block of the last
+// edit wait until the cursor leaves that block, the file is saved, or
+// another editor takes focus. An edit that spans blocks (a paste, a file
+// rewritten on disk) holds nothing.
+const latest = new Map<string, vscode.Diagnostic[]>();
+const holds = new Map<string, Block>();
+
+function shown(uri: vscode.Uri): vscode.Diagnostic[] {
+    const all = latest.get(uri.toString()) ?? [];
+    const hold = holds.get(uri.toString());
+    if (!hold) {
+        return all;
+    }
+    return all.filter(d => d.range.start.line < hold.start || d.range.start.line > hold.end);
+}
+
+function release(uri: vscode.Uri): void {
+    if (holds.delete(uri.toString())) {
+        client?.diagnostics?.set(uri, shown(uri));
+    }
+}
+
+function holdEdit(e: vscode.TextDocumentChangeEvent): void {
+    const doc = e.document;
+    if (doc.languageId !== 'surety' || e.contentChanges.length === 0) {
+        return;
+    }
+    if (vscode.window.activeTextEditor?.document !== doc) {
+        release(doc.uri);
+        return;
+    }
+    const lines = doc.getText().split(/\r?\n/);
+    let hold: Block | undefined;
+    for (const c of e.contentChanges) {
+        const first = c.range.start.line;
+        const last = first + (c.text.match(/\n/g)?.length ?? 0);
+        const block = blockAt(lines, first);
+        if (last > block.end) {
+            release(doc.uri);
+            return;
+        }
+        if (hold && (block.start !== hold.start || block.end !== hold.end)) {
+            release(doc.uri);
+            return;
+        }
+        hold = block;
+    }
+    holds.set(doc.uri.toString(), hold!);
+    client?.diagnostics?.set(doc.uri, shown(doc.uri));
+}
 
 function settings() {
     const c = vscode.workspace.getConfiguration('surety');
@@ -42,9 +96,10 @@ function run(bin: string, args: string[], cwd: string | undefined): Promise<{ co
     });
 }
 
+/** A line from its first character after the indentation to its end. */
 function lineRange(doc: vscode.TextDocument, line: number): vscode.Range {
-    const l = Math.max(0, Math.min(line, doc.lineCount - 1));
-    return doc.lineAt(l).range;
+    const l = doc.lineAt(Math.max(0, Math.min(line, doc.lineCount - 1)));
+    return l.isEmptyOrWhitespace ? l.range : l.range.with({ start: l.range.start.with({ character: l.firstNonWhitespaceCharacterIndex }) });
 }
 
 type Mode = 'auto' | 'check' | 'mutants';
@@ -157,6 +212,12 @@ export function activate(context: vscode.ExtensionContext): void {
     const serverOptions: ServerOptions = { command: s.path, args, options: { cwd } };
     const clientOptions: LanguageClientOptions = {
         documentSelector: [{ scheme: 'file', language: 'surety' }],
+        middleware: {
+            handleDiagnostics: (uri, diagnostics, next) => {
+                latest.set(uri.toString(), diagnostics);
+                next(uri, shown(uri));
+            },
+        },
     };
     client = new LanguageClient('surety', 'Surety', serverOptions, clientOptions);
     client.start();
@@ -164,7 +225,28 @@ export function activate(context: vscode.ExtensionContext): void {
         output,
         verdicts,
         { dispose: () => client?.stop() },
+        vscode.workspace.onDidChangeTextDocument(holdEdit),
+        vscode.window.onDidChangeTextEditorSelection(e => {
+            const doc = e.textEditor.document;
+            const hold = holds.get(doc.uri.toString());
+            const line = e.selections[0]?.active.line;
+            if (hold && line !== undefined && (line < hold.start || line > hold.end)) {
+                release(doc.uri);
+            }
+        }),
+        vscode.window.onDidChangeActiveTextEditor(editor => {
+            for (const key of [...holds.keys()]) {
+                if (key !== editor?.document.uri.toString()) {
+                    release(vscode.Uri.parse(key));
+                }
+            }
+        }),
+        vscode.workspace.onDidCloseTextDocument(doc => {
+            holds.delete(doc.uri.toString());
+            latest.delete(doc.uri.toString());
+        }),
         vscode.workspace.onDidSaveTextDocument(doc => {
+            release(doc.uri);
             if (settings().checkOnSave) {
                 void checkDocument(doc, 'auto');
             }

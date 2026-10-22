@@ -105,3 +105,28 @@ suite('the verdict on save', () => {
         assert.strictEqual(hint.range.start.character, 1, 'after the tab');
     });
 });
+
+suite('formatting through the server', () => {
+    test('P7, formatted: no prose line past 100 columns, the obligation unchanged', async () => {
+        const uri = workspaceFile('p7.sur');
+        const doc = await vscode.workspace.openTextDocument(uri);
+        const before = doc.getText();
+        const columns = (l: string) => [...l].reduce((n, c) => n + (c === '\t' ? 4 : 1), 0);
+        const prose = (t: string) => t.split('\n').filter(l => /^\s*(#|\/\/)/.test(l));
+        assert.ok(prose(before).some(l => columns(l) > 100), 'the fixture has a prose line to wrap');
+        let edits: vscode.TextEdit[] | undefined;
+        for (let i = 0; i < 60 && !edits?.length; i++) {
+            edits = await vscode.commands.executeCommand<vscode.TextEdit[]>('vscode.executeFormatDocumentProvider', uri, { tabSize: 4, insertSpaces: false });
+            if (!edits?.length) { await new Promise(r => setTimeout(r, 500)); }
+        }
+        assert.ok(edits && edits.length > 0, 'edits from the server');
+        // VS Code minimizes the server's whole-document edit into a diff; apply it.
+        const we = new vscode.WorkspaceEdit();
+        we.set(uri, edits!);
+        assert.ok(await vscode.workspace.applyEdit(we), 'the edit applies');
+        const after = doc.getText();
+        assert.ok(prose(after).every(l => columns(l) <= 100), `a prose line past the column:\n${after}`);
+        assert.ok(after.includes('enrich_orders('), 'the obligation is still there');
+        assert.ok(prose(after).length > prose(before).length, 'wrapping added prose lines');
+    });
+});

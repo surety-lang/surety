@@ -79,7 +79,12 @@
         "command": "surety.draft",
         "title": "Surety: Draft the property lines under the sentences"
       }
-    ]
+    ],
+    "configurationDefaults": {
+      "[surety]": {
+        "editor.formatOnSave": true
+      }
+    }
   },
   "scripts": {
     "compile": "tsc -p ./",

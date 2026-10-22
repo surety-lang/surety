@@ -5,3 +5,5 @@ Obligations in Surety, in the editor: errors as you type (the same ones `surety 
 The extension starts `surety lsp`. Set `surety.path` to the binary when it is not on your PATH, and `surety.graph` to a graph directory to see a sibling obligation's state on hover.
 
 Build: `npm install && npm run compile`. Package: `npx @vscode/vsce package`. Install the VSIX from the command palette, "Extensions: Install from VSIX".
+
+**Formatting.** The server formats a file through `surety render`: sentences and comments wrap at 100 columns, every comment stays anchored to the line that follows it, and the obligation itself never changes (the hash is the test). Format on save is on by default for `.sur` files; a sentence or comment past the column shows as a hint until then.

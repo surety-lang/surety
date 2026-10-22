@@ -33,6 +33,49 @@ pub fn diagnostics_for(path: &Path, text: &str) -> Vec<Error> {
     }
 }
 
+/// The whole document replaced by its rendering: prose wrapped at the
+/// column, every comment where it was, the obligation unchanged. Null when
+/// the text does not parse, since there is nothing to render then.
+pub fn formatting(text: &str) -> Json {
+    match surety_syntax::parse(text) {
+        Ok(file) => {
+            let rendered = surety_syntax::render::file(&file, false);
+            if rendered == text {
+                return json!([]);
+            }
+            let end = text.lines().count() + usize::from(text.ends_with('\n'));
+            json!([{
+                "range": { "start": { "line": 0, "character": 0 }, "end": { "line": end, "character": 0 } },
+                "newText": rendered,
+            }])
+        }
+        Err(_) => Json::Null,
+    }
+}
+
+/// A hint, never an error, on each sentence or comment line past the
+/// column: formatting wraps it.
+pub fn long_prose_lines(text: &str) -> Vec<Json> {
+    text.lines()
+        .enumerate()
+        .filter(|(_, l)| {
+            let t = l.trim_start();
+            (t.starts_with('#') || t.starts_with("//"))
+                && surety_syntax::render::columns(l) > surety_syntax::render::WIDTH
+        })
+        .map(|(i, l)| {
+            let indent = l.chars().take_while(|c| c.is_whitespace()).count();
+            json!({
+                "range": { "start": { "line": i, "character": indent }, "end": { "line": i, "character": l.encode_utf16().count() } },
+                "severity": 4,
+                "code": "long_line",
+                "source": "surety",
+                "message": format!("past {} columns; formatting wraps it", surety_syntax::render::WIDTH),
+            })
+        })
+        .collect()
+}
+
 /// An error as an LSP diagnostic: its line from the first character after
 /// the indentation to the end, severity Error, the kind as the code.
 pub fn diagnostic(e: &Error, text: &str) -> Json {
@@ -103,10 +146,12 @@ impl Server {
         let text = self.docs.get(uri).cloned().unwrap_or_default();
         let path = uri_to_path(uri);
         let diagnostics: Vec<Json> = if self.docs.contains_key(uri) {
-            diagnostics_for(&path, &text)
+            let mut all: Vec<Json> = diagnostics_for(&path, &text)
                 .iter()
                 .map(|e| diagnostic(e, &text))
-                .collect()
+                .collect();
+            all.extend(long_prose_lines(&text));
+            all
         } else {
             Vec::new()
         };
@@ -139,6 +184,7 @@ impl Server {
                         "hoverProvider": true,
                         "definitionProvider": true,
                         "documentSymbolProvider": true,
+                        "documentFormattingProvider": true,
                         "completionProvider": { "triggerCharacters": ["."] },
                     },
                     "serverInfo": { "name": "surety-lsp", "version": env!("CARGO_PKG_VERSION") },
@@ -195,6 +241,10 @@ impl Server {
             ("textDocument/documentSymbol", Some(id)) => {
                 let text = self.docs.get(&uri).cloned().unwrap_or_default();
                 vec![Self::response(&id, query::symbols(&text))]
+            }
+            ("textDocument/formatting", Some(id)) => {
+                let text = self.docs.get(&uri).cloned().unwrap_or_default();
+                vec![Self::response(&id, formatting(&text))]
             }
             (_, Some(id)) => vec![json!({
                 "jsonrpc": "2.0",

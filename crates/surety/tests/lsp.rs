@@ -160,11 +160,60 @@ fn every_bad_fixture_gets_parses_diagnostic_and_the_corpus_gets_none() {
         checked += 1;
     }
     assert_eq!(checked, 18, "the eighteen negative fixtures");
+    let mut hints = 0;
     for name in common::FIXTURES {
         let path = common::corpus_dir().join(format!("{name}.sur"));
         let diagnostics = lsp.open(&path);
-        assert!(diagnostics.is_empty(), "{name}: {diagnostics:?}");
+        let errors: Vec<&Json> = diagnostics.iter().filter(|d| d["severity"] != 4).collect();
+        assert!(errors.is_empty(), "{name}: {errors:?}");
+        // A sentence or comment past the column is a hint, never an error.
+        for d in diagnostics.iter().filter(|d| d["severity"] == 4) {
+            assert_eq!(d["code"], "long_line", "{name}: {d}");
+            hints += 1;
+        }
     }
+    assert!(
+        hints >= 5,
+        "the corpus has prose lines past the column: {hints}"
+    );
+    lsp.stop();
+}
+
+#[test]
+fn formatting_returns_the_rendering_and_the_hints_go_away() {
+    let mut lsp = Lsp::start();
+    let path = common::corpus_dir().join("p7.sur");
+    let text = fs::read_to_string(&path).unwrap();
+    let before = lsp.open(&path);
+    assert!(
+        before.iter().any(|d| d["severity"] == 4),
+        "p7 has a prose line past the column"
+    );
+    let uri = surety_lsp::path_to_uri(&fs::canonicalize(&path).unwrap());
+    let reply = lsp.request(
+        "textDocument/formatting",
+        json!({ "textDocument": { "uri": uri }, "options": { "tabSize": 4, "insertSpaces": false } }),
+    );
+    let edits = reply["result"].as_array().cloned().expect("one edit");
+    assert_eq!(edits.len(), 1, "{reply}");
+    assert_eq!(
+        edits[0]["range"]["start"],
+        json!({ "line": 0, "character": 0 })
+    );
+    let rendered = edits[0]["newText"].as_str().unwrap().to_string();
+    let parsed = surety_syntax::parse(&text).unwrap();
+    assert_eq!(rendered, surety_syntax::render::file(&parsed, false));
+    let after = lsp.change(&path, &rendered);
+    assert!(
+        after.is_empty(),
+        "formatted, p7 has no diagnostic at all: {after:?}"
+    );
+    // Formatted text formats to itself: no edit.
+    let again = lsp.request(
+        "textDocument/formatting",
+        json!({ "textDocument": { "uri": uri }, "options": { "tabSize": 4, "insertSpaces": false } }),
+    );
+    assert_eq!(again["result"], json!([]));
     lsp.stop();
 }
 
@@ -244,7 +293,7 @@ fn names_resolve_and_hover_says_what_a_thing_is() {
     let p14 = common::corpus_dir().join("p14.sur");
     let p3 = common::corpus_dir().join("p3.sur");
     for p in [&p5b, &p14, &p3] {
-        assert!(lsp.open(p).is_empty());
+        assert!(lsp.open(p).iter().all(|d| d["severity"] == 4), "no error");
     }
 
     // Go to definition on `Order` in p5b's signature lands on the type.
@@ -341,7 +390,7 @@ fn hover_writes_out_spreads_and_gives_every_callee_its_interface() {
     let p8 = common::corpus_dir().join("p8.sur");
     let p14 = common::corpus_dir().join("p14.sur");
     for p in [&p7, &p8, &p14] {
-        assert!(lsp.open(p).is_empty());
+        assert!(lsp.open(p).iter().all(|d| d["severity"] == 4), "no error");
     }
 
     // A record that spreads another is written out field by field: the
@@ -364,7 +413,10 @@ fn hover_writes_out_spreads_and_gives_every_callee_its_interface() {
 
     // An alias is followed by what it names, across the directory.
     let apply = common::corpus_dir().join("apply_diff.sur");
-    assert!(lsp.open(&apply).is_empty());
+    assert!(
+        lsp.open(&apply).iter().all(|d| d["severity"] == 4),
+        "no error"
+    );
     let value = hover_text(lsp.at("textDocument/hover", &apply, "DiffError = "));
     assert!(
         value.contains(

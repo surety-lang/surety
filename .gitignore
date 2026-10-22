@@ -8,3 +8,7 @@ __pycache__/
 .l6e/
 
 *.DS_STORE
+
+# agent definitions, local only
+/.claude/
+.DS_Store

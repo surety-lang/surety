@@ -21,7 +21,8 @@ surety pin <file.sur> [<perf.py>]         check and pin the definition into grap
 surety show <name | hash>                 a node: its state, its prose, its performances, one hop each way
 surety status                             every name in the graph with its state; stale where a source moved on
 surety verify [--rerun]                   the kernel over every record; with --rerun, the check again, byte for byte
-surety render <file.sur>                  the file printed back from its syntax tree
+surety render <file.sur>                  the formatter: the file printed back from its syntax tree,
+                                          prose wrapped at 100 columns, every comment where it was
 surety lsp                                the language server over stdio
 surety extract <markdown> <out-dir>       cut obligations out of the authored markdown
 ```

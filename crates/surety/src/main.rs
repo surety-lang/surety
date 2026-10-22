@@ -30,7 +30,8 @@ Usage:
                                         the source file now hashes to something else
   surety verify                         the kernel over every record; --rerun checks each again and
                                         requires its evidence byte-identical
-  surety render <file.sur>              the file printed back from its syntax tree; --fresh-names
+  surety render <file.sur>              the formatter: the file printed back from its syntax tree, prose
+                                        wrapped at 100 columns, every comment where it was; --fresh-names
                                         renames every binder, which must not change the hash
   surety lsp                            the language server over stdio: diagnostics equal to parse's
                                         on every change, hover, definition, symbols; --graph for

@@ -159,7 +159,7 @@ fn every_bad_fixture_gets_parses_diagnostic_and_the_corpus_gets_none() {
         assert!(d["message"].as_str().is_some_and(|m| !m.is_empty()));
         checked += 1;
     }
-    assert_eq!(checked, 15, "the fifteen negative fixtures");
+    assert_eq!(checked, 16, "the sixteen negative fixtures");
     for name in common::FIXTURES {
         let path = common::corpus_dir().join(format!("{name}.sur"));
         let diagnostics = lsp.open(&path);

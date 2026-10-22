@@ -1,0 +1,5 @@
+type Order = { amount: Int }
+filter_orders(orders: Order[]) -> Order[]
+	all o in out: o.amount <= 100
+	all a_o in out orders.amount:
+		a_o >= 0

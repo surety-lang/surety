@@ -1232,6 +1232,21 @@ impl<'a> ExprParser<'a> {
         }
         self.bump();
         let domain = self.parse_postfix()?;
+        // A name straight after the domain is a second domain, not the
+        // bodyless form: say so before the binder looks unused.
+        if let Some(Tok::Ident(n)) = self.peek().map(|t| &t.tok) {
+            if !is_reserved(n) {
+                let second = self.parse_postfix()?;
+                return Err(syntax(
+                    line,
+                    format!(
+                        "two lists after `in`: `{}` and `{}`; a quantifier ranges over one",
+                        crate::render::expr(&domain),
+                        crate::render::expr(&second)
+                    ),
+                ));
+            }
+        }
         let where_ = if self.peek_ident("where") {
             self.bump();
             Some(self.parse_iff()?)

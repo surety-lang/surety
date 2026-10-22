@@ -87,6 +87,18 @@ fn every_bad_fixture_fails_as_expected() {
     );
 }
 
+/// Two lists after `in` (a domain typed twice) is named as that, not as
+/// the binder the bodyless reading would leave unused.
+#[test]
+fn a_second_domain_is_named() {
+    let text = fs::read_to_string(common::corpus_dir().join("bad/two_domains.sur")).unwrap();
+    let e = parse(&text).unwrap_err();
+    assert_eq!(
+        e.message,
+        "two lists after `in`: `out` and `orders.amount`; a quantifier ranges over one"
+    );
+}
+
 /// Forms in the brief that no fixture exercises: `any`, `none`, `count`,
 /// `max`, `->`, `<`, `[0..3, unique f]`, `Bool`, `UUID`.
 #[test]

@@ -8,7 +8,12 @@ use crate::lexer::{Line, Tok, Token, lex};
 
 pub const BUILTINS: &[&str] = &["sum", "len", "min", "max", "count", "flatten"];
 
-const RESERVED: &[&str] = &[
+/// The type names `parse_type` knows without a declaration.
+pub const PRIMITIVES: &[&str] = &[
+    "Int", "Float", "Text", "Bool", "Id", "Time", "UUID", "Option", "Result",
+];
+
+pub const RESERVED: &[&str] = &[
     "in",
     "where",
     "else",

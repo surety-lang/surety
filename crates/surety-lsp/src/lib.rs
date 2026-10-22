@@ -139,6 +139,7 @@ impl Server {
                         "hoverProvider": true,
                         "definitionProvider": true,
                         "documentSymbolProvider": true,
+                        "completionProvider": { "triggerCharacters": ["."] },
                     },
                     "serverInfo": { "name": "surety-lsp", "version": env!("CARGO_PKG_VERSION") },
                 }),
@@ -184,6 +185,11 @@ impl Server {
             ("textDocument/definition", Some(id)) => {
                 let text = self.docs.get(&uri).cloned().unwrap_or_default();
                 let result = query::definition(&uri_to_path(&uri), &text, &params["position"]);
+                vec![Self::response(&id, result)]
+            }
+            ("textDocument/completion", Some(id)) => {
+                let text = self.docs.get(&uri).cloned().unwrap_or_default();
+                let result = query::completion(&uri_to_path(&uri), &text, &params["position"]);
                 vec![Self::response(&id, result)]
             }
             ("textDocument/documentSymbol", Some(id)) => {

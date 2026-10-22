@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{Value as Json, json};
 use surety_syntax::load::{load_with_siblings, load_with_siblings_text};
-use surety_syntax::parser::BUILTINS;
+use surety_syntax::parser::{BUILTINS, PRIMITIVES, RESERVED};
 use surety_syntax::resolve::Scope;
 use surety_syntax::{
     Abbrev, BinOp, Decl, Expr, File, Function, Graph, NamedValue, Type, TypeDecl, render,
@@ -752,4 +752,368 @@ pub fn symbols(text: &str) -> Json {
         }
     }
     Json::Array(out)
+}
+
+// ---- completion ----
+
+// LSP CompletionItemKind.
+const TEXT: u32 = 1;
+const FUNCTION: u32 = 3;
+const FIELD: u32 = 5;
+const VARIABLE: u32 = 6;
+const CLASS: u32 = 7;
+const KEYWORD: u32 = 14;
+const CONSTANT: u32 = 21;
+const STRUCT: u32 = 22;
+
+/// What the relations and `unordered` claim, from the spec's fragment.
+fn keyword_detail(word: &str) -> Option<&'static str> {
+    Some(match word {
+        "drawn_from" => "a sub-multiset of the right side",
+        "same_order_as" => "drawn from the right side, in its order",
+        "same_elements_as" => "the same elements as the right side, any order",
+        "unordered" => "no claim about the order",
+        "sorted_by" => "sorted by a lexicographic key",
+        "unique" => "no element appears twice",
+        "leftover" => "the domain's elements the output does not take",
+        "before" => "an earlier position in the list",
+        _ => return None,
+    })
+}
+
+fn item(label: &str, kind: u32, detail: Option<String>, rank: u8) -> Json {
+    let mut i = json!({ "label": label, "kind": kind, "sortText": format!("{rank}{label}") });
+    if let Some(d) = detail {
+        i["detail"] = json!(d);
+    }
+    i
+}
+
+/// The identifiers of the code in a text: sentences, comments and strings
+/// left out, as prose is not a name.
+fn code_words(text: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for line in text.lines() {
+        let t = line.trim_start();
+        if t.starts_with('#') || t.starts_with("//") {
+            continue;
+        }
+        let code = t.split("//").next().unwrap_or_default();
+        let mut quoted = false;
+        let mut word = String::new();
+        for c in code.chars().chain(std::iter::once(' ')) {
+            if c == '"' {
+                quoted = !quoted;
+            }
+            if !quoted && (c.is_alphanumeric() || c == '_') {
+                word.push(c);
+            } else {
+                if word
+                    .chars()
+                    .next()
+                    .is_some_and(|f| f.is_alphabetic() || f == '_')
+                {
+                    push_unique(&mut out, &word);
+                }
+                word.clear();
+            }
+        }
+    }
+    out
+}
+
+/// The dotted names before the word at a position, when a `.` precedes
+/// it: `diff.changed.` gives `["diff", "changed"]`.
+fn chain_before(text: &str, line: usize, character: usize) -> Option<Vec<String>> {
+    let l = text.lines().nth(line)?;
+    let chars: Vec<char> = l.chars().take(character).collect();
+    let is_word = |c: char| c.is_alphanumeric() || c == '_';
+    let mut i = chars.len();
+    while i > 0 && is_word(chars[i - 1]) {
+        i -= 1;
+    }
+    let mut chain = Vec::new();
+    while i > 0 && chars[i - 1] == '.' {
+        i -= 1;
+        let end = i;
+        while i > 0 && is_word(chars[i - 1]) {
+            i -= 1;
+        }
+        if i == end {
+            return None;
+        }
+        chain.insert(0, chars[i..end].iter().collect());
+    }
+    (!chain.is_empty()).then_some(chain)
+}
+
+/// The graph with the file in it: from its text; when that does not parse
+/// (a line half typed), from its text with the cursor's line blank; when
+/// that does not either (the half-typed line heads a body), from the file
+/// as last saved.
+fn load_for_completion(path: &Path, text: &str, line: usize) -> Option<(Graph, usize)> {
+    if let Ok(g) = load_with_siblings_text(path, text) {
+        return Some(g);
+    }
+    let blanked: Vec<&str> = text
+        .lines()
+        .enumerate()
+        .map(|(i, l)| if i == line { "" } else { l })
+        .collect();
+    load_with_siblings_text(path, &blanked.join("\n"))
+        .or_else(|_| load_with_siblings(path))
+        .ok()
+}
+
+/// The obligation whose block holds a 1-based line: the last signature at
+/// or above it.
+fn enclosing(graph: &Graph, idx: usize, line: usize) -> Option<&Function> {
+    graph
+        .functions_in(idx)
+        .into_iter()
+        .filter(|f| f.line <= line)
+        .max_by_key(|f| f.line)
+}
+
+/// Lists and options are looked through: `orders.amount` is each order's.
+fn element(t: Type) -> Type {
+    match t {
+        Type::List(t, _) | Type::Option(t) => element(*t),
+        t => t,
+    }
+}
+
+/// Where completion stands: the graph, the file, the obligation around
+/// the cursor, and the text above the cursor in that obligation, where the
+/// binders in scope were introduced.
+struct At<'g> {
+    graph: &'g Graph,
+    idx: usize,
+    f: Option<&'g Function>,
+    above: Vec<String>,
+}
+
+/// Words and single punctuation marks: enough to read a quantifier head.
+fn tokens(line: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut word = String::new();
+    for c in line.chars() {
+        if c.is_alphanumeric() || c == '_' {
+            word.push(c);
+            continue;
+        }
+        if !word.is_empty() {
+            out.push(std::mem::take(&mut word));
+        }
+        if !c.is_whitespace() {
+            out.push(c.to_string());
+        }
+    }
+    if !word.is_empty() {
+        out.push(word);
+    }
+    out
+}
+
+/// The nearest quantifier head binding `name` above the cursor: its
+/// pattern side (`Ok`, `Err`) if any, and the dotted chain it ranges over.
+fn binder_head(above: &[String], name: &str) -> Option<(Option<String>, Vec<String>)> {
+    for line in above.iter().rev() {
+        let t = tokens(line);
+        for k in (0..t.len()).rev() {
+            if !matches!(t[k].as_str(), "all" | "any" | "none" | "exactly_one") {
+                continue;
+            }
+            let (side, mut j) = match t.get(k + 1).map(String::as_str) {
+                Some(s @ ("Ok" | "Err")) if t.get(k + 2).is_some_and(|p| p == "(") => {
+                    if t.get(k + 3).map(String::as_str) != Some(name) {
+                        continue;
+                    }
+                    (Some(s.to_string()), k + 5)
+                }
+                Some(n) if n == name => (None, k + 2),
+                _ => continue,
+            };
+            if t.get(j).is_some_and(|w| w == "leftover") {
+                j += 1;
+            }
+            if t.get(j).is_none_or(|w| w != "in") {
+                continue;
+            }
+            let mut chain = vec![t.get(j + 1)?.clone()];
+            j += 2;
+            while t.get(j).is_some_and(|w| w == ".") {
+                chain.push(t.get(j + 1)?.clone());
+                j += 2;
+            }
+            return Some((side, chain));
+        }
+    }
+    None
+}
+
+impl At<'_> {
+    /// The type a dotted chain names: from an input, `out`, a named value or
+    /// a binder, each step a field, looking through lists and options.
+    fn chain_type(&self, chain: &[String], depth: usize) -> Option<Type> {
+        let root = &chain[0];
+        let line = self.f.map_or(0, |f| f.line);
+        let declared = match self.f {
+            Some(f) if root == "out" => Some(f.output.clone()),
+            Some(f) => f
+                .inputs
+                .iter()
+                .find(|(n, _)| n == root)
+                .map(|(_, t)| t.clone()),
+            None => None,
+        };
+        let mut ty = match declared {
+            Some(t) => self.graph.expand(self.idx, &t, line).ok()?,
+            None => match self.graph.named_value(self.idx, root) {
+                Some(nv) => self.graph.named_value_type(self.idx, nv).ok()?,
+                None if depth < 8 => self.binder_type(root, depth + 1)?,
+                None => return None,
+            },
+        };
+        for step in &chain[1..] {
+            let fields = element(ty).record_fields()?.to_vec();
+            ty = fields.into_iter().find(|(n, _)| n == step)?.1;
+        }
+        Some(ty)
+    }
+
+    /// A binder's type: an element of its domain, or the payload of the
+    /// side its pattern selects.
+    fn binder_type(&self, name: &str, depth: usize) -> Option<Type> {
+        let (side, chain) = binder_head(&self.above, name)?;
+        let domain = self.chain_type(&chain, depth)?;
+        let each = match domain {
+            Type::List(t, _) => *t,
+            t => t,
+        };
+        match (side.as_deref(), each) {
+            (None, t) => Some(t),
+            (Some("Ok"), Type::Result(ok, _)) => Some(*ok),
+            (Some("Err"), Type::Result(_, err)) => Some(*err),
+            _ => None,
+        }
+    }
+
+    /// The fields after a dotted chain, when its type is worked out here.
+    fn fields_after(&self, chain: &[String]) -> Option<Vec<(String, Type)>> {
+        element(self.chain_type(chain, 0)?)
+            .record_fields()
+            .map(|fs| fs.to_vec())
+    }
+}
+
+/// Every field of every record type in the graph: what a binder's `.` can
+/// reach, when the binder's type is not worked out here.
+fn all_fields(graph: &Graph) -> Vec<(String, Type)> {
+    let mut out: Vec<(String, Type)> = Vec::new();
+    for (i, gf) in graph.files.iter().enumerate() {
+        for d in &gf.file.decls {
+            if let Decl::Type(t) = d {
+                if let Ok(Type::Record { fields, .. }) = graph.expand(i, &t.ty, t.line) {
+                    for (n, ft) in fields {
+                        if !out.iter().any(|(m, _)| *m == n) {
+                            out.push((n, ft));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    out
+}
+
+/// Completion: after a `.`, the fields of what precedes it; anywhere else,
+/// the enclosing obligation's inputs, `out` and abbreviations, every name
+/// the directory declares, the keywords, built-ins and primitive types, and
+/// the identifiers already in the file's code. The editor filters by what
+/// has been typed.
+pub fn completion(path: &Path, text: &str, pos: &Json) -> Json {
+    let (line, character) = position(pos);
+    let loaded = load_for_completion(path, text, line);
+    let graph = loaded.as_ref().map(|(g, i)| (g, *i));
+    let f = graph.and_then(|(g, i)| enclosing(g, i, line + 1));
+    let typing = word_at(text, line, character).unwrap_or_default();
+    let mut items: Vec<Json> = Vec::new();
+    let mut seen: Vec<String> = Vec::new();
+    let mut add = |label: &str, kind: u32, detail: Option<String>, rank: u8| {
+        if label != typing && !seen.iter().any(|s| s == label) {
+            seen.push(label.to_string());
+            items.push(item(label, kind, detail, rank));
+        }
+    };
+    if let Some(chain) = chain_before(text, line, character) {
+        if let Some((g, i)) = graph {
+            // The obligation's lines down to the cursor: where its binders
+            // were introduced.
+            let start = f.map_or(0, |f| f.line.saturating_sub(1)).min(line);
+            let mut above: Vec<String> = text
+                .lines()
+                .skip(start)
+                .take(line + 1 - start)
+                .map(String::from)
+                .collect();
+            if let Some(last) = above.last_mut() {
+                *last = last.chars().take(character).collect();
+            }
+            let at = At {
+                graph: g,
+                idx: i,
+                f,
+                above,
+            };
+            let fields = at.fields_after(&chain).unwrap_or_else(|| all_fields(g));
+            for (n, t) in fields {
+                add(&n, FIELD, Some(t.to_string()), 0);
+            }
+        }
+        return Json::Array(items);
+    }
+    if let Some(f) = f {
+        for (n, t) in &f.inputs {
+            add(n, VARIABLE, Some(format!("{n}: {t}")), 0);
+        }
+        add("out", VARIABLE, Some(format!("out: {}", f.output)), 0);
+        for a in &f.abbrevs {
+            add(&a.name, FUNCTION, Some(render::abbrev(a)), 0);
+        }
+    }
+    if let Some((g, i)) = graph {
+        let order = std::iter::once(i).chain((0..g.files.len()).filter(|&j| j != i));
+        for j in order {
+            for d in &g.files[j].file.decls {
+                match d {
+                    Decl::Type(t) => add(
+                        &t.name,
+                        STRUCT,
+                        Some(format!("type {} = {}", t.name, t.ty)),
+                        1,
+                    ),
+                    Decl::NamedValue(nv) => add(&nv.name, CONSTANT, Some(value_text(nv)), 1),
+                    Decl::Abbrev(a) => add(&a.name, FUNCTION, Some(render::abbrev(a)), 1),
+                    Decl::Function(f) => add(&f.name, FUNCTION, Some(signature(f)), 1),
+                }
+            }
+        }
+    }
+    for w in RESERVED {
+        add(w, KEYWORD, keyword_detail(w).map(String::from), 2);
+    }
+    for w in ["note", "out"] {
+        add(w, KEYWORD, None, 2);
+    }
+    for b in BUILTINS {
+        add(b, FUNCTION, builtin(b).map(|d| format!("built-in: {d}")), 2);
+    }
+    for p in PRIMITIVES {
+        add(p, CLASS, None, 2);
+    }
+    for w in code_words(text) {
+        add(&w, TEXT, None, 3);
+    }
+    Json::Array(items)
 }

@@ -437,3 +437,100 @@ fn hover_writes_out_spreads_and_gives_every_callee_its_interface() {
     );
     lsp.stop();
 }
+
+impl Lsp {
+    /// Completion where the editor holds `text` (unsaved), at the end of
+    /// the first `needle` in it: the labels, with each item.
+    fn complete(&mut self, path: &Path, text: &str, needle: &str) -> Vec<Json> {
+        self.change(path, text);
+        let uri = surety_lsp::path_to_uri(&fs::canonicalize(path).unwrap());
+        let (line, character) = position_of(text, needle);
+        let reply = self.request(
+            "textDocument/completion",
+            json!({ "textDocument": { "uri": uri }, "position": { "line": line, "character": character + needle.chars().count() } }),
+        );
+        reply["result"].as_array().cloned().unwrap_or_default()
+    }
+}
+
+fn labels(items: &[Json]) -> Vec<&str> {
+    items.iter().filter_map(|i| i["label"].as_str()).collect()
+}
+
+#[test]
+fn completion_offers_the_words_the_language_has_and_the_names_in_scope() {
+    let mut lsp = Lsp::start();
+    let init = lsp.request("initialize", json!({ "capabilities": {} }));
+    assert_eq!(
+        init["result"]["capabilities"]["completionProvider"]["triggerCharacters"],
+        json!(["."])
+    );
+    let p2 = common::corpus_dir().join("p2.sur");
+    let saved = fs::read_to_string(&p2).unwrap();
+    assert!(lsp.open(&p2).is_empty());
+
+    // A relation half typed, on a line that does not parse yet.
+    let text = saved.replace("out same_order_as orders", "out same_o");
+    let items = lsp.complete(&p2, &text, "out same_o");
+    let relation = items
+        .iter()
+        .find(|i| i["label"] == "same_order_as")
+        .expect("same_order_as");
+    assert_eq!(relation["kind"], 14, "a keyword");
+    assert_eq!(
+        relation["detail"],
+        "drawn from the right side, in its order"
+    );
+    let all = labels(&items);
+    for want in [
+        "same_elements_as",
+        "drawn_from",
+        "orders",
+        "out",
+        "Order",
+        "len",
+        "Int",
+    ] {
+        assert!(all.contains(&want), "{want}: {all:?}");
+    }
+    assert!(!all.contains(&"same_o"), "not the word being typed");
+    let input = items.iter().find(|i| i["label"] == "orders").unwrap();
+    assert_eq!(input["detail"], "orders: Order[]");
+
+    // After a binder's `.`: the fields of its type, read from its quantifier.
+    let text = saved.replace("all o in out: o.amount <= 100", "all o in out: o.");
+    let items = lsp.complete(&p2, &text, "all o in out: o.");
+    let mut fields = labels(&items);
+    fields.sort();
+    assert_eq!(fields, ["amount", "customer_email"]);
+
+    // After an `Ok` pattern's binder: the fields of the Ok side's payload.
+    let p8 = common::corpus_dir().join("p8.sur");
+    let saved8 = fs::read_to_string(&p8).unwrap();
+    assert!(lsp.open(&p8).is_empty());
+    let text = saved8.replace("all Ok(p_o) in out: p_o == p", "all Ok(p_o) in out: p_o.");
+    let mut fields = labels(&lsp.complete(&p8, &text, "all Ok(p_o) in out: p_o."))
+        .into_iter()
+        .map(String::from)
+        .collect::<Vec<_>>();
+    fields.sort();
+    assert_eq!(fields, ["age", "email", "password"]);
+
+    // A half-typed head over a vertical body: the file as saved still says
+    // what `c_out` ranges over.
+    let p14 = common::corpus_dir().join("p14.sur");
+    let saved14 = fs::read_to_string(&p14).unwrap();
+    lsp.open(&p14);
+    let text = saved14.replacen(
+        "all c_out in out.changed:",
+        "all c_out in out.changed: c_out.",
+        1,
+    );
+    let mut fields = labels(&lsp.complete(&p14, &text, "all c_out in out.changed: c_out."))
+        .into_iter()
+        .map(String::from)
+        .collect::<Vec<_>>();
+    fields.sort();
+    assert_eq!(fields, ["new_qty", "old_qty", "sku"]);
+    lsp.stop();
+}

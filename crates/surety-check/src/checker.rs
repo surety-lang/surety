@@ -393,6 +393,10 @@ pub struct Checker<'g> {
     /// the skeleton mutants are built from.
     pub plan: Vec<crate::frame::Correspondence>,
     runners: HashMap<PathBuf, Runner>,
+    /// Modules that could not be started this run (missing, failing to
+    /// import), with why: asked again, they fail the same way at once,
+    /// with no new process.
+    broken: HashMap<PathBuf, RunError>,
     named: HashMap<String, Value>,
     unordered: Vec<Vec<Step>>,
     pub runs: Vec<Run>,
@@ -426,6 +430,7 @@ impl<'g> Checker<'g> {
             mutant: None,
             plan: Vec::new(),
             runners: HashMap::new(),
+            broken: HashMap::new(),
             named: HashMap::new(),
             unordered: unordered_paths(fun),
             runs: Vec::new(),
@@ -551,13 +556,31 @@ impl<'g> Checker<'g> {
             .collect()
     }
 
+    /// Whether an evaluation error comes from a module that could not be
+    /// started this run (missing, or failing to import): the environment's
+    /// doing, the same for every output.
+    pub fn unstartable(&self, error: &str) -> bool {
+        self.broken.values().any(|e| error.contains(&e.to_string()))
+    }
+
     fn runner(&mut self, path: &Path) -> Result<&mut Runner, RunError> {
+        if let Some(e) = self.broken.get(path) {
+            return Err(e.clone());
+        }
+        // A process a call's timeout killed is started again for the next.
         if self.runners.get(path).is_some_and(|r| r.is_dead()) {
             self.runners.remove(path);
         }
         if !self.runners.contains_key(path) {
-            let r = Runner::new(path, self.timeout)?;
-            self.runners.insert(path.to_path_buf(), r);
+            match Runner::new(path, self.timeout) {
+                Ok(r) => {
+                    self.runners.insert(path.to_path_buf(), r);
+                }
+                Err(e) => {
+                    self.broken.insert(path.to_path_buf(), e.clone());
+                    return Err(e);
+                }
+            }
         }
         Ok(self.runners.get_mut(path).unwrap())
     }

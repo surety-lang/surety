@@ -1427,7 +1427,7 @@ pub fn render_mutants(r: &MutantReport, full: bool) -> String {
     }
     for (c, e) in &r.unevaluable {
         s.push_str(&format!(
-            "  the search could not evaluate {}: {}\n",
+            "  could not evaluate {}: {}\n",
             clause_label(c),
             last_line(e)
         ));

@@ -2,25 +2,34 @@
 //!
 //! One process per module, kept alive across calls. Each request is one
 //! line of JSON on stdin; each response one line on stdout. No sandboxing
-//! beyond the subprocess and a per-call timeout.
+//! beyond the subprocess and a per-call timeout. A process says it is ready
+//! once the module has imported, so a module that is missing or fails to
+//! import is known when it is started, not on its first call.
 
 use std::fmt;
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, Command, Stdio};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::{Receiver, RecvTimeoutError, channel};
 use std::thread;
 use std::time::Duration;
 
 use serde_json::Value;
 
+/// The line a process writes once its module has imported.
+const READY: &str = r#"{"ready": true}"#;
+
 const DRIVER: &str = r#"
 import importlib.util, json, sys, traceback
+READY = '{"ready": true}'
 from datetime import datetime, timezone
 path = sys.argv[1]
 spec = importlib.util.spec_from_file_location("performance", path)
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
+sys.stdout.write(READY + "\n")
+sys.stdout.flush()
 
 
 def thaw(v):
@@ -76,6 +85,8 @@ for line in sys.stdin:
 pub enum RunError {
     /// Python could not be started.
     Spawn(String),
+    /// There is no module at the path.
+    Missing(PathBuf),
     /// The call did not answer within the timeout; the process was killed.
     Timeout(Duration),
     /// The process ended; typically the module failed to import.
@@ -90,6 +101,7 @@ impl fmt::Display for RunError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             RunError::Spawn(s) => write!(f, "cannot start python: {s}"),
+            RunError::Missing(p) => write!(f, "no performance at {}", p.display()),
             RunError::Timeout(d) => write!(f, "performance did not answer within {d:?}"),
             RunError::Exited(s) => write!(f, "performance process exited: {}", s.trim()),
             RunError::Raised(s) => write!(f, "performance raised:\n{}", s.trim_end()),
@@ -110,10 +122,24 @@ pub struct Runner {
     dead: bool,
 }
 
+/// Python processes started in this process, for the tests that hold a
+/// run to one start per module.
+static STARTS: AtomicUsize = AtomicUsize::new(0);
+
+pub fn starts() -> usize {
+    STARTS.load(Ordering::Relaxed)
+}
+
 impl Runner {
-    /// Start a process for the module at `path`.
+    /// Start a process for the module at `path` and wait until the module
+    /// has imported: a missing module, one that fails to import, or one
+    /// whose import outlasts the timeout is an error here.
     pub fn new(path: &Path, timeout: Duration) -> Result<Runner, RunError> {
+        if !path.is_file() {
+            return Err(RunError::Missing(path.to_path_buf()));
+        }
         let python = std::env::var("SURETY_PYTHON").unwrap_or_else(|_| "python3".to_string());
+        STARTS.fetch_add(1, Ordering::Relaxed);
         let mut child = Command::new(&python)
             .arg("-I")
             .arg("-c")
@@ -152,7 +178,7 @@ impl Runner {
             }
             let _ = etx.send(all);
         });
-        Ok(Runner {
+        let mut runner = Runner {
             child,
             stdin,
             lines,
@@ -160,7 +186,29 @@ impl Runner {
             timeout,
             path: path.to_path_buf(),
             dead: false,
-        })
+        };
+        runner.ready()?;
+        Ok(runner)
+    }
+
+    /// Wait for the ready line; anything the module printed while importing
+    /// comes first and is passed over.
+    fn ready(&mut self) -> Result<(), RunError> {
+        loop {
+            match self.lines.recv_timeout(self.timeout) {
+                Ok(Some(l)) if l == READY => return Ok(()),
+                Ok(Some(_)) => {}
+                Ok(None) | Err(RecvTimeoutError::Disconnected) => {
+                    self.dead = true;
+                    let _ = self.child.wait();
+                    return Err(RunError::Exited(self.collect_stderr(String::new())));
+                }
+                Err(RecvTimeoutError::Timeout) => {
+                    self.dead = true;
+                    return Err(RunError::Timeout(self.timeout));
+                }
+            }
+        }
     }
 
     pub fn path(&self) -> &Path {

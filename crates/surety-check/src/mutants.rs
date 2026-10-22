@@ -1027,6 +1027,7 @@ impl<'g> Checker<'g> {
             }
         }
         let unordered: Vec<Vec<Step>> = self.unordered().to_vec();
+        let mut unchecked: Vec<(Clause, String)> = Vec::new();
         let mut mutants = Vec::new();
         for m in LIBRARY {
             let mut run = MutantRun {
@@ -1057,6 +1058,14 @@ impl<'g> Checker<'g> {
                         match self.holds(expr, &case.inputs, &out) {
                             Ok(true) => {}
                             Ok(false) => kill(&mut run, clause.clone(), None, case, &out),
+                            // A module that could not start fails every
+                            // output alike: the clause is unchecked, and no
+                            // mutant is caught by it.
+                            Err(e) if self.unstartable(&e) => {
+                                if !unchecked.iter().any(|(c, _)| c == clause) {
+                                    unchecked.push((clause.clone(), e));
+                                }
+                            }
                             Err(e) => kill(&mut run, clause.clone(), Some(e), case, &out),
                         }
                     }
@@ -1108,7 +1117,13 @@ impl<'g> Checker<'g> {
                     .any(|r| r.kills.iter().any(|k| k.clause == *c))
             })
             .collect();
-        let (mut search, search_inputs, unevaluable) = self.search(&cases, &clauses, &unordered);
+        let (mut search, search_inputs, mut unevaluable) =
+            self.search(&cases, &clauses, &unordered);
+        for (c, e) in unchecked {
+            if !unevaluable.iter().any(|(u, _)| *u == c) {
+                unevaluable.push((c, e));
+            }
+        }
         // An underdetermined input whose second output is what a slipped
         // mutant returns there is the same hole, seen twice.
         let slipped: Vec<Mutant> = mutants

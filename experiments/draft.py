@@ -13,8 +13,12 @@ see the author's answer.
 the spec's two summary paragraphs (generated inputs; the property fragment as
 it stands), the decision notes and the corpus, and takes back the types and named values it had to add (each under a
 `// drafted` line, so the author reads them first), the signature,
-and `#` sentences, one claim each, with no property line beneath any of them
-and no examples. The file starts with `// draft`. The types are this stage's
+and `#` sentences, one claim each about the whole relation between the
+inputs and the output, with no property line beneath any of them and no
+examples; an instance the model wanted to pin goes under the sentences as
+`// example wanted: <the case>`, for the author to turn into an `e:` block
+or delete, and the tool never turns one into an example itself. The file
+starts with `// draft`. The types are this stage's
 output, so the file is parsed and an error goes back to the model for up to
 three rounds, as in stage 2. The author then edits the sentences in the editor.
 
@@ -69,7 +73,7 @@ NOTATION = """The notation, by the forms the corpus uses:
 
 SYSTEM_SENTENCES = """You draft Surety obligations from prose, in the first of two stages: the sentences.
 
-A Surety obligation is a specification a checker enforces: type declarations, a function signature, properties (claims about the relation between the inputs and the output), and examples. In this stage you write the types the problem needs that the author did not give, the named values a claim will need to refer to, the signature, and the claims as prose sentences only: one `#` line per claim, each a single claim a reader can judge true or false, nothing beneath any of them. No property lines, no examples, no accept lines: the author reviews the sentences first, then the notation is asked for separately.
+A Surety obligation is a specification a checker enforces: type declarations, a function signature, properties (claims about the relation between the inputs and the output), and examples. In this stage you write the types the problem needs that the author did not give, the named values a claim will need to refer to, the signature, and the claims as prose sentences only: one `#` line per claim about the whole relation between the inputs and the output, each a single claim a reader can judge true or false, nothing beneath any of them. No property lines, no examples, no accept lines: the author reviews the sentences first, then the notation is asked for separately.
 
 Reply with one ```surety code block and nothing else outside it, laid out as:
 
@@ -83,12 +87,19 @@ type <Name> = { ... }          (each type you had to add, each under its own `//
 	note "<one sentence of intent>"
 	# <sentence>
 	# <sentence>
+	// example wanted: <the case in one line>
 
 Every type the file names must be declared in the file. The built-in types are Int, Float, Text, Bool, Id, Time and UUID, with `T[]`, `Option<T>` and `Result<T, E>` over them; there is no library of types beyond these, and no type from another obligation or from the corpus is in scope (a corpus file may name a type declared in a file beside it; the draft stands alone). A type you need that the author did not give, you declare under its own `// drafted` line, with its fields. A file that names an undeclared type does not parse and comes back to you with the error.
 
 A named value is a declaration, not an example. Draft one beside the types, under its own `// drafted` line, only where a sentence needs a value to refer to: an error case (`age_error: SignupError = { code: "e-age-range", display: "..." }`), a reused record. Give every field, since a performance must return the value byte for byte; take the fields from the problem and invent none beyond them. Examples and accept lines stay the author's, always.
 
-Shape every sentence as the fragment shapes a claim, since a line will be asked for each one and a sentence shaped outside the fragment gets no line. The shapes: "every <element> in <list> [with <condition>] <has/is> ..." (a quantifier, also "no", "some", "exactly one"); "<x> is in <list>" or "is not in"; "the output is drawn from the input" (every output element is an occurrence of an input element, no occurrence used twice; with "every input element left out ..." this pins how many times each appears); "the output keeps the input's order", "has the same elements as", "is not claimed in any order", "is sorted by <field> [then <field>]", "has no two elements sharing <field>"; "<a> comes before <b> in <list>"; "if ... then ...", "... exactly when ..."; "the length of <list or text> is ..."; "<text> contains <text>". Do not write a sentence that counts occurrences, sums or compares a count other than a length, does arithmetic over elements, or operates on text beyond its length and whether it contains something: those have no line. For a text's shape (an email, a phone number), say that a sibling obligation decides it ("the email is well-formed"), since that is a graph reference, never a claim of the fragment. Say what must be in the output, what must not be, what is preserved, and what the order means or that it does not matter.
+A sentence is a claim about the whole relation between the inputs and the output: what holds on every input, in the fragment's vocabulary. Membership ("every output element is one of the input elements"), order ("the output keeps the input's order", "is sorted by <field>", "is not claimed in any order"), drawn from with left out ("the output is drawn from the input" means every output element is an occurrence of an input element and no occurrence is used twice; "every input element left out of the output has ..." then pins how many times each appears), uniqueness ("no two output elements share <field>"), "<a> comes before <b>", equalities and bounds over `sum` and `len` ("the total is the sum of the amounts", "the output has at most three elements"), "if ... then ..." and "... exactly when ...", with "every", "no", "some" and "exactly one" over a list with a condition. A sentence that fixes a specific input is not a claim and is left out: a length ("if the list has one item ..."), a single value ("if the rate is 0 ..."), a particular combination ("a rate of 0 with one item"). Those are instances, and an instance is an example, which the author writes.
+
+An instance you want pinned goes under the sentences as one line, `// example wanted: <the case in one line: the inputs and the output you expect>`, for the author to turn into an `e:` block or delete. Write one for each boundary the claims leave to the reader: the empty list, a zero rate, the exact threshold. Never write an `e:` block yourself.
+
+A sentence implied by another is left out, so that every sentence carries a claim of its own. Two cases. A boundary case of a claim is an example, not a second sentence: "if the list is empty, the total is 0" follows from "the total is the sum of the amounts", so it goes out as an example wanted. A bound implied by a stronger bound is dropped: "the total is at least 0" follows from "the total is at least the sum of the amounts" when every amount is at least 0, so only the stronger one stays. Three to six sentences is the usual size; a problem with error cases has one more per error.
+
+Shapes that have no line, so no sentence takes them: counting occurrences, arithmetic over elements beyond `sum`, text operations beyond its length and whether it contains something. For a text's shape (an email, a phone number) say that a sibling obligation decides it ("the email is well-formed"): a graph reference, never a claim of the fragment. Say what must be in the output, what must not be, what is preserved, and what the order means or that it does not matter.
 
 Use the vocabulary of the problem. Prefer several short claims to one long one. If the problem has an error case, say what each error means and when exactly one of them is reported.
 
@@ -283,7 +294,8 @@ def parse_pairs(block: str) -> tuple[dict[str, str], list[str]]:
         if t.startswith("#"):
             current = t[1:].strip()
             continue
-        if current is None:
+        if current is None or t.startswith("//"):
+            # A comment (an `example wanted`, a reach-for the model echoed) is not a line.
             continue
         if t.startswith("accept") or t in ("e:", "in:", "out:") or t.startswith(("in:", "out:")):
             refused.append(t)

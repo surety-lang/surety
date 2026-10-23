@@ -61,6 +61,8 @@ function prepare(workspace: string, corpus: string, binary: string): void {
     // The frozen 13 with one error example and no performance: its lines
     // run against the example on save, and five of them are false there.
     const p13 = fs.readFileSync(path.join(corpus, 'drafts', 'p13.sur'), 'utf8');
+    // The frozen 13 as it is: no example, no performance.
+    fs.writeFileSync(path.join(workspace, 'nothing13.sur'), p13);
     // The frozen 13 with an example-wanted line whose input is a literal
     // on the `// in:` line beneath: the code action writes its example.
     fs.writeFileSync(path.join(workspace, 'wanted.sur'), p13 + '\t// example wanted: four items, size 2, page 1: the has_next boundary\n\t// in: ([{id: "a"}, {id: "b"}, {id: "c"}, {id: "d"}], 1, 2)\n');

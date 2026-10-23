@@ -16,7 +16,7 @@ pub mod value;
 pub use against::{Against, ClauseAgainst, Contradiction, ExampleCase, OnExample};
 pub use checker::{
     AcceptReport, Cause, Checker, Counterexample, Determinism, ExampleReport, Failure, FrameReport,
-    GenRun, LookHere, LookKind, Outcome, Party, PropVerdict, PropertyReport, Report, Verdict,
+    GenRun, LookHere, LookKind, Outcome, Party, PropVerdict, PropertyReport, Ran, Report, Verdict,
 };
 pub use diff::{Class, DiffReport, Difference};
 pub use eval::{OBLIGATION_FAULT, is_obligation_fault};

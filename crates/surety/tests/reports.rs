@@ -13,6 +13,7 @@ const FINDING_KINDS: &[&str] = &[
     "example_contradicts",
     "example_unevaluable",
     "reach",
+    "ran",
     "look_here",
     "example_mismatch",
     "boundary",

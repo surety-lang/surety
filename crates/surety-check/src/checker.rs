@@ -122,6 +122,39 @@ impl FrameReport {
     }
 }
 
+/// What ran, four counts apart (slice 6, piece 2): the examples evaluated
+/// against the lines, the performance's runs, the mutants' evaluations (one
+/// mutant on one input), and the inputs the search looked at; and whether
+/// a performance stands beside the obligation at all. A verdict line leads
+/// with what is missing and is never a pass with no example.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Ran {
+    pub examples: usize,
+    pub runs: usize,
+    pub mutants: usize,
+    pub searched: usize,
+    pub performance: bool,
+}
+
+impl Ran {
+    /// All four counts zero.
+    pub fn nothing(&self) -> bool {
+        self.examples == 0 && self.runs == 0 && self.mutants == 0 && self.searched == 0
+    }
+
+    /// What is missing, in the words a verdict line leads with.
+    pub fn missing(&self) -> Vec<&'static str> {
+        let mut out = Vec::new();
+        if self.examples == 0 {
+            out.push("no example");
+        }
+        if !self.performance {
+            out.push("no performance");
+        }
+        out
+    }
+}
+
 /// Whose problem a finding is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Party {
@@ -223,6 +256,7 @@ pub struct Report {
     /// Every clause over each example's own pair, before the performance:
     /// a clause false there is the obligation's.
     pub against: Against,
+    pub ran: Ran,
 }
 
 /// One `accept` line: the inputs on which the obligation deliberately
@@ -763,6 +797,18 @@ impl<'g> Checker<'g> {
         };
         let accepts = self.check_accepts();
         let look_here = self.look_here(&examples, mutants.as_ref(), &accepts);
+        let performance = self.performance.is_file();
+        let ran = Ran {
+            examples: against.evaluated(),
+            runs: if performance {
+                example_inputs + generated.inputs.len()
+            } else {
+                0
+            },
+            mutants: mutants.as_ref().map_or(0, |m| m.ran.mutants),
+            searched: mutants.as_ref().map_or(0, |m| m.ran.searched),
+            performance,
+        };
         Report {
             obligation: self.fun.name.clone(),
             obligation_hash,
@@ -788,6 +834,7 @@ impl<'g> Checker<'g> {
             look_here,
             causes,
             against,
+            ran,
         }
     }
 

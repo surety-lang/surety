@@ -951,6 +951,8 @@ pub struct MutantReport {
     pub excluded_inputs: usize,
     /// Every clause over each example's own pair, as `check` has it.
     pub against: Against,
+    /// What ran; `mutants` never runs the performance, so `runs` is zero.
+    pub ran: crate::checker::Ran,
 }
 
 impl MutantReport {
@@ -1506,6 +1508,13 @@ impl<'g> Checker<'g> {
             }
         }
 
+        let ran = crate::checker::Ran {
+            examples: against.evaluated(),
+            runs: 0,
+            mutants: mutants.iter().map(|m| m.inputs_tried).sum(),
+            searched: search_inputs,
+            performance: self.performance.is_file(),
+        };
         MutantReport {
             obligation: self.fun.name.clone(),
             obligation_hash: surety_syntax::normalize::canonical_file(self.graph, self.idx)
@@ -1528,6 +1537,7 @@ impl<'g> Checker<'g> {
                 .collect(),
             input_only_false,
             excluded_inputs,
+            ran,
             against,
         }
     }

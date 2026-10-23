@@ -236,8 +236,50 @@ function setLens(doc: vscode.TextDocument, lens: { title: string; tooltip: strin
 
 const MUTANTS_ARE = 'Mutants are deliberately wrong performances from a fixed library: return nothing, return the input unchanged, drop, repeat or swap an element, and others.';
 
+/** What ran, as both commands print it (slice 6, piece 2). */
+interface RanCounts { examples: number; runs: number; mutants: number; searched: number; performance: boolean }
+
+const ranOf = (lines: any[]): RanCounts | undefined => lines.find(l => l.kind === 'ran');
+
+const nothingRan = (ran?: RanCounts) => !!ran && ran.examples === 0 && ran.runs === 0 && ran.mutants === 0 && ran.searched === 0;
+
+/** The lead a verdict line opens with: what is missing, or nothing. */
+function missingLead(ran?: RanCounts): string {
+    const missing: string[] = [];
+    if (ran && ran.examples === 0) {
+        missing.push('no example');
+    }
+    if (ran && !ran.performance) {
+        missing.push('no performance');
+    }
+    if (!missing.length) {
+        return '';
+    }
+    const s = missing.join(', ');
+    return `${s[0].toUpperCase()}${s.slice(1)} · `;
+}
+
+/** What each missing thing would run, for the hover. */
+function wouldRun(ran?: RanCounts): string {
+    const parts: string[] = [];
+    if (ran && ran.examples === 0) {
+        parts.push('An example would run against every line on each save, a contradiction shown on both, and would confirm what the mutants and the search find; an example-wanted line is a case to turn into one.');
+    }
+    if (ran && !ran.performance) {
+        parts.push('A performance beside the file would run on the examples and the generated inputs, for determinism and totality.');
+    }
+    return parts.length ? `${parts.join(' ')} ` : '';
+}
+
+const NOTHING_RAN = '$(circle-slash) Nothing ran: no example, no performance';
+
 /** The mutants run in a line: settled or not, and why, with the counts in the tooltip. */
 export function mutantLens(lines: any[]): { title: string; tooltip: string } {
+    const did = ranOf(lines);
+    if (nothingRan(did)) {
+        return { title: NOTHING_RAN, tooltip: `${wouldRun(did)}No mutant fits this signature and the search had no budget. Click for the full report.` };
+    }
+    const lead = missingLead(did);
     const report = lines.find(l => l.kind === 'mutant_report') ?? {};
     const m = report.mutants ?? {};
     const applicable: number = m.applicable ?? 0;
@@ -276,14 +318,21 @@ export function mutantLens(lines: any[]): { title: string; tooltip: string } {
             problems.push(`Not settled: ${parts.join('; ')}`);
         }
         return {
-            title: `$(warning) ${problems.join(' · ')}${open}`,
-            tooltip: `${ran}. Each problem is a warning in the file. Click for the full report.`,
+            title: `$(warning) ${lead}${problems.join(' · ')}${open}`,
+            tooltip: `${wouldRun(did)}${ran}. Each problem is a warning in the file. Click for the full report.`,
         };
     }
     const mutants = applicable ? `all ${applicable} mutants that fit are caught` : `none of the ${total} mutants fits this signature`;
+    // No pass with no example: what nothing ran against cannot be settled.
+    if (did && did.examples === 0) {
+        return {
+            title: `$(warning) ${lead}${mutants}; no second passing output on the ${plural(searched, 'input', 'inputs')} searched${open}`,
+            tooltip: `${wouldRun(did)}${ran}, and found none. Click for the full report.`,
+        };
+    }
     return {
-        title: `$(pass) Settled: ${mutants}; no second passing output on the ${plural(searched, 'input', 'inputs')} searched${open}`,
-        tooltip: `${ran}, and found none. ${applicable ? 'A clause rejected every mutant. ' : ''}Click for the full report.`,
+        title: `$(pass) ${lead}Settled: ${mutants}; no second passing output on the ${plural(searched, 'input', 'inputs')} searched${open}`,
+        tooltip: `${wouldRun(did)}${ran}, and found none. ${applicable ? 'A clause rejected every mutant. ' : ''}Click for the full report.`,
     };
 }
 
@@ -293,6 +342,11 @@ export function checkLens(lines: any[]): { title: string; tooltip: string } | un
     if (!e) {
         return undefined;
     }
+    const did = ranOf(lines);
+    if (nothingRan(did)) {
+        return { title: NOTHING_RAN, tooltip: `${wouldRun(did)}Click for the full report.` };
+    }
+    const lead = missingLead(did);
     const u = e.underdetermination;
     const mutants = typeof u === 'object' && u
         ? `${MUTANTS_ARE} ${u.applicable} of the ${u.total} fit this signature; ${u.caught} caught, ${u.slipped} passing every clause.`
@@ -313,8 +367,8 @@ export function checkLens(lines: any[]): { title: string; tooltip: string } | un
         parts.push(`performance: ${e.performance_findings.join('; ')}`);
     }
     return {
-        title: `$(warning) Not accepted: ${parts.join(' · ')}`,
-        tooltip: `${ran} Each finding is a warning in the file. Click for the full report.`,
+        title: `$(warning) ${lead}Not accepted${parts.length ? `: ${parts.join(' · ')}` : ''}`,
+        tooltip: `${wouldRun(did)}${ran} Each finding is a warning in the file. Click for the full report.`,
     };
 }
 
@@ -476,7 +530,7 @@ function checkDiagnostics(doc: vscode.TextDocument, lines: any[], sig: number): 
     const binding = evidence && evidence.passed === false;
     for (const l of lines) {
         // The reach object is the hints' (piece 6), not a finding.
-        if (l.kind === 'evidence' || l.kind === 'reach' || (l.gap !== undefined && l.kind !== 'gap')) {
+        if (l.kind === 'evidence' || l.kind === 'reach' || l.kind === 'ran' || (l.gap !== undefined && l.kind !== 'gap')) {
             continue;
         }
         if (isContradiction(l)) {

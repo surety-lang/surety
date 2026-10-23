@@ -213,6 +213,8 @@ fn a_tolerance_is_one_abs_line() {
 /// 2^43 cubed is past the checker's i128. A performance's integers do not
 /// overflow, so the error is the obligation's, named under `obligation:`
 /// in the verdict line and carried as the obligation's party in the JSON.
+/// Since slice 6 it is found on the example's own pair, before the
+/// performance: the example and the line are both the author's.
 #[test]
 fn an_overflow_is_the_obligations_error_not_the_performances() {
     let sur = "cube_zero(x: Int) -> Int
@@ -225,22 +227,25 @@ fn an_overflow_is_the_obligations_error_not_the_performances() {
     let (s, p) = scratch("cube_zero", sur, "def cube_zero(x):\n    return 0\n");
     let r = surety::check_file_with(&s, &p, Budget::default()).unwrap();
     let text = surety::render(&r);
-    let PropVerdict::Error(m) = &r.properties[0].verdict else {
+    let faults = r.against.contradictions();
+    let Some(m) = faults.first().and_then(|c| c.fault) else {
         panic!("{text}");
     };
     assert!(surety_check::is_obligation_fault(m), "{m}");
     assert!(m.contains("overflows"), "{m}");
+    // The performance reproduces the example, so it is not blamed.
+    assert_eq!(r.properties[0].verdict, PropVerdict::Pass, "{text}");
     let line = surety::verdict_line(&r);
     let (obligation, performance) = line.split_once("  performance: ").unwrap();
     assert!(
         obligation
-            .contains("cannot evaluate property (line 3): the obligation's arithmetic overflows"),
+            .contains("cannot evaluate line 3 on example 1: the obligation's arithmetic overflows"),
         "{line}"
     );
     assert_eq!(performance, "passes", "{line}");
     let errors: Vec<_> = surety::json_lines(&r)
         .into_iter()
-        .filter(|j| j["kind"] == "error")
+        .filter(|j| j["kind"] == "example_unevaluable")
         .collect();
     assert!(!errors.is_empty(), "{text}");
     assert!(
@@ -263,10 +268,9 @@ fn boundary_values_multiply_without_overflow() {
     let (s, p) = scratch("scale", sur, "def scale(xs, k):\n    return 0\n");
     let r = surety::check_file_with(&s, &p, Budget::default()).unwrap();
     let text = surety::render(&r);
-    // The example fails the property (0 is not the product), but the
-    // product itself evaluated: a Fail, not an Error.
-    assert!(
-        matches!(r.properties[0].verdict, PropVerdict::Fail { .. }),
-        "{text}"
-    );
+    // The example contradicts the line (0 is not the product), but the
+    // product itself evaluated: a contradiction, not a fault.
+    let found = r.against.contradictions();
+    assert_eq!(found.len(), 1, "{text}");
+    assert!(found[0].fault.is_none(), "{text}");
 }

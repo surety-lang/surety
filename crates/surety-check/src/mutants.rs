@@ -15,6 +15,7 @@ use surety_syntax::parser::BUILTINS;
 use surety_syntax::resolve::Scope;
 use surety_syntax::{Expr, Type};
 
+use crate::against::Against;
 use crate::checker::Checker;
 use crate::examples::{Step, compare};
 use crate::frame::{Correspondence, frame_pairs};
@@ -948,6 +949,8 @@ pub struct MutantReport {
     /// Inputs tried on which some clause about the inputs alone is false:
     /// no output passes there, so the obligation is unsatisfiable on them.
     pub excluded_inputs: usize,
+    /// Every clause over each example's own pair, as `check` has it.
+    pub against: Against,
 }
 
 impl MutantReport {
@@ -1292,6 +1295,7 @@ impl<'g> Checker<'g> {
     /// The underdetermination check: the library against the obligation
     /// over the examples and the generated inputs, then the search.
     pub fn mutants(&mut self) -> MutantReport {
+        let against = self.against();
         let mut cases: Vec<Case> = Vec::new();
         for (i, ex) in self.fun.examples.iter().enumerate() {
             if let Ok(inputs) = self.example_inputs(ex) {
@@ -1483,6 +1487,7 @@ impl<'g> Checker<'g> {
                 .collect(),
             input_only_false,
             excluded_inputs,
+            against,
         }
     }
 
@@ -1542,7 +1547,19 @@ impl<'g> Checker<'g> {
             typed.extend(named.iter().map(|(v, t)| (v, t)));
             let domain = Domain::seeded(&typed);
             let drawn = drawn_candidates(&out_ty, &case.inputs, &self.scope, &named);
-            let mut passing: Vec<Value> = case.expected.iter().cloned().collect();
+            // An example's output counts as the first passing output only
+            // once it passes every clause: a contradicted example is the
+            // obligation's finding, never one side of a gap.
+            let mut passing: Vec<Value> = Vec::new();
+            if let Some(e) = &case.expected {
+                if clauses
+                    .iter()
+                    .all(|(_, x)| matches!(self.holds(x, &case.inputs, e), Ok(true)))
+                {
+                    passing.push(e.clone());
+                }
+            }
+            let seeded = !passing.is_empty();
             for (tried, cand) in candidates(&out_ty, &domain, cap, drawn)
                 .into_iter()
                 .enumerate()
@@ -1588,7 +1605,7 @@ impl<'g> Checker<'g> {
                         example: case.example,
                         a: passing[0].clone(),
                         b: passing[1].clone(),
-                        a_is_expected: case.expected.is_some(),
+                        a_is_expected: seeded,
                         candidates_tried: tried,
                         accepted_by,
                         same_as: None,

@@ -245,6 +245,39 @@ struct Callee<'g> {
     signature: Option<(usize, &'g Function)>,
 }
 
+/// A quantifier's bindings on one evaluation (see `quantifier_bindings`).
+pub(crate) struct Bindings<'a> {
+    /// The scope the slots see: the outer one, plus the `leftover` if any.
+    pub scope: Env<'a>,
+    /// The domain, shared by every binding's occurrence.
+    pub shared: Rc<[Value]>,
+    /// The elements the pattern matched, with their positions.
+    pub matched: Vec<(usize, Value)>,
+    /// Positions before the pattern: what a bodiless `all` counts against.
+    pub total: usize,
+}
+
+/// The scope a quantifier's slots see for one matched element.
+pub(crate) fn bind<'a>(
+    q: &Quantifier,
+    env: &Env<'a>,
+    list: &Rc<[Value]>,
+    p: usize,
+    v: &Value,
+) -> Env<'a> {
+    match &q.binder.name {
+        Some(n) => env.bind(
+            n,
+            v.clone(),
+            Some(Occurrence {
+                list: list.clone(),
+                position: p,
+            }),
+        ),
+        None => env.clone(),
+    }
+}
+
 impl<'g> Checker<'g> {
     fn resolve_callee(&mut self, name: &str, line: usize) -> Result<Callee<'g>, String> {
         if name == self.fun.name {
@@ -567,7 +600,14 @@ impl<'g> Checker<'g> {
         }
     }
 
-    fn eval_quantifier(&mut self, q: &Quantifier, env: &Env<'_>) -> Result<bool, String> {
+    /// A quantifier's domain on one evaluation, its positions after any
+    /// `leftover`, and the elements its pattern matched. The reach trace
+    /// binds through this too, so the two never disagree on a binding.
+    pub(crate) fn quantifier_bindings<'a>(
+        &mut self,
+        q: &Quantifier,
+        env: &Env<'a>,
+    ) -> Result<Bindings<'a>, String> {
         let dom = self.eval(&q.domain, env)?;
         let elements: Vec<Value> = match dom {
             Value::List(xs) => xs,
@@ -598,25 +638,21 @@ impl<'g> Checker<'g> {
                 (None, el) => Some((p, el)),
             })
             .collect();
-        fn bind<'a>(
-            q: &Quantifier,
-            env: &Env<'a>,
-            list: &Rc<[Value]>,
-            p: usize,
-            v: &Value,
-        ) -> Env<'a> {
-            match &q.binder.name {
-                Some(n) => env.bind(
-                    n,
-                    v.clone(),
-                    Some(Occurrence {
-                        list: list.clone(),
-                        position: p,
-                    }),
-                ),
-                None => env.clone(),
-            }
-        }
+        Ok(Bindings {
+            scope,
+            shared,
+            matched,
+            total,
+        })
+    }
+
+    fn eval_quantifier(&mut self, q: &Quantifier, env: &Env<'_>) -> Result<bool, String> {
+        let Bindings {
+            scope,
+            shared,
+            matched,
+            total,
+        } = self.quantifier_bindings(q, env)?;
         let Some(body) = &q.body else {
             // Bodyless: the pattern-matched count against the whole domain.
             let count = matched.len();

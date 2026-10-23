@@ -162,6 +162,29 @@ suite('the verdict on save', () => {
         assert.ok(/^\$\(warning\) Unsatisfiable on \d+ of \d+ inputs, which a clause about the input alone rules out$/.test(verdict.command!.title), verdict.command!.title);
     });
 
+    test('an example its lines reject, with no performance: each contradiction on the line and on the example', async () => {
+        const uri = workspaceFile('contradicted.sur');
+        const doc = await vscode.workspace.openTextDocument(uri);
+        await vscode.window.showTextDocument(doc);
+        await vscode.commands.executeCommand('surety.mutants');
+        const lines = doc.getText().split('\n');
+        const example = lines.findIndex(l => l.includes('note "three items, size 0'));
+        const diags = await ours(uri, all => all.filter(d => d.code === 'contradiction').length === 10);
+        const found = diags.filter(d => d.code === 'contradiction');
+        // Five lines false on the one example: each line says so, and so
+        // does the example, once per line.
+        const onExample = found.filter(d => d.range.start.line === example - 1);
+        assert.strictEqual(onExample.length, 5, JSON.stringify(found.map(d => [d.range.start.line, d.message])));
+        assert.ok(onExample.every(d => /^Contradiction: line \d+ is false on this example; the example and the line are both yours, so one of them is wrong$/.test(d.message)), JSON.stringify(onExample.map(d => d.message)));
+        const okLine = lines.findIndex(l => l.trim().startsWith('exactly_one Ok(p) in out: p.total_pages * size >= len(items)'));
+        const onLine = found.find(d => d.range.start.line === okLine)!;
+        assert.strictEqual(onLine.message, 'Contradiction: this line is false on example 1 ("three items, size 0, page 0: the size threshold"); the line and the example are both yours, so one of them is wrong');
+        assert.strictEqual(onLine.severity, vscode.DiagnosticSeverity.Warning);
+        // The verdict line leads with it and is not a pass.
+        const verdict = await lens(uri, t => t.includes('Contradicted') || t.includes('ettled'));
+        assert.ok(verdict.command!.title.startsWith('$(warning) Contradicted: 5 lines are false on the examples written for them'), verdict.command!.title);
+    });
+
     test('a run that settles: the pass is the line above the signature, with no squiggle under it', async () => {
         const uri = workspaceFile('settled.sur');
         const doc = await vscode.workspace.openTextDocument(uri);

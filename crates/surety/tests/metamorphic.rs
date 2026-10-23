@@ -12,38 +12,9 @@ use std::path::PathBuf;
 use surety_check::{Budget, Checker, LookKind};
 use surety_syntax::load::load_with_siblings;
 
-const OBLIGATION: &str = r#"type LineItem = { amount_cents: Int }
+mod common;
 
-invoice_total(items: LineItem[], tax_rate_bps: Int) -> Int
-	note "sum the line items in cents, apply the tax rate in basis points once, round half-even to the cent"
-	# The total of the items is the total of one item carrying their sum: tax is applied to the subtotal once, never per line.
-	out == invoice_total([{amount_cents: sum(items.amount_cents)}], tax_rate_bps)
-	# At a zero rate the total is the sum of the amounts.
-	tax_rate_bps == 0 -> out == sum(items.amount_cents)
-	# At a rate of at least zero and a sum of at least zero, the total is at least the sum.
-	(tax_rate_bps >= 0 and sum(items.amount_cents) >= 0) -> out >= sum(items.amount_cents)
-	e:
-		in: ([], 1000)
-		out: 0
-	e:
-		in: ([{amount_cents: 250}, {amount_cents: 750}], 0)
-		out: 1000
-	e:
-		in: ([{amount_cents: 125}], 1000)
-		out: 138
-	e:
-		in: ([{amount_cents: 135}], 1000)
-		out: 148
-"#;
-
-const PERFORMANCE: &str = r#"def invoice_total(items, tax_rate_bps):
-    subtotal = sum(item["amount_cents"] for item in items)
-    scaled = subtotal * (10000 + tax_rate_bps)
-    q, r = divmod(scaled, 10000)
-    if r * 2 > 10000 or (r * 2 == 10000 and q % 2 == 1):
-        q += 1
-    return q
-"#;
+use common::{METAMORPHIC_PY as PERFORMANCE, METAMORPHIC_SUR as OBLIGATION};
 
 fn fixture() -> (PathBuf, PathBuf) {
     let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("metamorphic");

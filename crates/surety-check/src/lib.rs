@@ -1,6 +1,7 @@
 //! Surety checker: boundary validator, example checker, property evaluator,
 //! frame rule, generated inputs, evidence record.
 
+pub mod against;
 pub mod checker;
 pub mod diff;
 pub mod eval;
@@ -9,8 +10,10 @@ pub mod frame;
 pub mod gap;
 pub mod generate;
 pub mod mutants;
+pub mod reach;
 pub mod value;
 
+pub use against::{Against, ClauseAgainst, Contradiction, ExampleCase, OnExample};
 pub use checker::{
     AcceptReport, Cause, Checker, Counterexample, Determinism, ExampleReport, Failure, FrameReport,
     GenRun, LookHere, LookKind, Outcome, Party, PropVerdict, PropertyReport, Report, Verdict,

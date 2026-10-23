@@ -9,8 +9,8 @@ use serde_json::{Value as Json, json};
 use surety_check::mutants::{Clause, MutantReport, MutantRun, MutantVerdict};
 use surety_check::value::to_json;
 use surety_check::{
-    Bucket, Budget, Cause, Checker, Class, DiffReport, Difference, LookKind, Outcome, Party,
-    PropVerdict, Report, Value, Verdict,
+    Against, Bucket, Budget, Cause, Checker, Class, DiffReport, Difference, LookKind, OnExample,
+    Outcome, Party, PropVerdict, Report, Value, Verdict,
 };
 use surety_check::{Gap, gaps};
 use surety_graph::{NodeView, PinState, Pinned, Rendered, State, StatusRow, Verification};
@@ -180,9 +180,138 @@ fn generated_text(r: &Report) -> String {
     )
 }
 
+/// The examples against the lines as short phrases for the verdict line:
+/// the clauses each example contradicts, then each fault.
+fn against_summaries(a: &Against) -> Vec<String> {
+    let mut out = Vec::new();
+    for ex in &a.examples {
+        let lines: Vec<String> = a
+            .contradictions()
+            .iter()
+            .filter(|c| c.example.index == ex.index && c.fault.is_none())
+            .filter_map(|c| c.clause.clause.line())
+            .map(|l| l.to_string())
+            .collect();
+        if !lines.is_empty() {
+            out.push(format!(
+                "example {} contradicts {} {}",
+                ex.index + 1,
+                if lines.len() == 1 { "line" } else { "lines" },
+                lines.join(", ")
+            ));
+        }
+    }
+    for c in a.contradictions() {
+        if let Some(m) = c.fault {
+            out.push(format!(
+                "cannot evaluate {} on example {}: {}",
+                clause_ref(&c.clause.clause),
+                c.example.index + 1,
+                last_line(m)
+            ));
+        }
+    }
+    out
+}
+
+/// A clause as the reports point at it: `line 33`, or `frame c ~ i (line 71)`.
+fn clause_ref(c: &Clause) -> String {
+    match c {
+        Clause::Property { line, .. } => format!("line {line}"),
+        Clause::Frame { line, description } => format!("frame {description} (line {line})"),
+        Clause::Boundary => "the output type".to_string(),
+    }
+}
+
+/// The examples against the lines in the body of either report, the same
+/// lines in both: each clause false on an example, and each fault.
+fn against_text(a: &Against) -> String {
+    let mut s = String::new();
+    for c in a.contradictions() {
+        let ex = c.example;
+        let example = match &ex.note {
+            Some(n) => format!("example {} (line {}, {n:?})", ex.index + 1, ex.line),
+            None => format!("example {} (line {})", ex.index + 1, ex.line),
+        };
+        let clause = clause_ref(&c.clause.clause);
+        let text = match &c.clause.clause {
+            Clause::Property { text, .. } => format!(": {text}"),
+            _ => String::new(),
+        };
+        match c.fault {
+            None => s.push_str(&format!(
+                "  CONTRADICTION  {example}: {clause} is false on it{text}\n"
+            )),
+            Some(m) => s.push_str(&format!(
+                "  CANNOT EVALUATE  {example}: {clause} on it{text}: {}\n",
+                last_line(m)
+            )),
+        }
+    }
+    s
+}
+
+/// The examples against the lines as JSON, the same objects from `check`
+/// and `mutants`: one per contradiction or fault, then one `reach` object
+/// with the examples that reach each clause.
+fn against_json(a: &Against, obligation: &str, hash: &str) -> Vec<Json> {
+    let mut out = Vec::new();
+    for c in a.contradictions() {
+        let ex = c.example;
+        let mut f = json!({
+            "kind": if c.fault.is_some() { "example_unevaluable" } else { "example_contradicts" },
+            "obligation": obligation,
+            "obligation_hash": hash,
+            "party": "obligation",
+            "example": ex.index + 1,
+            "example_line": ex.line,
+            "clause": clause_json(&c.clause.clause),
+            "inputs": input_json(&ex.inputs),
+            "outputs": { "expected": to_json(&ex.expected) },
+        });
+        if let Some(n) = &ex.note {
+            f["note"] = json!(n);
+        }
+        if let Some(s) = &c.clause.sentence {
+            f["sentence"] = json!(s);
+        }
+        if let Some(m) = c.fault {
+            f["message"] = json!(last_line(m));
+        }
+        out.push(f);
+    }
+    let clauses: Vec<Json> = a
+        .clauses
+        .iter()
+        .enumerate()
+        .map(|(k, c)| {
+            let mut j = clause_json(&c.clause);
+            j["reached_by"] = json!(a.reached_by(k));
+            let unchecked: Vec<usize> =
+                c.on.iter()
+                    .zip(&a.examples)
+                    .filter(|(on, _)| matches!(on, OnExample::Unchecked(_)))
+                    .map(|(_, e)| e.index + 1)
+                    .collect();
+            if !unchecked.is_empty() {
+                j["unchecked_on"] = json!(unchecked);
+            }
+            j
+        })
+        .collect();
+    out.push(json!({
+        "kind": "reach",
+        "obligation": obligation,
+        "obligation_hash": hash,
+        "examples": a.evaluated(),
+        "clauses": clauses,
+    }));
+    out
+}
+
 /// What the report says about each party, as short phrases.
 fn party_summaries(r: &Report) -> (Vec<String>, Vec<String>) {
-    let mut obligation = Vec::new();
+    let mut obligation = against_summaries(&r.against);
     let mut performance = Vec::new();
     let failing: Vec<String> = r
         .examples
@@ -565,6 +694,7 @@ pub fn render_with(report: &Report, full: bool) -> String {
     let mut s = String::new();
     s.push_str(&verdict_line(report));
     s.push('\n');
+    s.push_str(&against_text(&report.against));
     for e in &report.examples {
         let label = match &e.note {
             Some(n) => format!("example {} (line {}, {n:?})", e.index + 1, e.line),
@@ -930,7 +1060,7 @@ fn party_text(p: Party) -> &'static str {
 
 /// The machine form: one object per finding, then one `evidence` object.
 pub fn json_lines(r: &Report) -> Vec<Json> {
-    let mut out = Vec::new();
+    let mut out = against_json(&r.against, &r.obligation, &r.obligation_hash);
     for e in &r.examples {
         let (kind, message) = match &e.verdict {
             Verdict::Pass => continue,
@@ -1270,8 +1400,9 @@ pub fn render_mutants(r: &MutantReport, full: bool) -> String {
     let mut s = String::new();
     let slipped = r.slipped();
     let gaps = gaps(r);
+    let contradictions = r.against.contradictions().len();
     s.push_str(&format!(
-        "{}  inputs {}+{}  mutants {} of {} apply  slipped {}  caught {}  underdetermined {}{}{}\n",
+        "{}  inputs {}+{}  mutants {} of {} apply  slipped {}  caught {}  underdetermined {}{}{}{}\n",
         r.obligation,
         r.example_inputs,
         r.generated_inputs,
@@ -1289,8 +1420,14 @@ pub fn render_mutants(r: &MutantReport, full: bool) -> String {
             String::new()
         } else {
             format!("  accepted {}", r.accepted().len())
+        },
+        if contradictions == 0 {
+            String::new()
+        } else {
+            format!("  contradicted by examples {contradictions}")
         }
     ));
+    s.push_str(&against_text(&r.against));
     for g in &gaps {
         s.push_str(&format!("  gap  {}\n", gap_line(r, g)));
     }
@@ -1503,7 +1640,7 @@ fn gap_json(r: &MutantReport, g: &Gap, index: usize) -> Json {
 /// The machine form of the underdetermination check: one object per
 /// mutant, one per underdetermined input, one per gap, then a summary.
 pub fn mutants_json_lines(r: &MutantReport) -> Vec<Json> {
-    let mut out = Vec::new();
+    let mut out = against_json(&r.against, &r.obligation, &r.obligation_hash);
     let gaps = gaps(r);
     for m in &r.mutants {
         let kind = match m.verdict {
@@ -1834,11 +1971,16 @@ pub fn render_diff_json(r: &DiffReport) -> String {
 
 // ---- the graph: pin, show, status, verify ----
 
-/// What a record keeps of a report: its verdict line and its `--json` lines.
+/// What a record keeps of a report: its verdict line and its `--json` lines,
+/// less the reach object, which is the editor's: the record carries the
+/// examples against the lines as one count, at the next format (piece 9).
 pub fn rendered(report: &Report) -> Rendered {
     Rendered {
         verdict: verdict_line(report),
-        lines: json_lines(report),
+        lines: json_lines(report)
+            .into_iter()
+            .filter(|j| j["kind"] != "reach")
+            .collect(),
     }
 }
 

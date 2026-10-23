@@ -10,6 +10,9 @@ use surety_check::mutants::{Mutant, MutantVerdict};
 use surety_check::{Budget, Checker};
 
 const FINDING_KINDS: &[&str] = &[
+    "example_contradicts",
+    "example_unevaluable",
+    "reach",
     "look_here",
     "example_mismatch",
     "boundary",

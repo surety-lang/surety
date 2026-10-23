@@ -252,8 +252,14 @@ export function mutantLens(lines: any[]): { title: string; tooltip: string } {
     const ran = `${MUTANTS_ARE} ${applicable} of the ${total} fit this signature and ran on ${inputs} inputs. `
         + `The search looked at ${plural(searched, 'input', 'inputs')}, up to ${cap} candidate outputs each, for two different outputs that both pass every clause`;
     const excluded: number = report.excluded_inputs ?? 0;
-    if (gaps || slipped || excluded) {
+    const contradicted = lines.filter(isContradiction).length;
+    if (gaps || slipped || excluded || contradicted) {
         const problems = [];
+        // An example its own lines reject comes before anything the
+        // mutants say: one of the author's two statements is wrong.
+        if (contradicted) {
+            problems.push(`Contradicted: ${plural(contradicted, 'line is', 'lines are')} false on the examples written for them`);
+        }
         // No output at all on some inputs comes first: there the question of
         // which output does not arise, which is why a gap can vanish.
         if (excluded) {
@@ -343,6 +349,29 @@ const UNNEEDED: Finding = { label: 'Unneeded clause', code: 'unneeded-clause' };
 const UNTESTED: Finding = { label: 'Untested clause', code: 'untested-clause' };
 const INPUT_ONLY: Finding = { label: 'Input-only clause', code: 'input-only-clause' };
 const UNCHECKED: Finding = { label: 'Unchecked clause', code: 'unchecked-clause' };
+const CONTRADICTION: Finding = { label: 'Contradiction', code: 'contradiction' };
+
+const isContradiction = (l: any) => l.kind === 'example_contradicts' || l.kind === 'example_unevaluable';
+
+/**
+ * A clause false on an example's own output, or not evaluable there, before
+ * any performance: the example and the line are both the author's, so one
+ * of them is wrong. Shown on the line and on the example.
+ */
+function contradiction(doc: vscode.TextDocument, l: any): vscode.Diagnostic[] {
+    const example = `example ${l.example}${l.note ? ` (${JSON.stringify(l.note)})` : ''}`;
+    const fault = l.kind === 'example_unevaluable';
+    const out: vscode.Diagnostic[] = [];
+    if (l.clause?.line !== undefined) {
+        const says = fault ? `this line cannot be evaluated on ${example}: ${l.message}` : `this line is false on ${example}`;
+        out.push(finding(lineRange(doc, l.clause.line - 1), CONTRADICTION, `${says}; the line and the example are both yours, so one of them is wrong`, vscode.DiagnosticSeverity.Warning));
+    }
+    if (l.example_line !== undefined) {
+        const says = fault ? `line ${l.clause?.line} cannot be evaluated on this example: ${l.message}` : `line ${l.clause?.line} is false on this example`;
+        out.push(finding(lineRange(doc, l.example_line - 1), CONTRADICTION, `${says}; the example and the line are both yours, so one of them is wrong`, vscode.DiagnosticSeverity.Warning));
+    }
+    return out;
+}
 
 function finding(range: vscode.Range, f: Finding, message: string, severity: vscode.DiagnosticSeverity): vscode.Diagnostic {
     const d = diagAt(range, `${f.label}: ${message}`, severity);
@@ -446,7 +475,12 @@ function checkDiagnostics(doc: vscode.TextDocument, lines: any[], sig: number): 
     }
     const binding = evidence && evidence.passed === false;
     for (const l of lines) {
-        if (l.kind === 'evidence' || (l.gap !== undefined && l.kind !== 'gap')) {
+        // The reach object is the hints' (piece 6), not a finding.
+        if (l.kind === 'evidence' || l.kind === 'reach' || (l.gap !== undefined && l.kind !== 'gap')) {
+            continue;
+        }
+        if (isContradiction(l)) {
+            out.push(...contradiction(doc, l));
             continue;
         }
         if (l.kind === 'gap') {
@@ -478,6 +512,9 @@ function mutantDiagnostics(doc: vscode.TextDocument, lines: any[], sig: number):
     const underdetermined = lines.filter(l => l.kind === 'underdetermined');
     // The run's verdict is the line above the signature; only problems are
     // diagnostics, each on its own line.
+    for (const l of lines.filter(isContradiction)) {
+        out.push(...contradiction(doc, l));
+    }
     for (const g of gaps) {
         out.push(gapDiag(doc, sig, g));
     }

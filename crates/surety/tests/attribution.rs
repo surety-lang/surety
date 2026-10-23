@@ -91,3 +91,59 @@ fn a_mutant_output_that_passes_is_a_passing_output() {
     let (found, _) = c.find_passing(std::slice::from_ref(&nine));
     assert_eq!(found, Some(nine));
 }
+
+/// The example's own output and the performance's are in hand too. combine
+/// joins two fields into a name, which neither the pool nor the library
+/// builds: on p1's example input the example's output is found with no
+/// performance, and once `check` has run the performance, every generated
+/// input it answered has a passing output.
+#[test]
+fn the_examples_and_the_performances_outputs_are_passing_outputs() {
+    let corpus = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/corpus");
+    let sur = corpus.join("p1.sur");
+    let (graph, idx) = surety::load_with_siblings(&sur).unwrap();
+    let mut c = surety::checker_for(&graph, idx, &sur, &corpus.join("absent.py")).unwrap();
+    let fun = c.fun;
+    let inputs = c.example_inputs(&fun.examples[0]).unwrap();
+    let expected = c.expected_output(&fun.examples[0], &inputs).unwrap();
+    assert_eq!(c.find_passing(&inputs).0, Some(expected));
+
+    let mut c = surety::checker_for(&graph, idx, &sur, &sur.with_extension("py")).unwrap();
+    c.check();
+    let answered: Vec<Vec<surety_check::Value>> = c
+        .generated
+        .iter()
+        .filter(|g| matches!(g.outcome, surety_check::Outcome::Output(_)))
+        .map(|g| g.inputs.clone())
+        .collect();
+    assert!(answered.len() > 400, "{}", answered.len());
+    for inputs in answered {
+        assert!(
+            c.find_passing(&inputs).0.is_some(),
+            "{}",
+            surety::sur_inputs(&inputs)
+        );
+    }
+}
+
+/// A clause calling a performance that is not there is unchecked for the
+/// passing search too, as it is for the mutants' catches: p5b's
+/// `get_first_occurrence_per_email(out) == out` calls the obligation
+/// itself, and with no performance it does not stop the example's output
+/// from passing on its own input.
+#[test]
+fn an_unchecked_clause_does_not_stop_an_output_passing() {
+    let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR"))
+        .join("attribution")
+        .join("unchecked");
+    fs::create_dir_all(&dir).unwrap();
+    let corpus = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/corpus");
+    let sur = dir.join("p5b.sur");
+    fs::copy(corpus.join("p5b.sur"), &sur).unwrap();
+    let (graph, idx) = surety::load_with_siblings(&sur).unwrap();
+    let mut c = surety::checker_for(&graph, idx, &sur, &sur.with_extension("py")).unwrap();
+    let fun = c.fun;
+    let inputs = c.example_inputs(&fun.examples[0]).unwrap();
+    let expected = c.expected_output(&fun.examples[0], &inputs).unwrap();
+    assert_eq!(c.find_passing(&inputs).0, Some(expected));
+}

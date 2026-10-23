@@ -72,7 +72,7 @@ fn an_error_example_on_the_frozen_13_contradicts_its_ok_lines_under_check_and_mu
     let dir = scratch("13-error-example", &[("p13.sur", &src)]);
     let path = dir.join("p13.sur");
 
-    // Reading 130: five, not the brief's four. The four `exactly_one Ok(p)`
+    // Five (reading 130, the brief's test 2 since). The four `exactly_one Ok(p)`
     // lines (33 to 39) claim an Ok on every input; and line 30, `any Err(err)
     // in out: err in [size_error, …]`, binds `err` to the whole error list,
     // which is no element of a list of records, so it is false on every
@@ -132,17 +132,23 @@ fn an_error_example_on_the_frozen_13_contradicts_its_ok_lines_under_check_and_mu
     );
     assert!(!r.passed());
 
-    // With the four as `all Ok(p) in out:` only line 30 is left.
-    let all = src.replace("\texactly_one Ok(p) in out:", "\tall Ok(p) in out:");
+    // With the four as `all Ok(p) in out:` and the fifth as `all Err(errs)
+    // in out: errs drawn_from …`, none.
+    let all = src
+        .replace("\texactly_one Ok(p) in out:", "\tall Ok(p) in out:")
+        .replace(
+            "any Err(err) in out: err in [size_error, page_error, past_end_error]",
+            "all Err(errs) in out: errs drawn_from [size_error, page_error, past_end_error]",
+        );
     let dir = scratch("13-error-example-all", &[("p13.sur", &all)]);
     let path = dir.join("p13.sur");
     assert_eq!(
         contradicted_lines(&surety::mutants_json_lines(&mutants(&path))),
-        vec![(1, 30)]
+        Vec::<(u64, u64)>::new()
     );
     assert_eq!(
         contradicted_lines(&surety::json_lines(&check(&path))),
-        vec![(1, 30)]
+        Vec::<(u64, u64)>::new()
     );
 }
 

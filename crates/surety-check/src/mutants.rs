@@ -16,7 +16,7 @@ use surety_syntax::resolve::Scope;
 use surety_syntax::{Expr, Type};
 
 use crate::against::Against;
-use crate::checker::Checker;
+use crate::checker::{Checker, Outcome};
 use crate::examples::{Step, compare};
 use crate::frame::{Correspondence, frame_pairs};
 use crate::generate::{Bucket, Domain, candidates};
@@ -1261,9 +1261,10 @@ impl<'g> Checker<'g> {
     /// is how a generated-input failure is attributed: a passing output
     /// exists and the performance did not produce it, or none does and the
     /// obligation is unsatisfiable there. The outputs already in hand on
-    /// the input come first, before the pool: the library's, the skeletons
-    /// among them, since a mutant that passes every clause on an input is a
-    /// passing output there, whatever it does elsewhere.
+    /// the input come first, before the pool: the example's, the
+    /// performance's, and the library's, the skeletons among them, since a
+    /// mutant that passes every clause on an input is a passing output
+    /// there, whatever it does elsewhere.
     pub fn find_passing(&mut self, inputs: &[Value]) -> (Option<Value>, usize) {
         let cap = self.budget.search_candidates;
         if cap == 0 {
@@ -1279,11 +1280,33 @@ impl<'g> Checker<'g> {
         typed.extend(named.iter().map(|(v, t)| (v, t)));
         let domain = Domain::seeded(&typed);
         let drawn = drawn_candidates(&out_ty, inputs, &self.scope, &named);
-        let seeds: Vec<Value> = library(&self.scope)
-            .iter()
-            .filter(|m| applies(m, &self.scope, &self.plan))
-            .filter_map(|m| apply(m, inputs, &self.scope, &self.plan))
-            .collect();
+        // The outputs in hand, in order: an example's on its own input (a
+        // contradicted one fails the clauses below like any candidate), the
+        // performance's where it ran on the input, then the mutants'.
+        let mut seeds: Vec<Value> = Vec::new();
+        for ex in &self.fun.examples {
+            if self.example_inputs(ex).is_ok_and(|i| i == inputs) {
+                if let Ok(e) = self.expected_output(ex, inputs) {
+                    seeds.push(e);
+                }
+            }
+        }
+        seeds.extend(
+            self.runs
+                .iter()
+                .filter(|r| r.inputs == inputs)
+                .map(|r| r.output.clone()),
+        );
+        seeds.extend(self.generated.iter().filter_map(|g| match &g.outcome {
+            Outcome::Output(v) if g.inputs == inputs => Some(v.clone()),
+            _ => None,
+        }));
+        seeds.extend(
+            library(&self.scope)
+                .iter()
+                .filter(|m| applies(m, &self.scope, &self.plan))
+                .filter_map(|m| apply(m, inputs, &self.scope, &self.plan)),
+        );
         let mut tried = 0;
         for cand in seeds
             .into_iter()
@@ -1293,9 +1316,16 @@ impl<'g> Checker<'g> {
             if from_json(&to_json(&cand), &out_ty).is_err() {
                 continue;
             }
+            // A clause calling a performance that cannot start is unchecked,
+            // as it is for the mutants' catches: it neither passes nor fails
+            // a candidate, or one graph reference with no performance yet
+            // would leave every input without a passing output.
             let all = clauses
                 .iter()
-                .all(|(_, e)| matches!(self.holds(e, inputs, &cand), Ok(true)));
+                .all(|(_, e)| match self.holds(e, inputs, &cand) {
+                    Ok(b) => b,
+                    Err(m) => self.unstartable(&m),
+                });
             if all {
                 return (Some(cand), tried);
             }

@@ -48,6 +48,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import json
 import os
 import pathlib
 import re
@@ -75,6 +76,8 @@ NOTATION = """The notation, by the forms the corpus uses:
 - Built-ins: `sum(L)`, `len(L)`, `min(a, b)`, `max(a, b)`, `count(L)`, `flatten(L)`, `abs(n)`. `None`, `Ok(x)`, `Err(x)`, `true`, `false` as values.
 - Arithmetic on Int: `a + b`, `a - b`, `a * b`, with `*` binding tighter and parentheses as usual, over Int fields, `len`, `sum`, `count` and literals, so `page * size > len(items)` and `out * 10000 <= sum(items.amount_cents) * (10000 + rate_bps) + 5000` are lines. No `/` and no `%`: a quotient carries a rounding decision that is a sibling obligation's claim, and a ratio is compared as products. No arithmetic on Float, Time or Text. A difference within a bound is one line: `abs(a - b) <= k`.
 - The slice: `xs[a .. b]` is the elements of `xs` from position `a` up to but not including `b`, positions counted from 0, both clamped to the list: a negative `a` clamps to 0 and never counts from the end (Python's `xs[-1:]` means something else), a `b` past the end stops at the end, a `b` below `a` is empty. So `items[page * size .. (page + 1) * size]` is the page, the partial last page and the empty page past the end alike. In a type, `Item[0..3]` is a length bound, a different thing.
+- "The output is the error exactly when the condition holds" is `C <-> (exactly_one Err(e) in out: e == x)`, the quantifier last and in parentheses, or, for a list of errors, the named list and `C <-> (exactly_one Err(errs) in out: x in errs)`; never `out == Err(x)`, since `Err(x)` is a pattern, not a value.
+- A bodied `any` or `exactly_one` over `out` standing alone claims that side on every input: `exactly_one Ok(p) in out: p.total >= 0` says every output is an `Ok`. A claim about one side alone is `all Ok(p) in out: …`, true where the output is the other side.
 - Examples (`e:` / `in:` / `out:`) and `accept` lines are the human author's. Never write them."""
 
 SYSTEM_SENTENCES = """You draft Surety obligations from prose, in the first of two stages: the sentences.
@@ -297,11 +300,13 @@ def sentences_without_lines(text: str) -> list[str]:
     return out
 
 
-def insert_lines(text: str, pairs: dict[str, str]) -> tuple[str, list[str]]:
+def insert_lines(text: str, pairs: dict[str, str], comments: dict[str, list[str]] | None = None) -> tuple[str, list[str]]:
     """Put each sentence's line beneath its last `#` line; a `reaching for`
-    becomes a comment."""
+    becomes a comment; a comment the model wrote beneath the pair follows
+    as `// drafted: ...`, so the author reads it as the model's."""
     lines = text.split("\n")
     ends = {last: sentence for _, last, sentence in sentence_groups(lines)}
+    pairs = dict(pairs)
     out: list[str] = []
     reach: list[str] = []
     for i, line in enumerate(lines):
@@ -314,15 +319,21 @@ def insert_lines(text: str, pairs: dict[str, str]) -> tuple[str, list[str]]:
                 reach.append(proposed[len("reaching for:"):].strip())
             else:
                 out.append("\t" + proposed)
+            for c in (comments or {}).get(sentence, []):
+                out.append(f"\t// drafted: {c}")
     return "\n".join(out), reach
 
 
-def parse_pairs(block: str) -> tuple[dict[str, str], list[str]]:
-    """`# sentence` followed by one line → {sentence: line}; refused lines listed."""
+def parse_pairs(block: str) -> tuple[dict[str, str], list[str], dict[str, list[str]]]:
+    """`# sentence` followed by one line → {sentence: line}; refused lines
+    listed; a `//` comment the model wrote beneath a pair kept for it (an
+    echoed `example wanted`, `in:` or reach-for is not a comment of its)."""
     pairs: dict[str, str] = {}
     refused: list[str] = []
+    comments: dict[str, list[str]] = {}
     current: str | None = None
     current_done = True
+    last: str | None = None
     for line in block.split("\n"):
         t = line.strip()
         if not t:
@@ -332,18 +343,24 @@ def parse_pairs(block: str) -> tuple[dict[str, str], list[str]]:
             part = t[1:].strip()
             current = f"{current} {part}" if current is not None and not current_done else part
             current_done = False
+            last = None
             continue
         current_done = True
-        if current is None or t.startswith("//"):
-            # A comment (an `example wanted`, a reach-for the model echoed) is not a line.
+        if t.startswith("//"):
+            c = t[2:].strip()
+            if current is None and last is not None and c and not c.startswith(("example wanted", "in:", "reaching for", "drafted")):
+                comments.setdefault(last, []).append(c)
+            continue
+        if current is None:
             continue
         if t.startswith("accept") or t in ("e:", "in:", "out:") or t.startswith(("in:", "out:")):
             refused.append(t)
             pairs[current] = "reaching for: a line the model wrote as an example or an accept, which are the author's"
         else:
             pairs[current] = t
+        last = current
         current = None
-    return pairs, refused
+    return pairs, refused, comments
 
 
 def stage1_file(reply: str) -> tuple[str | None, list[str]]:
@@ -495,6 +512,31 @@ def cmd_sentences(args: argparse.Namespace) -> int:
     return 0 if code == 0 else 1
 
 
+def wanted_left(text: str) -> list[tuple[str, str]]:
+    """The example-wanted lines still in a file, each with its `// in:`
+    literal when it has one: cases not yet turned into `e:` blocks."""
+    out: list[tuple[str, str]] = []
+    prev = ""
+    for line in text.split("\n"):
+        t = line.strip()
+        if t.startswith("// example wanted:"):
+            out.append((t[len("// example wanted:"):].strip(), ""))
+        elif out and not out[-1][1] and prev.startswith("//") and t.startswith("// in:"):
+            out[-1] = (out[-1][0], t[len("// in:"):].strip())
+        elif out and not out[-1][1] and prev.startswith("//") and t.startswith("//") and not t.startswith(("// drafted", "// draft", "// reaching for", "// example wanted:")):
+            out[-1] = (out[-1][0] + " " + t[2:].strip(), "")
+        prev = t
+    return out
+
+
+def parse_error(surety: str, path: pathlib.Path, text: str) -> str:
+    """`surety parse` on `text` written at `path`: '' when it parses, else
+    what the checker reports."""
+    path.write_text(text, encoding="utf-8")
+    code, errors = run_surety(surety, "parse", str(path))
+    return "" if code == 0 else errors.strip()
+
+
 def cmd_lines(args: argparse.Namespace) -> int:
     path = pathlib.Path(args.file)
     original = read(path)
@@ -502,6 +544,12 @@ def cmd_lines(args: argparse.Namespace) -> int:
     code, errors = run_surety(surety, "parse", str(path))
     if code != 0:
         print(f"{path} does not parse, so stage 2 does not start: it only adds lines under the sentences, and the types are stage 1's. The checker reports:\n{errors.strip()}", file=sys.stderr)
+        return 2
+    # A line is asked for only against an example that can run it.
+    if not any(line.strip() == "e:" for line in original.split("\n")):
+        print(f"{path} has no example, so stage 2 does not start: a line is asked for only against an example that can run it, and a line with none to run it says nothing yet. Each `// example wanted:` line is a case to turn into one: the editor's code action writes the block with the input filled in, and the output is yours to type.", file=sys.stderr)
+        for case, lit in wanted_left(original):
+            print(f"  example wanted: {case}" + (f"\n    in: {lit}" if lit else ""), file=sys.stderr)
         return 2
     d = run_dir("lines")
     (d / "before.sur").write_text(original, encoding="utf-8")
@@ -513,12 +561,20 @@ def cmd_lines(args: argparse.Namespace) -> int:
               "The sentences with no property line beneath them, one line each wanted:\n\n" + "\n".join(f"# {s}" for s in todo),
               docs_text(), corpus_text(args.withhold)]
     prompt = "\n\n".join(p for p in header if p)
-    text = original
-    reach: list[str] = []
-    errors = ""
+    # A line that parsed is kept across rounds; a retry asks again only for
+    # the sentences whose line failed, each with what the checker said.
+    kept: dict[str, str] = {}
+    comments: dict[str, list[str]] = {}
+    failing: dict[str, tuple[str, str]] = {}
+    pending = list(todo)
+    rounds: list[dict] = []
     replies = args.reply if args.reply else []
     for round_no in range(1, args.rounds + 1):
-        ask = prompt if round_no == 1 else prompt + f"\n\nYour last lines did not parse. The checker reports:\n\n```\n{errors.strip()}\n```\n\nGive the pairs again, every listed sentence, corrected."
+        if round_no == 1:
+            ask = prompt
+        else:
+            again = "\n\n".join(f"# {s}\n\t{failing[s][0]}\nThe checker reports: {failing[s][1]}" for s in pending)
+            ask = prompt + f"\n\nEvery other line parsed and is kept. These did not; give the pairs again for these sentences only, corrected:\n\n{again}"
         (d / f"prompt{round_no}.md").write_text(ask, encoding="utf-8")
         if replies:
             reply = read(pathlib.Path(replies[min(round_no, len(replies)) - 1]))
@@ -530,21 +586,46 @@ def cmd_lines(args: argparse.Namespace) -> int:
         if block is None:
             print(f"round {round_no}: no ```surety block in the reply", file=sys.stderr)
             return 1
-        pairs, refused = parse_pairs(block)
+        pairs, refused, said = parse_pairs(block)
         for r in refused:
             print(f"refused a line the model wrote (the author's): {r}")
-        for s in todo:
-            if s not in pairs:
-                pairs[s] = "reaching for: a line the model gave no answer for"
-        text, reach = insert_lines(original, {s: pairs[s] for s in todo})
-        path.write_text(text, encoding="utf-8")
-        code, errors = run_surety(surety, "parse", str(path))
-        (d / f"parse{round_no}.txt").write_text(errors, encoding="utf-8")
+        asked, pending = pending, []
+        for sentence in asked:
+            proposed = pairs.get(sentence, "reaching for: a line the model gave no answer for")
+            if sentence in said:
+                comments[sentence] = said[sentence]
+            if proposed.lower().startswith("reaching for:"):
+                kept[sentence] = proposed
+                failing.pop(sentence, None)
+                continue
+            # Each line on its own under its sentence, the kept ones beside it.
+            text, _ = insert_lines(original, {**kept, sentence: proposed})
+            err = parse_error(surety, path, text)
+            if err:
+                failing[sentence] = (proposed, err)
+                pending.append(sentence)
+            else:
+                kept[sentence] = proposed
+                failing.pop(sentence, None)
+        text, reach = insert_lines(original, kept, comments)
+        rounds.append({
+            "round": round_no,
+            "asked": asked,
+            "errors": {s: failing[s][1] for s in pending},
+            "reach": len(reach),
+        })
         if usage:
             print(f"round {round_no}: tokens {usage['input']}/{usage['output']}")
-        if code == 0:
+        for s in pending:
+            print(f"round {round_no}: {failing[s][1]}")
+        if not pending:
             break
-        print(f"round {round_no}: {errors.strip()}")
+    # Lines still failing after the last round go in as written, so the
+    # author sees them where they stand.
+    text, reach = insert_lines(original, {**kept, **{s: failing[s][0] for s in pending}}, comments)
+    path.write_text(text, encoding="utf-8")
+    code, errors = run_surety(surety, "parse", str(path))
+    (d / "rounds.json").write_text(json.dumps(rounds, indent=1) + "\n", encoding="utf-8")
     if code == 0 and format_file(surety, path):
         text = read(path)
     (d / "after.sur").write_text(text, encoding="utf-8")
@@ -555,6 +636,16 @@ def cmd_lines(args: argparse.Namespace) -> int:
         print("\nreaching for (for the sheet):")
         for r in reach:
             print(f"  - {r}")
+    drafted = [(sentence, c) for sentence in todo for c in comments.get(sentence, [])]
+    if drafted:
+        print("\nthe model's comments, kept as // drafted: beneath their lines, read them first:")
+        for sentence, c in drafted:
+            print(f"  - {c}  (under: {sentence})")
+    left = wanted_left(text)
+    if left:
+        print(f"\nexamples wanted still in the file: {len(left)}, {sum(1 for _, lit in left if lit)} with a // in: literal not yet turned into an e: block:")
+        for case, lit in left:
+            print(f"  - {case}" + (f"\n      in: {lit}" if lit else ""))
     print(f"\n{path} still carries `{MARK}`; review the lines, remove the mark, then `surety pin`.")
     print(f"run written to {d}")
     return 0 if code == 0 else 1

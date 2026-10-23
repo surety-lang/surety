@@ -61,14 +61,20 @@ pub fn formatting(text: &str) -> Json {
 }
 
 /// A hint, never an error, on each sentence or comment line past the
-/// column: formatting wraps it.
+/// column: formatting wraps it. A `// in:` literal under an example-wanted
+/// line is never wrapped, so it gets none.
 pub fn long_prose_lines(text: &str) -> Vec<Json> {
+    let literals: Vec<usize> = surety_syntax::wanted::in_text(text)
+        .iter()
+        .filter_map(|w| w.literal.as_ref().map(|(l, _)| *l - 1))
+        .collect();
     text.lines()
         .enumerate()
-        .filter(|(_, l)| {
+        .filter(|(i, l)| {
             let t = l.trim_start();
             (t.starts_with('#') || t.starts_with("//"))
                 && surety_syntax::render::columns(l) > surety_syntax::render::WIDTH
+                && !literals.contains(i)
         })
         .map(|(i, l)| {
             let indent = l.chars().take_while(|c| c.is_whitespace()).count();
@@ -125,10 +131,54 @@ pub fn term_at(line: &str, find: &str) -> Option<(usize, usize)> {
     })
 }
 
+/// The title of the code action on an example-wanted line: the author is
+/// the one writing the example.
+pub const WRITE_EXAMPLE: &str =
+    "Write this example: its input is filled in, its output is yours to type";
+
+/// On an example-wanted line with its `// in:` literal: the two comments
+/// replaced by an `e:` block, the case as its `note`, the literal as its
+/// `in:`, and `out:` left for the author, with the cursor after it. Until
+/// the output is written the file does not parse there (`ExampleOutMissing`).
+fn write_example(uri: &str, text: &str, line: usize) -> Option<Json> {
+    let w = surety_syntax::wanted::in_text(text)
+        .into_iter()
+        .find(|w| w.line - 1 <= line && line < w.end())?;
+    let (_, literal) = w.literal.as_ref()?;
+    let first = text.lines().nth(w.line - 1)?;
+    let unit: String = first.chars().take_while(|c| c.is_whitespace()).collect();
+    let body = format!("{unit}{unit}");
+    // A note is a string with no escapes: a quote in the case becomes an apostrophe.
+    let note = w.case.replace('"', "'");
+    let out = format!("{body}out: ");
+    // Up to the end of the literal's line and no further, so the edit lies
+    // within the `e:` block and the editor holds its error while the
+    // cursor is there.
+    let block = format!("{unit}e:\n{body}note \"{note}\"\n{body}in: {literal}\n{out}");
+    let last = text.lines().nth(w.end() - 1)?;
+    Some(json!({
+        "title": WRITE_EXAMPLE,
+        "kind": "refactor.rewrite",
+        "edit": { "changes": { uri: [{
+            "range": { "start": { "line": w.line - 1, "character": 0 }, "end": { "line": w.end() - 1, "character": last.encode_utf16().count() } },
+            "newText": block,
+        }] } },
+        "command": {
+            "title": "Place the cursor after `out:`",
+            "command": "surety.cursorAt",
+            "arguments": [uri, w.line - 1 + 3, out.encode_utf16().count()],
+        },
+    }))
+}
+
 /// The quick fixes for diagnostics that carry one: the edit on the line the
-/// diagnostic is on, where the term it names stands now.
-pub fn code_actions(uri: &str, text: &str, diagnostics: &[Json]) -> Json {
-    let mut actions = Vec::new();
+/// diagnostic is on, where the term it names stands now; and, on an
+/// example-wanted line, the author's action that writes its example.
+pub fn code_actions(uri: &str, text: &str, line: Option<usize>, diagnostics: &[Json]) -> Json {
+    let mut actions: Vec<Json> = line
+        .and_then(|l| write_example(uri, text, l))
+        .into_iter()
+        .collect();
     for d in diagnostics {
         let fix = &d["data"]["fix"];
         let (Some(find), Some(replace)) = (fix["find"].as_str(), fix["replace"].as_str()) else {
@@ -312,7 +362,13 @@ impl Server {
                     .as_array()
                     .cloned()
                     .unwrap_or_default();
-                vec![Self::response(&id, code_actions(&uri, &text, &diagnostics))]
+                let line = params["range"]["start"]["line"]
+                    .as_u64()
+                    .map(|l| l as usize);
+                vec![Self::response(
+                    &id,
+                    code_actions(&uri, &text, line, &diagnostics),
+                )]
             }
             ("surety/unverified", Some(id)) => {
                 let text = self.docs.get(&uri).cloned().unwrap_or_default();

@@ -295,6 +295,24 @@ fn leading_ws(s: &str) -> &str {
     &s[..end]
 }
 
+/// The tokens of one line of text standing alone: a literal a comment
+/// carries (`wanted.rs`), read as a line of a file would be.
+pub fn tokens(text: &str, line: usize) -> Result<Vec<Token>, Error> {
+    let mut out = Vec::new();
+    let mut depth = 0;
+    let mut sc = Scanner {
+        src: text,
+        pos: 0,
+        line,
+        col0: 0,
+    };
+    sc.run(&mut depth, &mut out)?;
+    if depth != 0 {
+        return Err(Error::new(ErrorKind::Syntax, line, "unclosed bracket"));
+    }
+    Ok(out)
+}
+
 /// Split source text into logical lines.
 pub fn lex(src: &str) -> Result<Lexed, Error> {
     let mut lexed = Lexed::default();

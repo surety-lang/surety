@@ -456,6 +456,21 @@ fn parse_body(fun: &mut Function, items: &[Item], pins: &mut Vec<Pin>) -> Result
     Ok(())
 }
 
+/// A literal on its own, as an example's `in:` holds one: what a `// in:`
+/// line under an example-wanted line carries (`wanted.rs`).
+pub fn parse_literal(text: &str, line: usize) -> Result<Expr, Error> {
+    let toks = crate::lexer::tokens(text, line)?;
+    let e = parse_expr(&toks, &[], Ctx::Literal, line)?;
+    check_literal(
+        &e,
+        false,
+        ErrorKind::ExampleInNotLiteral,
+        line,
+        "an example's `in`",
+    )?;
+    Ok(e)
+}
+
 fn parse_example(toks: &[Token], line: usize) -> Result<Example, Error> {
     let mut p = ExprParser {
         toks,
@@ -498,6 +513,15 @@ fn parse_example(toks: &[Token], line: usize) -> Result<Example, Error> {
         } else if t.is_ident("out") && p.peek_at(1).is_some_and(|t| t.is_sym(":")) {
             p.bump();
             p.bump();
+            // An example started from an example-wanted line has its input
+            // and waits for its output, which only the author writes.
+            if p.peek().is_none() {
+                return Err(Error::new(
+                    ErrorKind::ExampleOutMissing,
+                    tline,
+                    "this example has no output yet: the output is yours to write, or the example yours to delete",
+                ));
+            }
             let e = p.parse_iff()?;
             check_literal(
                 &e,

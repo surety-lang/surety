@@ -326,6 +326,19 @@ pub fn file(f: &File, fresh: bool) -> String {
         out.push_str(l);
         out.push('\n');
     }
+    // A `// in:` line under an example-wanted line holds a literal: it is
+    // never wrapped, and its spaces are kept, since a text value may hold two.
+    let literals: Vec<usize> = crate::wanted::in_file(f)
+        .iter()
+        .filter_map(|w| w.literal.as_ref().map(|(l, _)| *l))
+        .collect();
+    let comment = |prefix: &str, pin: &Pin| {
+        if literals.contains(&pin.line) {
+            format!("{prefix}{}\n", pin.text)
+        } else {
+            wrap(prefix, &pin.text)
+        }
+    };
     let attached: Vec<&str> = f
         .decls
         .iter()
@@ -354,8 +367,11 @@ pub fn file(f: &File, fresh: bool) -> String {
                 out.push('\n');
             }
             after_sentence = is_sentence;
-            let prefix = if is_sentence { "# " } else { "// " };
-            out.push_str(&wrap(prefix, &pin.text));
+            if is_sentence {
+                out.push_str(&wrap("# ", &pin.text));
+            } else {
+                out.push_str(&comment("// ", pin));
+            }
         }
     };
     let mut last_was_type = false;
@@ -466,7 +482,7 @@ pub fn file(f: &File, fresh: bool) -> String {
                             out.push_str(&wrap("\t# ", &pin.text));
                         }
                         Item::Comment(pin) => {
-                            out.push_str(&wrap("\t// ", &pin.text));
+                            out.push_str(&comment("\t// ", pin));
                         }
                     }
                 }

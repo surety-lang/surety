@@ -1,0 +1,5 @@
+type Order = { amount: Int }
+get_small_orders(orders: Order[]) -> Order[]
+	all o in out: o.amount <= 100
+	// example wanted: one order over the limit
+	// in: [{amount: "a lot"}]

@@ -9,6 +9,7 @@ pub mod normalize;
 pub mod parser;
 pub mod render;
 pub mod resolve;
+pub mod wanted;
 
 pub use ast::*;
 pub use error::{Error, ErrorKind, Fix};

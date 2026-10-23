@@ -736,6 +736,15 @@ export function activate(context: vscode.ExtensionContext): {
             const doc = vscode.window.activeTextEditor?.document;
             if (doc) { return checkDocument(doc, 'check'); }
         }),
+        // The server's code action that writes an example from an
+        // example-wanted line leaves the cursor after `out:`, for the author.
+        vscode.commands.registerCommand('surety.cursorAt', (uri: string, line: number, character: number) => {
+            const editor = vscode.window.activeTextEditor;
+            if (editor && editor.document.uri.toString() === uri) {
+                const at = new vscode.Position(line, character);
+                editor.selection = new vscode.Selection(at, at);
+            }
+        }),
         vscode.commands.registerCommand('surety.mutants', () => {
             const doc = vscode.window.activeTextEditor?.document;
             if (doc) { return checkDocument(doc, 'mutants'); }

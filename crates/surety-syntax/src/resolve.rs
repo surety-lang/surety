@@ -249,6 +249,28 @@ impl Graph {
                 Decl::Function(f) => self.check_function(idx, f)?,
             }
         }
+        // A `// in:` literal under an example-wanted line is an example's
+        // input waiting for its output: the parse step is its check, the
+        // same one an `e:` block's `in:` gets, against the function above it.
+        for w in crate::wanted::in_file(file) {
+            let Some((line, text)) = &w.literal else {
+                continue;
+            };
+            let Some(f) = file.decls.iter().rev().find_map(|d| match d {
+                Decl::Function(f) if f.line < *line => Some(f),
+                _ => None,
+            }) else {
+                continue;
+            };
+            let about = |mut e: Error| {
+                e.message = format!("the `// in:` literal: {}", e.message);
+                e
+            };
+            let e = crate::parser::parse_literal(text, *line).map_err(about)?;
+            Scope::for_function(self, idx, f)?
+                .check_example_in(&e, *line)
+                .map_err(about)?;
+        }
         Ok(())
     }
 

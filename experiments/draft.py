@@ -16,9 +16,11 @@ it stands), the decision notes and the corpus, and takes back the types and name
 and `#` sentences, one claim each about the whole relation between the
 inputs and the output, with no property line beneath any of them and no
 examples; an instance the model wanted to pin goes under the sentences as
-`// example wanted: <the case, and what decides it>`, never with an output,
-for the author to turn into an `e:` block or delete; the tool never turns
-one into an example itself. The file
+`// example wanted: <the case, and what decides it>` with the input as a
+literal on a `// in: (...)` line beneath, never with an output, for the
+author to turn into an `e:` block (the editor's code action writes the block
+with `out:` left empty) or delete; the tool never turns one into an example
+itself, and strips an output written after a literal. The file
 starts with `// draft`. The types are this stage's
 output, so the file is parsed and an error goes back to the model for up to
 three rounds, as in stage 2. The author then edits the sentences in the editor.
@@ -55,7 +57,8 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 CORPUS = ROOT / "crates" / "surety" / "tests" / "corpus"
 DOCS = ROOT / "docs"
-RUNS = ROOT / "experiments" / "draft" / "runs"
+# A test points the run directories elsewhere; the author's runs land here.
+RUNS = pathlib.Path(os.environ.get("SURETY_DRAFT_RUNS", ROOT / "experiments" / "draft" / "runs"))
 MODEL = "claude-opus-5-5"
 MARK = "// draft"
 SIGNATURE = re.compile(r"^[a-z_][A-Za-z0-9_]*\s*\(.*\)\s*->")
@@ -93,6 +96,7 @@ type <Name> = { ... }          (each type you had to add, each under its own `//
 	# <sentence>
 
 	// example wanted: <the case in one line, and what decides it; never the output>
+	// in: <the case's input as a literal in the signature's types; never the output>
 
 Every type the file names must be declared in the file. The built-in types are Int, Float, Text, Bool, Id, Time and UUID, with `T[]`, `Option<T>` and `Result<T, E>` over them; there is no library of types beyond these, and no type from another obligation or from the corpus is in scope (a corpus file may name a type declared in a file beside it; the draft stands alone). A type you need that the author did not give, you declare under its own `// drafted` line, with its fields. Prefer an exact integer representation wherever the problem allows: cents over a decimal amount, basis points over a float rate, whole units over fractions. The reason: with a float rate, 125 * 0.1 is 12.500000000000002, so a half-even tie does not exist and every example's expected value depends on the performance's arithmetic rather than on the problem; with cents and basis points the expected value is a fact. A file that names an undeclared type does not parse and comes back to you with the error.
 
@@ -100,7 +104,7 @@ A named value is a declaration, not an example. Draft one beside the types, unde
 
 A sentence is a claim about the whole relation between the inputs and the output: what holds on every input, in the fragment's vocabulary. Membership ("every output element is one of the input elements"), order ("the output keeps the input's order", "is sorted by <field>", "is not claimed in any order"), drawn from with left out ("the output is drawn from the input" means every output element is an occurrence of an input element and no occurrence is used twice; "every input element left out of the output has ..." then pins how many times each appears), uniqueness ("no two output elements share <field>"), "<a> comes before <b>", equalities and bounds over `sum` and `len` ("the total is the sum of the amounts", "the output has at most three elements"), "if ... then ..." and "... exactly when ...", with "every", "no", "some" and "exactly one" over a list with a condition. A sentence that fixes a specific input is not a claim and is left out: a length ("if the list has one item ..."), a single value ("if the rate is 0 ..."), a particular combination ("a rate of 0 with one item"). Those are instances, and an instance is an example, which the author writes.
 
-An instance you want pinned goes under the sentences as one line, `// example wanted: <the case in one line, and what decides it>`, for the author to turn into an `e:` block or delete. Write one for each boundary the claims leave to the reader: the empty list, a zero rate, the exact threshold. Give the case and the method, never the expected output: "amounts [125] at 1000 basis points: the tax is exactly 12.5, a half-even tie", not "-> 137". The author decides every output, and a number written here gets copied as if it were decided; on one draft the suggested outputs rounded the tax where the note rounds the total, and the performance was the one that was right. Never write an `e:` block yourself.
+An instance you want pinned goes under the sentences as one line, `// example wanted: <the case in one line, and what decides it>`, for the author to turn into an `e:` block or delete. Write one for each boundary the claims leave to the reader: the empty list, a zero rate, the exact threshold. Give the case and the method, never the expected output: "amounts [125] at 1000 basis points: the tax is exactly 12.5, a half-even tie", not "-> 137". The author decides every output, and a number written here gets copied as if it were decided; on one draft the suggested outputs rounded the tax where the note rounds the total, and the performance was the one that was right. Never write an `e:` block yourself. Beneath each example-wanted line, on a line of its own, give the case's input as a literal in the signature's types, `// in: <literal>`: the bare literal for one input, the tuple `(a, b, c)` in the signature's order for several, written the way the corpus's `e:` blocks write each type (records with every field the input type has, lists in brackets, `None` for an empty option). The literal is checked against the signature as an example's input is, and a literal that does not fit comes back to you with the error. Write the input only: nothing after it, no `->`, no output, in words or in notation.
 
 A sentence implied by another is left out, so that every sentence carries a claim of its own. Two cases. A boundary case of a claim is an example, not a second sentence: "if the list is empty, the total is 0" follows from "the total is the sum of the amounts", so it goes out as an example wanted. A bound implied by a stronger bound is dropped: "the total is at least 0" follows from "the total is at least the sum of the amounts" when every amount is at least 0, so only the stronger one stays. Three to six sentences is the usual size; a problem with error cases has one more per error.
 
@@ -350,6 +354,19 @@ def stage1_file(reply: str) -> tuple[str | None, list[str]]:
         return None, []
     text, removed = strip_human_parts(block)
     notes = [f"stripped {r} (the author's, never the model's)" for r in removed]
+    # The input literal under an example-wanted line is the most a model
+    # gives: an output written after it, `->` or `out:`, goes, and is said.
+    after_literal = re.compile(r"\s*(->|\bout\s*:).*$")
+    cleaned = []
+    for line in text.split("\n"):
+        if line.strip().startswith("// in:"):
+            head, body = line.split("// in:", 1)
+            cut = after_literal.search(body)
+            if cut:
+                notes.append(f"stripped an output after a // in: literal (the author's, never the model's): {body[cut.start():].strip()}")
+                line = f"{head}// in:{body[:cut.start()]}"
+        cleaned.append(line)
+    text = "\n".join(cleaned)
     # Sentences only: a property line the model wrote beneath a sentence is
     # dropped. Only under the signature: before it, an indented line is the
     # body of a type or a named value.
@@ -395,25 +412,37 @@ def stage1_summary(out: pathlib.Path, text: str, parse: str) -> str:
             elif re.match(r"^[a-z_][A-Za-z0-9_]*\s*:", nxt):
                 values += 1
     sentences = sentences_without_lines(text)
-    # An example-wanted line, with the continuation lines render wrapped it into.
-    wanted: list[str] = []
+    # An example-wanted line, the continuation lines render wrapped it into,
+    # and the `// in:` literal on the line beneath (the checker's own reading
+    # is `wanted.rs`; this one only counts).
+    wanted: list[list[str]] = []
+    prev = ""
     for line in lines:
         t = line.strip()
         if t.startswith("// example wanted:"):
-            wanted.append(t[len("// example wanted:"):].strip())
-        elif t.startswith("//") and wanted and not t.startswith(("// drafted", "// draft", "// reaching for")) and lines.index(line) > 0 and lines[lines.index(line) - 1].strip().startswith("//"):
-            wanted[-1] += " " + t[2:].strip()
-        elif not t.startswith("//"):
-            pass
+            wanted.append([t[len("// example wanted:"):].strip(), ""])
+        elif wanted and not wanted[-1][1] and prev.startswith("//") and t.startswith("// in:"):
+            wanted[-1][1] = t[len("// in:"):].strip()
+        elif wanted and not wanted[-1][1] and prev.startswith("//") and t.startswith("//") and not t.startswith(("// drafted", "// draft", "// reaching for", "// example wanted:")):
+            wanted[-1][0] += " " + t[2:].strip()
+        prev = t
+    literals = sum(1 for _, lit in wanted if lit)
     s = [f"wrote {out}: parse {parse}"]
     s.append(f"  drafted: {plural(types, 'type')}, {plural(values, 'named value')}; each under // drafted, read first")
     s.append(f"  sentences: {len(sentences)}, no property lines yet; stage 2 asks for them")
-    s.append(f"  examples wanted: {len(wanted)}, as // example wanted lines; yours to turn into e: blocks or delete")
-    for w in wanted:
-        s.append(f"    {w}")
-    with_output = [w for w in wanted if "->" in w]
+    s.append(f"  examples wanted: {len(wanted)}, as // example wanted lines, {literals} with its input on a // in: line; yours to turn into e: blocks (the editor's code action writes one, the output left to you) or delete")
+    for case, lit in wanted:
+        s.append(f"    {case}" + (f"\n      in: {lit}" if lit else ""))
+    with_output = [case for case, _ in wanted if "->" in case]
     if with_output:
         s.append(f"  {plural(len(with_output), 'example-wanted line carries', 'example-wanted lines carry')} an output (->): the output is yours to decide, not the model's")
+    # Prose is not mechanically strippable: a case that states its output in
+    # words is flagged, to be read before an output is copied from it.
+    in_words = [case for case, _ in wanted if "the output is" in case.lower() or "is empty" in case.lower()]
+    if in_words:
+        s.append(f"  {plural(len(in_words), 'example-wanted line states', 'example-wanted lines state')} an output in words; read before accepting, the output is yours to decide:")
+        for case in in_words:
+            s.append(f"    {case}")
     s.append("  examples: none, by rule")
     return "\n".join(s)
 

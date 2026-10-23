@@ -170,7 +170,7 @@ fn every_bad_fixture_gets_parses_diagnostic_and_the_corpus_gets_none() {
         assert!(d["message"].as_str().is_some_and(|m| !m.is_empty()));
         checked += 1;
     }
-    assert_eq!(checked, 21, "the twenty-one negative fixtures");
+    assert_eq!(checked, 23, "the twenty-three negative fixtures");
     let mut hints = 0;
     for name in common::FIXTURES {
         let path = common::corpus_dir().join(format!("{name}.sur"));

@@ -99,4 +99,47 @@ suite('diagnostics wait while a clause is typed', () => {
             parseErrors(uri).some(d => d.range.start.line === 3 && d.message.includes('no body')));
         await vscode.commands.executeCommand('workbench.action.files.revert');
     });
+
+    test('an example written from an example-wanted line: its output held empty while the cursor is in it, the author\'s to type', async () => {
+        const uri = workspaceFile('wanted.sur');
+        const doc = await vscode.workspace.openTextDocument(uri);
+        const editor = await vscode.window.showTextDocument(doc);
+        await until('the server to see the file clean', () => parseErrors(uri).length === 0);
+        const lines = doc.getText().split('\n');
+        const first = lines.findIndex(l => l.includes('example wanted: four items, size 2, page 1: the has_next boundary'));
+        // The author asks for the action with the cursor on the case.
+        editor.selection = new vscode.Selection(first, 3, first, 3);
+        const actions = await vscode.commands.executeCommand<vscode.CodeAction[]>('vscode.executeCodeActionProvider', uri, new vscode.Range(first, 3, first, 3));
+        const write = actions.find(a => a.title === 'Write this example: its input is filled in, its output is yours to type');
+        assert.ok(write?.edit && write.command, JSON.stringify(actions.map(a => a.title)));
+        assert.ok(await vscode.workspace.applyEdit(write!.edit!));
+        await vscode.commands.executeCommand(write!.command!.command, ...(write!.command!.arguments ?? []));
+        // The two comments are the block, `out:` empty, the cursor after it.
+        assert.strictEqual(doc.lineAt(first).text, '\te:');
+        assert.strictEqual(doc.lineAt(first + 1).text, '\t\tnote "four items, size 2, page 1: the has_next boundary"');
+        assert.strictEqual(doc.lineAt(first + 2).text, '\t\tin: ([{id: "a"}, {id: "b"}, {id: "c"}, {id: "d"}], 1, 2)');
+        assert.strictEqual(doc.lineAt(first + 3).text, '\t\tout: ');
+        assert.deepStrictEqual(editor.selection.active, new vscode.Position(first + 3, 7));
+        // Held while the cursor is in the block.
+        await never('no error while the author is in the block', () => parseErrors(uri).length > 0);
+        // Leaving it shows the one error, on `out:`.
+        editor.selection = new vscode.Selection(0, 0, 0, 0);
+        await until('the missing output', () => parseErrors(uri).length > 0);
+        const errors = parseErrors(uri);
+        assert.strictEqual(errors.length, 1, JSON.stringify(errors.map(d => d.message)));
+        assert.strictEqual(errors[0].code, 'example_out_missing');
+        assert.strictEqual(errors[0].range.start.line, first + 3);
+        assert.ok(errors[0].message.includes('the output is yours to write, or the example yours to delete'), errors[0].message);
+        // The author writes the output: the error goes.
+        const end = new vscode.Position(first + 3, doc.lineAt(first + 3).text.length);
+        editor.selection = new vscode.Selection(end, end);
+        await editor.edit(e => e.insert(end, 'Ok({items: [{id: "c"}, {id: "d"}], total_pages: 2, has_next: false})'));
+        await until('the file to parse', () => parseErrors(uri).length === 0);
+        await vscode.commands.executeCommand('workbench.action.files.revert');
+        // Rejecting the case is deleting its two lines: nothing to report.
+        await until('the server to see the file reverted', () => parseErrors(uri).length === 0);
+        await editor.edit(e => e.delete(new vscode.Range(first, 0, first + 2, 0)));
+        await never('nothing after the reject', () => parseErrors(uri).length > 0, 1000);
+        await vscode.commands.executeCommand('workbench.action.files.revert');
+    });
 });

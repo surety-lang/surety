@@ -531,7 +531,7 @@ impl<'g> Scope<'g> {
         }
     }
 
-    /// An operand of `+ - *` or `abs` is an `Int`. The refusals name what
+    /// An operand of `+ - * %` or `abs` is an `Int`. The refusals name what
     /// the other types wait on, since each is a reach-for with a known
     /// answer.
     fn expect_arith(&self, what: &str, t: &Type, line: usize) -> Result<(), Error> {

@@ -183,7 +183,7 @@
       "name": "entity.name.type.surety"
     },
     "operator": {
-      "match": "<->|->|==|!=|<=|>=|<|>|=|\\.\\.\\.|\\.\\.|\\+|\\*|-",
+      "match": "<->|->|==|!=|<=|>=|<|>|=|\\.\\.\\.|\\.\\.|\\+|\\*|%|-",
       "name": "keyword.operator.comparison.surety"
     },
     "field": {

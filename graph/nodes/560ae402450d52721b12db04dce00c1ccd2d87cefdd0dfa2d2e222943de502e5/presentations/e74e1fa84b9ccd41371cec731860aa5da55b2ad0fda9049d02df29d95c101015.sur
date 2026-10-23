@@ -1,0 +1,79 @@
+type Item = { id: Id }
+type Page = { items: Item[], total_pages: Int, has_next: Bool }
+type PageError = { code: Text, display: Text }
+
+size_error: PageError = {code: "e-page-size", display: "Page size must be at least 1"}
+page_error: PageError = {code: "e-page-negative", display: "Page number must be at least 0"}
+past_end_error: PageError = {code: "e-page-past-end", display: "Page is past the end of the list"}
+errors = [size_error, page_error, past_end_error]
+
+paginate(items: Item[], page: Int, size: Int) -> Result<Page, PageError[]>
+	note "return the zero-based page of the items at the given page size, with the total number of pages and whether a later page exists"
+	# The size error is reported exactly when the size is less than 1.
+	size < 1 <-> (exactly_one Err(errs) in out: size_error in errs)
+	# The page error is reported exactly when the page is less than 0.
+	page < 0 <-> (exactly_one Err(errs) in out: page_error in errs)
+	# The past-end error is reported exactly when the page and size specified is out of range
+	past_end = size >= 1 and page >= 0 and page * size >= max(len(items), 1)
+	past_end <-> (exactly_one Err(errs) in out: past_end_error in errs)
+	# The output is Ok when no error occurs
+	all_checks_ok = size >= 1 and page >= 0 and page * size < max(len(items), 1)
+	all_checks_ok <-> (exactly_one Ok(_) in out)
+	# Every reported error is one of the size error, the page error and the past-end error.
+	all Err(errs) in out: errs drawn_from errors
+	all Err(errs) in out: errs unordered
+	# The page's items are the items from position page times size up to but not including position
+	# page plus one, times size.
+	all Ok(p) in out: p.items == items[page * size .. (page + 1) * size]
+	# Total pages times size is at least the item count.
+	all Ok(p) in out: p.total_pages * size >= len(items)
+	# Total pages minus one, times size, is less than the item count.
+	all Ok(p) in out: (p.total_pages - 1) * size < len(items)
+	# has_next is true exactly when page plus one, times size, is less than the item count.
+	all Ok(p) in out: p.has_next == true <-> (page + 1) * size < len(items)
+
+	e:
+		note "an empty list, page 0, size 3: page times size equals the item count of 0"
+		in: ([], 0, 3)
+		out: Ok({items: [], total_pages: 0, has_next: false})
+	// paginate(items: Item[], page: Int, size: Int) -> Result<Page, PageError[]>
+
+	e:
+		note "five items, size 2, page 2: the partial last page"
+		in: ([{id: "a"}, {id: "b"}, {id: "c"}, {id: "d"}, {id: "e"}], 2, 2)
+		out: Ok({items: [{id: "e"}], total_pages: 3, has_next: false})
+
+	e:
+		note "four items, size 2, page 1: page plus one, times size, equals the item count"
+		in: ([{id: "a"}, {id: "b"}, {id: "c"}, {id: "d"}], 1, 2)
+		out: Ok({items: [{id: "c"}, {id: "d"}], total_pages: 2, has_next: false})
+
+	e:
+		note "four items, size 2, page 2: page times size equals the item count exactly; requests invalid page"
+		in: ([{id: "a"}, {id: "b"}, {id: "c"}, {id: "d"}], 2, 2)
+		out: Err([past_end_error])
+
+	e:
+		note "Page requested past the end"
+		in: ([{id: "a"}, {id: "b"}, {id: "c"}, {id: "d"}], 3, 2)
+		out: Err([past_end_error])
+
+	e:
+		note "Size error, size must be > 0"
+		in: ([{id: "a"}, {id: "b"}, {id: "c"}], 0, 0)
+		out: Err([size_error])
+
+	e:
+		note "three items, size 1, page 0: the size threshold, met exactly"
+		in: ([{id: "a"}, {id: "b"}, {id: "c"}], 0, 1)
+		out: Ok({items: [{id: "a"}], total_pages: 3, has_next: true})
+
+	e:
+		note "three items, size 2, page -1: the page threshold, crossed from below"
+		in: ([{id: "a"}, {id: "b"}, {id: "c"}], -1, 2)
+		out: Err([page_error])
+
+	e:
+		note "three items, size 0, page -1: both the size and the page conditions hold"
+		in: ([{id: "a"}, {id: "b"}, {id: "c"}], -1, 0)
+		out: Err([page_error, size_error])

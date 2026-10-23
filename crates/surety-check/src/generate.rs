@@ -107,7 +107,10 @@ impl Domain {
     /// What every obligation gets before its own literals.
     pub fn base() -> Domain {
         Domain {
-            ints: vec![0, 1, 2],
+            // The lengths the generator gives lists, so a page and a size
+            // range over the item counts and their products straddle them: a
+            // computed threshold is crossed without an example.
+            ints: vec![0, 1, 2, 3, 4],
             floats: vec![0.0, 1.0],
             texts: vec!["".into(), "a".into(), "b".into()],
             ids: (0..MAX_LEN).map(|i| format!("k{i}")).collect(),

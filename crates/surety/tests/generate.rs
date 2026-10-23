@@ -9,6 +9,60 @@ use surety_check::value::{from_json_at, to_json};
 use surety_check::{Checker, Value};
 use surety_syntax::Type;
 
+/// Slice 5, acceptance test 4: a threshold written as arithmetic over the
+/// inputs, `page * size > len(items)`, is crossed from both sides by
+/// generated inputs with no example, since the base integers are the
+/// lengths the generator gives lists; and through `check`, a performance
+/// that branches on it passes while the mutant returning 0 is caught, so
+/// both branches of the implication were taken.
+#[test]
+fn a_computed_threshold_is_crossed_without_an_example() {
+    let text = "paginate(items: Int[], page: Int, size: Int) -> Int\n\tpage * size > len(items) -> out == 1\n\tpage * size <= len(items) -> out == 0\n";
+    let graph = surety_syntax::Graph::single("paginate", surety_syntax::parse(text).unwrap());
+    let dir = std::path::PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("threshold");
+    std::fs::create_dir_all(&dir).unwrap();
+    let perf = dir.join("paginate.py");
+    std::fs::write(
+        &perf,
+        "def paginate(items, page, size):\n    return 1 if page * size > len(items) else 0\n",
+    )
+    .unwrap();
+    let c = Checker::new(&graph, 0, &perf, &dir, surety::TIMEOUT).unwrap();
+    let generated = c.generated_inputs();
+    let (mut over, mut under) = (0, 0);
+    for inputs in &generated.inputs {
+        let (Value::List(items), Value::Int(page), Value::Int(size)) =
+            (&inputs[0], &inputs[1], &inputs[2])
+        else {
+            panic!("{inputs:?}");
+        };
+        if page * size > items.len() as i128 {
+            over += 1;
+        } else {
+            under += 1;
+        }
+    }
+    assert!(over > 0 && under > 0, "past the threshold {over}, within it {under}");
+    let r = surety::check_file_with(&dir.join("paginate.sur"), &perf, surety_check::Budget::default())
+        .or_else(|_| {
+            std::fs::write(dir.join("paginate.sur"), text).unwrap();
+            surety::check_file_with(&dir.join("paginate.sur"), &perf, surety_check::Budget::default())
+        })
+        .unwrap();
+    let report = surety::render(&r);
+    // With no examples the binding tier is skipped, so the verdict line,
+    // not `passed`, says the generated tier was clean.
+    assert!(surety::verdict_line(&r).contains("ACCEPTED"), "{report}");
+    assert_eq!(r.findings(), 0, "{report}");
+    let m = r.mutants.as_ref().unwrap();
+    let empty = m
+        .mutants
+        .iter()
+        .find(|x| x.mutant == surety_check::Mutant::Empty)
+        .unwrap();
+    assert!(empty.caught_inputs > 0, "{report}");
+}
+
 fn checker<'g>(graph: &'g surety_syntax::Graph, name: &str) -> Checker<'g> {
     let idx = common::fixture_index(graph, name);
     let perf = common::corpus_dir().join(format!("{name}.py"));
@@ -139,14 +193,14 @@ fn small_buckets_are_enumerated_exhaustively() {
         "the empty list is an example and is not repeated"
     );
     let b1 = generated.buckets.iter().find(|b| b.lengths == [1]).unwrap();
-    // P2's integers: the base 0, 1, 2; its literal 100 with its neighbours
-    // 99 and 101; the example amounts 4, 42143, 52 and 99 (99 twice, once);
-    // nine in all, times four texts.
-    assert!(b1.exhaustive, "36 one-element lists fit the bucket");
-    assert_eq!(b1.taken, 36);
+    // P2's integers: the base 0 to 4; its literal 100 with its neighbours
+    // 99 and 101; the example amounts 4, 42143, 52 and 99 (4 and 99 once);
+    // ten in all, times four texts.
+    assert!(b1.exhaustive, "40 one-element lists fit the bucket");
+    assert_eq!(b1.taken, 40);
     let b2 = generated.buckets.iter().find(|b| b.lengths == [2]).unwrap();
     assert!(!b2.exhaustive);
-    assert_eq!(b2.space, 36 * 36);
+    assert_eq!(b2.space, 40 * 40);
     assert!(
         b2.taken > 100,
         "the quota unused by small buckets carries forward: {}",

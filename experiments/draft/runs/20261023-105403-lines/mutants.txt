@@ -1,0 +1,1 @@
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__zip_broadcast.sur: /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__zip_broadcast.sur: line 16: `Err(...)` is a pattern; a value is expected here (pattern_as_value)

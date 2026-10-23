@@ -1,0 +1,25 @@
+```surety
+// draft
+// drafted
+type Obj = { id: Id, is_none: Bool, iterable: Bool, instance_of: Text[], items: Id[] }
+
+always_iterable(obj: Obj, base_types: Text[]) -> Id[]
+	note "Return obj's items when obj counts as iterable, otherwise a one-item list holding obj, and nothing for None. The output is the list the returned iterator yields. instance_of lists every class obj is an instance of, its own and its bases. base_types empty stands for base_type=None, since isinstance(obj, ()) is false. The caller's default is [\"str\", \"bytes\"]."
+	# If obj is None, the output is empty.
+
+	# If obj is not None and some class obj is an instance of is one of the base types, the output is the one-item list holding obj's id.
+
+	# If obj is not None, is an instance of none of the base types, and is not iterable, the output is the one-item list holding obj's id.
+
+	# If obj is not None, is an instance of none of the base types, and is iterable, the output is obj's items in their order.
+
+	// example wanted: obj (1, 2, 3), a tuple with items [1, 2, 3], at base types ["str", "bytes"]; decided by the iterable rule, since a tuple is not a str or bytes
+	// example wanted: obj 1, not iterable, at base types ["str", "bytes"]; decided by the not-iterable rule
+	// example wanted: obj None at base types ["str", "bytes", "NoneType"]; the None check comes before the base-type check
+	// example wanted: obj "foo", instance of ["str"], iterable with items ["f", "o", "o"], at base types ["str", "bytes"]; the base-type rule wins over iterability
+	// example wanted: the same "foo" at base types []; with no base types, the iterable rule applies
+	// example wanted: obj {'a': 1}, a dict with items ["a"], at base types ["str", "bytes"] and again at ["dict"]; decided by whether "dict" is a base type
+	// example wanted: obj an instance of ["MyStr", "str"], iterable, at base types ["str", "bytes"]; isinstance counts a subclass through its base
+	// example wanted: obj an iterable with no items at base types ["str", "bytes"]; the iterable rule applies, not the one-item rule
+	// example wanted: obj an instance of ["bytes"] that is iterable, at base types ["str"]; only the listed base types are held as a unit
+```

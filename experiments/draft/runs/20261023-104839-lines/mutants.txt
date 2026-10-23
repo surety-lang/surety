@@ -1,0 +1,2 @@
+map_if  inputs 0+500  mutants 6 of 13 apply  slipped 1  caught 5  underdetermined 0
+  slipped  identity: returns the input unchanged; through 5 clauses (lines 6, 9, 11, 14, 17); caught by no example; in: ([], false)

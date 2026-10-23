@@ -1,0 +1,33 @@
+// draft
+// drafted
+type Shift = { items: Int[] }
+// drafted
+type StepsError = { message: Text }
+// drafted
+steps_error: StepsError = { message: "Steps should be a non-zero integer" }
+
+circular_shifts(iterable: Int[], steps: Int) -> Result<Shift[], StepsError>
+	note "list the circular shifts of the input, each one rotated by steps places from the one before (left when positive, right when negative; steps defaults to 1)"
+	# The output is the steps error exactly when steps is 0, and is a list of shifts otherwise.
+
+	# Every shift has the same elements as the input.
+
+	# The list of shifts is empty exactly when the input is empty.
+
+	# When the input is not empty, the first shift is the input in its own order.
+
+	# Each shift after the first is the shift before it rotated by steps places, to the left when steps is positive and to the right when it is negative, where a sibling obligation decides the rotation.
+
+	# The last shift rotated by steps places is the first shift.
+
+	# There are never more shifts than the input has elements.
+
+	// example wanted: iterable [0, 1, 2, 3] with the default steps 1: one shift per element, each rotated one place left
+	// example wanted: iterable [0, 1, 2, 3] at steps 2: steps shares a factor with the length, so the rotation comes back to the start before every element has led
+	// example wanted: iterable [0, 1, 2, 3] at steps -1: a negative step rotates right
+	// example wanted: iterable [0, 1, 2, 3] at steps 5: a step larger than the length wraps around
+	// example wanted: iterable [] at steps 1: the empty input yields no shifts rather than one empty shift
+	// example wanted: iterable [0, 1, 2] at steps 0: zero steps is the error, whatever the input
+	// example wanted: iterable [] at steps 0: decides whether the error or the empty input wins
+	// example wanted: iterable [7, 7] at steps 1: equal elements give equal shifts, and decides whether the count goes by position or by distinct value
+	// example wanted: iterable [9] at steps -3: one element under a negative step larger than the length

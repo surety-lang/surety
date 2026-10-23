@@ -1,0 +1,41 @@
+// draft
+// drafted
+type Pool = { values: Text[] }
+// drafted
+type Row = { values: Text[] }
+
+partial_product(iterables: Pool[], repeat: Int) -> Row[]
+	note "starting from every pool's first value, advance the pools (the iterables listed in order, the whole list taken repeat times) one at a time from first to last, emitting a tuple after each step, so every value of every pool is emitted without the full product"
+	# Every output tuple has exactly as many values as there are pools.
+
+	# Each value in an output tuple is one of the values of the pool at that position.
+
+	# The output is empty exactly when some pool is empty.
+
+	# When no pool is empty, the first tuple holds the first value of every pool.
+
+	# Each tuple after the first is the tuple before it with one position set to that pool's next
+	# value and every other position kept.
+
+	# The position that advances never moves back to an earlier pool from one tuple to the next.
+
+	# Every value of every pool appears at that pool's position in some output tuple.
+	// example wanted: the docstring case, iterables "AB", "C", "DEF" at repeat 1: the single-value
+	// middle pool never advances, so the advancing position goes straight from the first pool to
+	// the third
+	// example wanted: iterables "AB" at repeat 3: decided by the note's expansion into three pools
+	// "AB", "AB", "AB", each advanced in turn
+	// example wanted: no iterables at repeat 1: there are no pools, none of them is empty, so the
+	// first-tuple sentence applies to a tuple with no values
+	// example wanted: iterables "AB", "C" at repeat 0: repeating the list zero times leaves no
+	// pools, the same case as no iterables
+	// example wanted: iterables "AB" at repeat -1: a negative repeat leaves no pools, as Python's
+	// tuple times a negative number gives the empty tuple
+	// example wanted: iterables "AB", "", "C" at repeat 1: one empty pool, decided by the
+	// empty-output sentence
+	// example wanted: iterables "AB", "" at repeat 0: the empty iterable is never repeated into a
+	// pool, so no pool is empty
+	// example wanted: iterables "AA", "B" at repeat 1: advancing to the next value of the first
+	// pool sets the same value again, so two consecutive tuples are equal
+	// example wanted: iterables "ABC" at repeat 1: a single pool, so every tuple has one value and
+	// the pool advances through all three

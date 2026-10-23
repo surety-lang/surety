@@ -1,0 +1,1 @@
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__split_at.sur: ok split_at props=10 accepts=0 examples=0 abbrevs=0 pins=40

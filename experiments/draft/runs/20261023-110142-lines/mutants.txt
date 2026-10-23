@@ -1,0 +1,2 @@
+subfactorial  inputs 0+6  mutants 8 of 19 apply  slipped 0  caught 8  underdetermined 2 in 1 gap
+  gap  out can be 0 or 1; 2 inputs show it; the smallest in: -1

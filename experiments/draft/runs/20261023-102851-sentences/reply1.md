@@ -1,0 +1,28 @@
+```surety
+// draft
+// drafted
+type StrictlyNOutcome = { yielded: Text[], too_short_called_with: Option<Int>, too_long_called_with: Option<Int> }
+
+strictly_n(iterable: Text[], n: Int) -> StrictlyNOutcome
+	note "yield the first n items of the iterable, then call too_short with the item count if there were fewer than n, or too_long with n + 1 if there were more; the default callbacks raise ValueError"
+	// the outcome is the trace a full consumer observes: what was yielded before the check, and which callback was called with what
+	// whether a callback raises is the caller's choice, so the defaults are not a separate case here
+	# The yielded items are the iterable's items from position 0 up to but not including n.
+
+	# too_short is called exactly when the iterable has fewer than n items.
+
+	# Whenever too_short is called, it is called with the number of items in the iterable.
+
+	# too_long is called exactly when the iterable has more than n items.
+
+	# Whenever too_long is called, it is called with n plus one.
+
+	// example wanted: ['a', 'b', 'c', 'd'] with n 4, exactly n items: all four yielded and neither callback is called
+	// example wanted: 'ab' with n 3, one short: what is yielded before too_short runs, and the count it receives
+	// example wanted: 'abc' with n 2, one over: what is yielded before too_long runs, and that it receives n + 1 rather than the real length
+	// example wanted: 'abcdef' with n 4, several over: too_long is called once and only the first n are yielded, the docstring's printing callback case
+	// example wanted: an empty iterable with n 0: the empty input against the zero boundary
+	// example wanted: 'a' with n 0: a non-empty iterable against n 0, too long from the start
+	// example wanted: 'ab' with n -1: islice refuses a negative stop before anything is yielded; decide whether this becomes an error case in a Result or stays out of the domain
+	// example wanted: ['a', 'a', 'a'] with n 2: duplicate items, checking that the yielded items are by position, not by value
+```

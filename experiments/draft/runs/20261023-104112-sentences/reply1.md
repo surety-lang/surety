@@ -1,0 +1,24 @@
+```surety
+// draft
+// drafted
+type Item = { key: Id, value: Text }
+// drafted
+type Group = { key: Id, values: Text[] }
+
+groupby_transform(items: Item[]) -> Group[]
+	note "group runs of adjacent items that share a key, each item already carrying its keyfunc key and valuefunc value, with reducefunc left as the identity"
+	# The values of all the groups, taken in group order and within each group in order, are exactly the input items' values in input order.
+
+	# Every group has at least one value.
+
+	# Every group's values are the values of a run of consecutive input items, all of which carry that group's key.
+
+	# No group has the same key as the group right after it.
+
+	// example wanted: no items: there are no items to group, so no run exists
+	// example wanted: keys [0, 0, 1, 1, 1, 2, 2, 2, 3] with values "a" through "i", the docstring's zip case: the runs of equal adjacent keys decide the groups
+	// example wanted: keys [A, B, A]: the two A items are not adjacent, so A heads two separate groups
+	// example wanted: one item: a single run of length one
+	// example wanted: every item carries the same key: the whole input is one run
+	// example wanted: two adjacent items with equal values under different keys: the key, not the value, decides where a group ends
+```

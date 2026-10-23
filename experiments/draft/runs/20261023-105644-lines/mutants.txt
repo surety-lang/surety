@@ -1,0 +1,5 @@
+gray_product  inputs 0+500  mutants 2 of 13 apply  slipped 2  caught 0  underdetermined 8 in 2 gaps
+  gap  on Ok, out can have {values: []} or not; 6 inputs show it; `ok_empty` returns one of the two; the smallest in: ([], -1)
+  gap  out can be Ok([]) or Err({code: "", display: ""}); 2 inputs show it; `empty` returns one of the two; the smallest in: ([{items: ["", "ValueError", "ValueError", "b"]}], 2)
+  slipped  empty: returns the empty value of the output type; through 2 clauses (lines 21, 32); caught by no example; in: ([], -1)
+  slipped  ok_empty: returns Ok of the empty value; through 2 clauses (lines 21, 32); caught by no example; in: ([], -1)

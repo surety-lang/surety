@@ -1,0 +1,2 @@
+unzip  inputs 0+500  mutants 6 of 13 apply  slipped 0  caught 6  underdetermined 6 in 1 gap
+  gap  out[0].cells can have "" or not; 6 inputs show it; the smallest in: [{cells: [""]}]

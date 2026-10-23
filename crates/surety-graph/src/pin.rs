@@ -241,6 +241,21 @@ pub fn pin(
         let p = file.with_extension("py");
         p.is_file().then_some(p)
     });
+    // An obligation that contradicts its own example is not accepted into
+    // the graph, open or with a performance: the examples run against the
+    // lines first, and a contradiction refuses the pin before anything is
+    // written.
+    let against_perf = perf_path
+        .clone()
+        .unwrap_or_else(|| file.with_extension("py"));
+    let against = Checker::new(&graph, idx, &against_perf, module_dir, timeout)?.against();
+    if !against.clean() {
+        return Err(format!(
+            "{}: not pinned: {}; an obligation that contradicts its own example is not accepted into the graph",
+            file.display(),
+            against.refusal()
+        ));
+    }
     let mut ns = store.namespace()?;
     let source = relative(store, file);
     store.write_node(&hash, &canonical.text, &presentation, &references)?;

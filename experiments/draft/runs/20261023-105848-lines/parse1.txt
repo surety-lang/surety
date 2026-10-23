@@ -1,0 +1,1 @@
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__filter_map.sur: line 8: `drawn_from` relates lists of different element types: `out` holds Int, and `iterable.result` holds Option<Int> (element_type_mismatch)

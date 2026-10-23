@@ -31,7 +31,8 @@ fn p7_snapshot_blames_the_obligation_in_one_line() {
     let text = surety::render(&r);
     let first = text.lines().next().unwrap();
     assert!(
-        first.starts_with("enrich_orders  NOT ACCEPTED  obligation: unsatisfiable on "),
+        first.starts_with("enrich_orders  NOT ACCEPTED  obligation: no passing output on ")
+            && first.contains("; no passing output among "),
         "{first}"
     );
     assert!(
@@ -44,7 +45,7 @@ fn p7_snapshot_blames_the_obligation_in_one_line() {
     assert_eq!(r.causes[0].party, Party::Obligation);
     assert_eq!(r.causes[0].clauses.len(), 4);
     assert_eq!(
-        text.matches("  UNSATISFIABLE ON  cause 1:").count(),
+        text.matches("  NO PASSING OUTPUT  cause 1:").count(),
         1,
         "{text}"
     );
@@ -71,7 +72,8 @@ fn p7_snapshot_blames_the_obligation_in_one_line() {
     );
     let json = surety::render_json(&r);
     assert!(
-        json.contains("\"kind\":\"unsatisfiable_on\"") && json.contains("\"party\":\"obligation\""),
+        json.contains("\"kind\":\"no_passing_output\"")
+            && json.contains("\"party\":\"obligation\""),
         "{json}"
     );
     assert!(json.contains("\"verdict\":\"NOT ACCEPTED\""), "{json}");
@@ -132,7 +134,7 @@ fn p5b_snapshot_collapses_the_hole_and_shows_both_outputs() {
         "{text}"
     );
     assert!(
-        text.contains("    underdetermination: 6 of 13 mutants apply; 1 slipped (empty); "),
+        text.contains("    underdetermination: 6 of 14 mutants apply; 1 slipped (empty); "),
         "{text}"
     );
 }
@@ -142,7 +144,7 @@ fn p2_snapshot_is_accepted_in_one_line() {
     let r = snapshot("p2");
     let text = surety::render(&r);
     let first = text.lines().next().unwrap();
-    assert!(first.starts_with("get_small_orders  ACCEPTED  examples 2/2; 4 clauses clean over 502 runs; 6 of 13 mutants apply, none slipped"), "{first}");
+    assert!(first.starts_with("get_small_orders  ACCEPTED  examples 2/2; 4 clauses clean over 502 runs; 6 of 14 mutants apply, none slipped"), "{first}");
     assert!(r.strict_passed());
 }
 

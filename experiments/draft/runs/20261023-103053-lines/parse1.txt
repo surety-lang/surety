@@ -1,0 +1,1 @@
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__unique_to_each.sur: ok unique_to_each props=5 accepts=0 examples=0 abbrevs=0 pins=23

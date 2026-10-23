@@ -21,13 +21,10 @@ paginate(items: Item[], page: Int, size: Int) -> Result<Page, PageError>
 	# The page's items are drawn from the input items and keep the input order.
 	all Ok(p) in out: p.items same_order_as items
 	# No input item left out of the page comes between two of the page's items.
-	all Ok(p) in out:
-		none i leftover in items:
-			any a in p.items where a before i: 
-				any b in p.items: i before b
-	# The page holds the lesser of size and (item count − page × size) items.
-	# For a page after the first, every item of page − 1 comes before every item of this page, and
-	# no input item left out of both comes between them.
+	all Ok(p) in out: none i leftover in items: any a in p.items where a before i in p.items: any b in p.items: i before b in p.items
+	# The page holds the lesser of size and (item count − page × size) items. For a page after the
+	# first, every item of page − 1 comes before every item of this page, and no input item left out
+	# of both comes between them.
 
 	# total_pages × size is at least the item count, and (total_pages − 1) × size is less than it.
 

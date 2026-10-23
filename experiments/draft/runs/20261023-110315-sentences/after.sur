@@ -1,0 +1,18 @@
+// draft
+// drafted
+type Element = { value: Text, key: Text }
+
+all_equal(iterable: Element[]) -> Bool
+	note "report whether every element of the iterable compares equal to every other, comparing each element's key: the key function's result for it, or the element itself when no key is given"
+	# The output is true exactly when every element's key equals every other element's key.
+	// example wanted: an empty iterable: there is no pair of elements to differ, so the claim holds
+	// vacuously
+	// example wanted: a single element: the only pair is the element with itself
+	// example wanted: 'aaaa' with no key (each key is its value): every key is "a"
+	// example wanted: 'aaab' with no key: only the last element's key "b" differs from the rest
+	// example wanted: 'AaaA' with casefold keys: the values differ but every key is "a", and the
+	// key decides
+	// example wanted: [1, 2, 3] with key x < 10: the values differ but every key is "true", and the
+	// key decides
+	// example wanted: 'aab' where the first two elements share a key and the third differs: one
+	// differing pair is enough

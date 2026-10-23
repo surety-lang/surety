@@ -1,0 +1,23 @@
+```surety
+// draft
+// drafted
+type Arg = { iterable: Bool, value: Text, items: Text[] }
+
+value_chain(args: Arg[]) -> Text[]
+	note "emit each argument in order: an iterable argument's items one level deep, a non-iterable argument (strings included) as its value"
+	# The output is drawn from the arguments' contributions, where a non-iterable argument contributes its value and an iterable argument contributes its items.
+
+	# The output has as many elements as there are non-iterable arguments plus the items of the iterable arguments together.
+
+	# Everything an earlier argument contributes comes before everything a later argument contributes.
+
+	# An iterable argument's items keep their order in the output.
+
+	// example wanted: no arguments at all; nothing is contributed
+	// example wanted: an iterable argument with no items between two non-iterable ones; the empty argument contributes nothing and the neighbours stay in order
+	// example wanted: text arguments "12" and "34" passed non-iterable, then an iterable of "56" and "78"; strings are emitted as-is, not split into characters
+	// example wanted: a non-iterable 1 followed by an iterable of 2 through 6, and the mirror case, an iterable of 1 through 5 followed by a non-iterable 6; prepend and append
+	// example wanted: an iterable argument whose item is itself a nested list, written as the text "[7, 8]"; one level only, so the item is emitted whole
+	// example wanted: the same value passed twice, once as a non-iterable argument and once as an item; both occurrences are kept
+	// example wanted: a non-iterable argument whose items field is non-empty, and an iterable one whose value is non-empty; the ignored field contributes nothing
+```

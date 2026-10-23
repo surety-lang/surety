@@ -1,0 +1,1 @@
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__split_when.sur: ok split_when props=6 accepts=0 examples=0 abbrevs=0 pins=27

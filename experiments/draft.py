@@ -16,9 +16,11 @@ it stands), the decision notes and the corpus, and takes back the types and name
 and `#` sentences, one claim each about the whole relation between the
 inputs and the output, with no property line beneath any of them and no
 examples; an instance the model wanted to pin goes under the sentences as
-`// example wanted: <the case, and what decides it>`, never with an output,
-for the author to turn into an `e:` block or delete; the tool never turns
-one into an example itself. The file
+`// example wanted: <the case, and what decides it>` with the input as a
+literal on a `// in: (...)` line beneath, never with an output, for the
+author to turn into an `e:` block (the editor's code action writes the block
+with `out:` left empty) or delete; the tool never turns one into an example
+itself, and strips an output written after a literal. The file
 starts with `// draft`. The types are this stage's
 output, so the file is parsed and an error goes back to the model for up to
 three rounds, as in stage 2. The author then edits the sentences in the editor.
@@ -46,6 +48,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import json
 import os
 import pathlib
 import re
@@ -55,7 +58,8 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 CORPUS = ROOT / "crates" / "surety" / "tests" / "corpus"
 DOCS = ROOT / "docs"
-RUNS = ROOT / "experiments" / "draft" / "runs"
+# A test points the run directories elsewhere; the author's runs land here.
+RUNS = pathlib.Path(os.environ.get("SURETY_DRAFT_RUNS", ROOT / "experiments" / "draft" / "runs"))
 MODEL = "claude-opus-5-5"
 MARK = "// draft"
 SIGNATURE = re.compile(r"^[a-z_][A-Za-z0-9_]*\s*\(.*\)\s*->")
@@ -72,6 +76,8 @@ NOTATION = """The notation, by the forms the corpus uses:
 - Built-ins: `sum(L)`, `len(L)`, `min(a, b)`, `max(a, b)`, `count(L)`, `flatten(L)`, `abs(n)`. `None`, `Ok(x)`, `Err(x)`, `true`, `false` as values.
 - Arithmetic on Int: `a + b`, `a - b`, `a * b`, with `*` binding tighter and parentheses as usual, over Int fields, `len`, `sum`, `count` and literals, so `page * size > len(items)` and `out * 10000 <= sum(items.amount_cents) * (10000 + rate_bps) + 5000` are lines. No `/` and no `%`: a quotient carries a rounding decision that is a sibling obligation's claim, and a ratio is compared as products. No arithmetic on Float, Time or Text. A difference within a bound is one line: `abs(a - b) <= k`.
 - The slice: `xs[a .. b]` is the elements of `xs` from position `a` up to but not including `b`, positions counted from 0, both clamped to the list: a negative `a` clamps to 0 and never counts from the end (Python's `xs[-1:]` means something else), a `b` past the end stops at the end, a `b` below `a` is empty. So `items[page * size .. (page + 1) * size]` is the page, the partial last page and the empty page past the end alike. In a type, `Item[0..3]` is a length bound, a different thing.
+- "The output is the error exactly when the condition holds" is `C <-> (exactly_one Err(e) in out: e == x)`, the quantifier last and in parentheses, or, for a list of errors, the named list and `C <-> (exactly_one Err(errs) in out: x in errs)`; never `out == Err(x)`, since `Err(x)` is a pattern, not a value.
+- A bodied `any` or `exactly_one` over `out` standing alone claims that side on every input: `exactly_one Ok(p) in out: p.total >= 0` says every output is an `Ok`. A claim about one side alone is `all Ok(p) in out: …`, true where the output is the other side.
 - Examples (`e:` / `in:` / `out:`) and `accept` lines are the human author's. Never write them."""
 
 SYSTEM_SENTENCES = """You draft Surety obligations from prose, in the first of two stages: the sentences.
@@ -93,6 +99,7 @@ type <Name> = { ... }          (each type you had to add, each under its own `//
 	# <sentence>
 
 	// example wanted: <the case in one line, and what decides it; never the output>
+	// in: <the case's input as a literal in the signature's types; never the output>
 
 Every type the file names must be declared in the file. The built-in types are Int, Float, Text, Bool, Id, Time and UUID, with `T[]`, `Option<T>` and `Result<T, E>` over them; there is no library of types beyond these, and no type from another obligation or from the corpus is in scope (a corpus file may name a type declared in a file beside it; the draft stands alone). A type you need that the author did not give, you declare under its own `// drafted` line, with its fields. Prefer an exact integer representation wherever the problem allows: cents over a decimal amount, basis points over a float rate, whole units over fractions. The reason: with a float rate, 125 * 0.1 is 12.500000000000002, so a half-even tie does not exist and every example's expected value depends on the performance's arithmetic rather than on the problem; with cents and basis points the expected value is a fact. A file that names an undeclared type does not parse and comes back to you with the error.
 
@@ -100,7 +107,7 @@ A named value is a declaration, not an example. Draft one beside the types, unde
 
 A sentence is a claim about the whole relation between the inputs and the output: what holds on every input, in the fragment's vocabulary. Membership ("every output element is one of the input elements"), order ("the output keeps the input's order", "is sorted by <field>", "is not claimed in any order"), drawn from with left out ("the output is drawn from the input" means every output element is an occurrence of an input element and no occurrence is used twice; "every input element left out of the output has ..." then pins how many times each appears), uniqueness ("no two output elements share <field>"), "<a> comes before <b>", equalities and bounds over `sum` and `len` ("the total is the sum of the amounts", "the output has at most three elements"), "if ... then ..." and "... exactly when ...", with "every", "no", "some" and "exactly one" over a list with a condition. A sentence that fixes a specific input is not a claim and is left out: a length ("if the list has one item ..."), a single value ("if the rate is 0 ..."), a particular combination ("a rate of 0 with one item"). Those are instances, and an instance is an example, which the author writes.
 
-An instance you want pinned goes under the sentences as one line, `// example wanted: <the case in one line, and what decides it>`, for the author to turn into an `e:` block or delete. Write one for each boundary the claims leave to the reader: the empty list, a zero rate, the exact threshold. Give the case and the method, never the expected output: "amounts [125] at 1000 basis points: the tax is exactly 12.5, a half-even tie", not "-> 137". The author decides every output, and a number written here gets copied as if it were decided; on one draft the suggested outputs rounded the tax where the note rounds the total, and the performance was the one that was right. Never write an `e:` block yourself.
+An instance you want pinned goes under the sentences as one line, `// example wanted: <the case in one line, and what decides it>`, for the author to turn into an `e:` block or delete. Write one for each boundary the claims leave to the reader: the empty list, a zero rate, the exact threshold. Give the case and the method, never the expected output: "amounts [125] at 1000 basis points: the tax is exactly 12.5, a half-even tie", not "-> 137". The author decides every output, and a number written here gets copied as if it were decided; on one draft the suggested outputs rounded the tax where the note rounds the total, and the performance was the one that was right. Never write an `e:` block yourself. Beneath each example-wanted line, on a line of its own, give the case's input as a literal in the signature's types, `// in: <literal>`: the bare literal for one input, the tuple `(a, b, c)` in the signature's order for several, written the way the corpus's `e:` blocks write each type (records with every field the input type has, lists in brackets, `None` for an empty option). The literal is checked against the signature as an example's input is, and a literal that does not fit comes back to you with the error. Write the input only: nothing after it, no `->`, no output, in words or in notation.
 
 A sentence implied by another is left out, so that every sentence carries a claim of its own. Two cases. A boundary case of a claim is an example, not a second sentence: "if the list is empty, the total is 0" follows from "the total is the sum of the amounts", so it goes out as an example wanted. A bound implied by a stronger bound is dropped: "the total is at least 0" follows from "the total is at least the sum of the amounts" when every amount is at least 0, so only the stronger one stays. Three to six sentences is the usual size; a problem with error cases has one more per error.
 
@@ -293,11 +300,13 @@ def sentences_without_lines(text: str) -> list[str]:
     return out
 
 
-def insert_lines(text: str, pairs: dict[str, str]) -> tuple[str, list[str]]:
+def insert_lines(text: str, pairs: dict[str, str], comments: dict[str, list[str]] | None = None) -> tuple[str, list[str]]:
     """Put each sentence's line beneath its last `#` line; a `reaching for`
-    becomes a comment."""
+    becomes a comment; a comment the model wrote beneath the pair follows
+    as `// drafted: ...`, so the author reads it as the model's."""
     lines = text.split("\n")
     ends = {last: sentence for _, last, sentence in sentence_groups(lines)}
+    pairs = dict(pairs)
     out: list[str] = []
     reach: list[str] = []
     for i, line in enumerate(lines):
@@ -310,15 +319,21 @@ def insert_lines(text: str, pairs: dict[str, str]) -> tuple[str, list[str]]:
                 reach.append(proposed[len("reaching for:"):].strip())
             else:
                 out.append("\t" + proposed)
+            for c in (comments or {}).get(sentence, []):
+                out.append(f"\t// drafted: {c}")
     return "\n".join(out), reach
 
 
-def parse_pairs(block: str) -> tuple[dict[str, str], list[str]]:
-    """`# sentence` followed by one line → {sentence: line}; refused lines listed."""
+def parse_pairs(block: str) -> tuple[dict[str, str], list[str], dict[str, list[str]]]:
+    """`# sentence` followed by one line → {sentence: line}; refused lines
+    listed; a `//` comment the model wrote beneath a pair kept for it (an
+    echoed `example wanted`, `in:` or reach-for is not a comment of its)."""
     pairs: dict[str, str] = {}
     refused: list[str] = []
+    comments: dict[str, list[str]] = {}
     current: str | None = None
     current_done = True
+    last: str | None = None
     for line in block.split("\n"):
         t = line.strip()
         if not t:
@@ -328,18 +343,24 @@ def parse_pairs(block: str) -> tuple[dict[str, str], list[str]]:
             part = t[1:].strip()
             current = f"{current} {part}" if current is not None and not current_done else part
             current_done = False
+            last = None
             continue
         current_done = True
-        if current is None or t.startswith("//"):
-            # A comment (an `example wanted`, a reach-for the model echoed) is not a line.
+        if t.startswith("//"):
+            c = t[2:].strip()
+            if current is None and last is not None and c and not c.startswith(("example wanted", "in:", "reaching for", "drafted")):
+                comments.setdefault(last, []).append(c)
+            continue
+        if current is None:
             continue
         if t.startswith("accept") or t in ("e:", "in:", "out:") or t.startswith(("in:", "out:")):
             refused.append(t)
             pairs[current] = "reaching for: a line the model wrote as an example or an accept, which are the author's"
         else:
             pairs[current] = t
+        last = current
         current = None
-    return pairs, refused
+    return pairs, refused, comments
 
 
 def stage1_file(reply: str) -> tuple[str | None, list[str]]:
@@ -350,6 +371,19 @@ def stage1_file(reply: str) -> tuple[str | None, list[str]]:
         return None, []
     text, removed = strip_human_parts(block)
     notes = [f"stripped {r} (the author's, never the model's)" for r in removed]
+    # The input literal under an example-wanted line is the most a model
+    # gives: an output written after it, `->` or `out:`, goes, and is said.
+    after_literal = re.compile(r"\s*(->|\bout\s*:).*$")
+    cleaned = []
+    for line in text.split("\n"):
+        if line.strip().startswith("// in:"):
+            head, body = line.split("// in:", 1)
+            cut = after_literal.search(body)
+            if cut:
+                notes.append(f"stripped an output after a // in: literal (the author's, never the model's): {body[cut.start():].strip()}")
+                line = f"{head}// in:{body[:cut.start()]}"
+        cleaned.append(line)
+    text = "\n".join(cleaned)
     # Sentences only: a property line the model wrote beneath a sentence is
     # dropped. Only under the signature: before it, an indented line is the
     # body of a type or a named value.
@@ -395,25 +429,37 @@ def stage1_summary(out: pathlib.Path, text: str, parse: str) -> str:
             elif re.match(r"^[a-z_][A-Za-z0-9_]*\s*:", nxt):
                 values += 1
     sentences = sentences_without_lines(text)
-    # An example-wanted line, with the continuation lines render wrapped it into.
-    wanted: list[str] = []
+    # An example-wanted line, the continuation lines render wrapped it into,
+    # and the `// in:` literal on the line beneath (the checker's own reading
+    # is `wanted.rs`; this one only counts).
+    wanted: list[list[str]] = []
+    prev = ""
     for line in lines:
         t = line.strip()
         if t.startswith("// example wanted:"):
-            wanted.append(t[len("// example wanted:"):].strip())
-        elif t.startswith("//") and wanted and not t.startswith(("// drafted", "// draft", "// reaching for")) and lines.index(line) > 0 and lines[lines.index(line) - 1].strip().startswith("//"):
-            wanted[-1] += " " + t[2:].strip()
-        elif not t.startswith("//"):
-            pass
+            wanted.append([t[len("// example wanted:"):].strip(), ""])
+        elif wanted and not wanted[-1][1] and prev.startswith("//") and t.startswith("// in:"):
+            wanted[-1][1] = t[len("// in:"):].strip()
+        elif wanted and not wanted[-1][1] and prev.startswith("//") and t.startswith("//") and not t.startswith(("// drafted", "// draft", "// reaching for", "// example wanted:")):
+            wanted[-1][0] += " " + t[2:].strip()
+        prev = t
+    literals = sum(1 for _, lit in wanted if lit)
     s = [f"wrote {out}: parse {parse}"]
     s.append(f"  drafted: {plural(types, 'type')}, {plural(values, 'named value')}; each under // drafted, read first")
     s.append(f"  sentences: {len(sentences)}, no property lines yet; stage 2 asks for them")
-    s.append(f"  examples wanted: {len(wanted)}, as // example wanted lines; yours to turn into e: blocks or delete")
-    for w in wanted:
-        s.append(f"    {w}")
-    with_output = [w for w in wanted if "->" in w]
+    s.append(f"  examples wanted: {len(wanted)}, as // example wanted lines, {literals} with its input on a // in: line; yours to turn into e: blocks (the editor's code action writes one, the output left to you) or delete")
+    for case, lit in wanted:
+        s.append(f"    {case}" + (f"\n      in: {lit}" if lit else ""))
+    with_output = [case for case, _ in wanted if "->" in case]
     if with_output:
         s.append(f"  {plural(len(with_output), 'example-wanted line carries', 'example-wanted lines carry')} an output (->): the output is yours to decide, not the model's")
+    # Prose is not mechanically strippable: a case that states its output in
+    # words is flagged, to be read before an output is copied from it.
+    in_words = [case for case, _ in wanted if "the output is" in case.lower() or "is empty" in case.lower()]
+    if in_words:
+        s.append(f"  {plural(len(in_words), 'example-wanted line states', 'example-wanted lines state')} an output in words; read before accepting, the output is yours to decide:")
+        for case in in_words:
+            s.append(f"    {case}")
     s.append("  examples: none, by rule")
     return "\n".join(s)
 
@@ -466,6 +512,62 @@ def cmd_sentences(args: argparse.Namespace) -> int:
     return 0 if code == 0 else 1
 
 
+def wanted_left(text: str) -> list[tuple[str, str]]:
+    """The example-wanted lines still in a file, each with its `// in:`
+    literal when it has one: cases not yet turned into `e:` blocks."""
+    out: list[tuple[str, str]] = []
+    prev = ""
+    for line in text.split("\n"):
+        t = line.strip()
+        if t.startswith("// example wanted:"):
+            out.append((t[len("// example wanted:"):].strip(), ""))
+        elif out and not out[-1][1] and prev.startswith("//") and t.startswith("// in:"):
+            out[-1] = (out[-1][0], t[len("// in:"):].strip())
+        elif out and not out[-1][1] and prev.startswith("//") and t.startswith("//") and not t.startswith(("// drafted", "// draft", "// reaching for", "// example wanted:")):
+            out[-1] = (out[-1][0] + " " + t[2:].strip(), "")
+        prev = t
+    return out
+
+
+def diagnose(surety: str, path: pathlib.Path, text: str) -> list[dict]:
+    """`surety parse --json` on `text` written at `path`: every error and
+    hint, each with the edit it carries when the checker verified one."""
+    path.write_text(text, encoding="utf-8")
+    code, out = run_surety(surety, "parse", "--json", str(path))
+    found = []
+    for line in out.splitlines():
+        try:
+            j = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(j, dict) and j.get("kind") in ("error", "hint"):
+            found.append(j)
+    # A failure that printed no error object is still a failure.
+    if code != 0 and not any(d["kind"] == "error" for d in found):
+        found.append({"kind": "error", "line": 0, "code": "parse", "message": out.strip()})
+    return found
+
+
+def reported(d: dict) -> str:
+    return f"line {d['line']}: {d['message']} ({d['code']})"
+
+
+def on_line(text: str, d: dict, proposed: str) -> bool:
+    """Whether the error or hint is on the proposed line, as inserted."""
+    lines = text.split("\n")
+    n = d["line"] - 1
+    return 0 <= n < len(lines) and lines[n].strip() == proposed.strip().split("\n")[0].strip()
+
+
+def mended(text: str, d: dict, proposed: str) -> str | None:
+    """The proposed line as the checker's verified edit has it, when the
+    error carries one and it replaces exactly that line."""
+    e = d.get("edit")
+    if not e or e["from"] != e["to"] or not on_line(text, d, proposed):
+        return None
+    return e["text"].strip()
+
+
 def cmd_lines(args: argparse.Namespace) -> int:
     path = pathlib.Path(args.file)
     original = read(path)
@@ -473,6 +575,12 @@ def cmd_lines(args: argparse.Namespace) -> int:
     code, errors = run_surety(surety, "parse", str(path))
     if code != 0:
         print(f"{path} does not parse, so stage 2 does not start: it only adds lines under the sentences, and the types are stage 1's. The checker reports:\n{errors.strip()}", file=sys.stderr)
+        return 2
+    # A line is asked for only against an example that can run it.
+    if not any(line.strip() == "e:" for line in original.split("\n")):
+        print(f"{path} has no example, so stage 2 does not start: a line is asked for only against an example that can run it, and a line with none to run it says nothing yet. Each `// example wanted:` line is a case to turn into one: the editor's code action writes the block with the input filled in, and the output is yours to type.", file=sys.stderr)
+        for case, lit in wanted_left(original):
+            print(f"  example wanted: {case}" + (f"\n    in: {lit}" if lit else ""), file=sys.stderr)
         return 2
     d = run_dir("lines")
     (d / "before.sur").write_text(original, encoding="utf-8")
@@ -484,12 +592,29 @@ def cmd_lines(args: argparse.Namespace) -> int:
               "The sentences with no property line beneath them, one line each wanted:\n\n" + "\n".join(f"# {s}" for s in todo),
               docs_text(), corpus_text(args.withhold)]
     prompt = "\n\n".join(p for p in header if p)
-    text = original
-    reach: list[str] = []
-    errors = ""
+    # A line that parsed is kept across rounds; a retry asks again only for
+    # the sentences whose line failed, each with what the checker said. An
+    # error whose edit the checker verified is mended by the tool before
+    # the model is asked at all; a hint keeps its line and goes back once,
+    # as an error does, for the model to keep the line or give a better one.
+    kept: dict[str, str] = {}
+    comments: dict[str, list[str]] = {}
+    failing: dict[str, tuple[str, str]] = {}
+    hinted: dict[str, tuple[str, str]] = {}
+    pending = list(todo)
+    rounds: list[dict] = []
     replies = args.reply if args.reply else []
     for round_no in range(1, args.rounds + 1):
-        ask = prompt if round_no == 1 else prompt + f"\n\nYour last lines did not parse. The checker reports:\n\n```\n{errors.strip()}\n```\n\nGive the pairs again, every listed sentence, corrected."
+        if round_no == 1:
+            ask = prompt
+        else:
+            ask = prompt + "\n\nEvery other line parsed and is kept."
+            again = "\n\n".join(f"# {s}\n\t{failing[s][0]}\nThe checker reports: {failing[s][1]}" for s in pending if s in failing)
+            if again:
+                ask += f" These did not; give the pairs again for these sentences only, corrected:\n\n{again}"
+            again = "\n\n".join(f"# {s}\n\t{hinted[s][0]}\nThe checker hints: {hinted[s][1]}" for s in pending if s not in failing)
+            if again:
+                ask += f"\n\nThese parse and are kept as they are unless you give a better pair; the checker has a hint on each:\n\n{again}"
         (d / f"prompt{round_no}.md").write_text(ask, encoding="utf-8")
         if replies:
             reply = read(pathlib.Path(replies[min(round_no, len(replies)) - 1]))
@@ -501,21 +626,66 @@ def cmd_lines(args: argparse.Namespace) -> int:
         if block is None:
             print(f"round {round_no}: no ```surety block in the reply", file=sys.stderr)
             return 1
-        pairs, refused = parse_pairs(block)
+        pairs, refused, said = parse_pairs(block)
         for r in refused:
             print(f"refused a line the model wrote (the author's): {r}")
-        for s in todo:
-            if s not in pairs:
-                pairs[s] = "reaching for: a line the model gave no answer for"
-        text, reach = insert_lines(original, {s: pairs[s] for s in todo})
-        path.write_text(text, encoding="utf-8")
-        code, errors = run_surety(surety, "parse", str(path))
-        (d / f"parse{round_no}.txt").write_text(errors, encoding="utf-8")
+        asked, pending = pending, []
+        mends: list[dict] = []
+        hints: dict[str, str] = {}
+        for sentence in asked:
+            if sentence in hinted and sentence not in pairs:
+                continue  # the hinted line stands
+            proposed = pairs.get(sentence, "reaching for: a line the model gave no answer for")
+            if sentence in said:
+                comments[sentence] = said[sentence]
+            if proposed.lower().startswith("reaching for:"):
+                kept[sentence] = proposed
+                failing.pop(sentence, None)
+                continue
+            # Each line on its own under its sentence, the kept ones beside it.
+            text, _ = insert_lines(original, {**kept, sentence: proposed})
+            found = diagnose(surety, path, text)
+            errors = [d for d in found if d["kind"] == "error"]
+            fixed = mended(text, errors[0], proposed) if errors else None
+            if fixed is not None:
+                text, _ = insert_lines(original, {**kept, sentence: fixed})
+                again = diagnose(surety, path, text)
+                if not any(d["kind"] == "error" for d in again):
+                    mends.append({"sentence": sentence, "code": errors[0]["code"], "was": proposed, "now": fixed})
+                    print(f"round {round_no}: mended by the checker's verified edit ({errors[0]['code']}): {proposed}  ->  {fixed}")
+                    proposed, found, errors = fixed, again, []
+            if errors:
+                failing[sentence] = (proposed, reported(errors[0]))
+                pending.append(sentence)
+                continue
+            kept[sentence] = proposed
+            failing.pop(sentence, None)
+            hint = next((d for d in found if d["kind"] == "hint" and on_line(text, d, proposed)), None)
+            if hint is not None and sentence not in hinted:
+                hinted[sentence] = (proposed, reported(hint))
+                hints[sentence] = reported(hint)
+                pending.append(sentence)
+        text, reach = insert_lines(original, kept, comments)
+        rounds.append({
+            "round": round_no,
+            "asked": asked,
+            "errors": {s: failing[s][1] for s in pending if s in failing},
+            "hints": hints,
+            "mended": mends,
+            "reach": len(reach),
+        })
         if usage:
             print(f"round {round_no}: tokens {usage['input']}/{usage['output']}")
-        if code == 0:
+        for s in pending:
+            print(f"round {round_no}: {failing[s][1] if s in failing else 'hint: ' + hinted[s][1]}")
+        if not pending:
             break
-        print(f"round {round_no}: {errors.strip()}")
+    # Lines still failing after the last round go in as written, so the
+    # author sees them where they stand.
+    text, reach = insert_lines(original, {**kept, **{s: failing[s][0] for s in pending if s in failing}}, comments)
+    path.write_text(text, encoding="utf-8")
+    code, errors = run_surety(surety, "parse", str(path))
+    (d / "rounds.json").write_text(json.dumps(rounds, indent=1) + "\n", encoding="utf-8")
     if code == 0 and format_file(surety, path):
         text = read(path)
     (d / "after.sur").write_text(text, encoding="utf-8")
@@ -526,6 +696,16 @@ def cmd_lines(args: argparse.Namespace) -> int:
         print("\nreaching for (for the sheet):")
         for r in reach:
             print(f"  - {r}")
+    drafted = [(sentence, c) for sentence in todo for c in comments.get(sentence, [])]
+    if drafted:
+        print("\nthe model's comments, kept as // drafted: beneath their lines, read them first:")
+        for sentence, c in drafted:
+            print(f"  - {c}  (under: {sentence})")
+    left = wanted_left(text)
+    if left:
+        print(f"\nexamples wanted still in the file: {len(left)}, {sum(1 for _, lit in left if lit)} with a // in: literal not yet turned into an e: block:")
+        for case, lit in left:
+            print(f"  - {case}" + (f"\n      in: {lit}" if lit else ""))
     print(f"\n{path} still carries `{MARK}`; review the lines, remove the mark, then `surety pin`.")
     print(f"run written to {d}")
     return 0 if code == 0 else 1

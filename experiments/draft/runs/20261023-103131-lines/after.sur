@@ -1,0 +1,31 @@
+
+// draft
+substrings(iterable: Int[]) -> Int[][]
+	note "Every contiguous non-empty run of the input, shortest first, and within one length in order of where it starts."
+	# Every output element is the slice of the input from some position up to but not including a
+	# later position.
+	// reaching for: for every s in out, there exist integer positions i and j with 0 <= i < j <=
+	// len(iterable) such that s == iterable[i .. j]. The notation quantifies only over list
+	// elements, never over a range of integer positions, and the end position len(iterable) is not
+	// the position of any element.
+	# Every slice of the input with at least one element is in the output.
+	// reaching for: for all integer positions i and j with 0 <= i < j <= len(iterable), iterable[i
+	// .. j] in out. This needs a quantifier over a range of integers, which the notation lacks.
+	# The output has one element for each pair of start and end positions: twice the output's length
+	# is the input's length times one more than the input's length.
+	len(out) * 2 == len(iterable) * (len(iterable) + 1)
+	# No output element is longer than an output element that comes after it.
+	all a in out: all b in out where a before b in out: len(a) <= len(b)
+	# The output elements of any one length are the input's slices of that length, in order of their
+	# starting position.
+	// reaching for: for every length k from 1 to len(iterable), the sub-list of out whose elements
+	// have length k equals the list [iterable[0 .. k], iterable[1 .. 1 + k], ...,
+	// iterable[len(iterable) - k .. len(iterable)]]. This needs a filter producing a sub-list of
+	// out and a quantifier or list built over integer start positions, and the notation has
+	// neither.
+	// example wanted: the empty input, where there are no positions to start from
+	// example wanted: a one-element input, where the only slice is the whole input
+	// example wanted: [0, 1, 2] from the docstring, where the order by length and then by start
+	// position decides the layout
+	// example wanted: [0, 0], where two slices are equal in value but start at different positions,
+	// so the output keeps both rather than deduplicating

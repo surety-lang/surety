@@ -1,0 +1,24 @@
+
+// draft
+// Int stands in for the iterable's item type, which the problem leaves open; the claims do not
+// depend on it
+take(n: Int, iterable: Int[]) -> Int[]
+	note "return the first n items of the iterable as a list, or all of them when the iterable has fewer than n"
+	# If the iterable has at least n items, the output is the iterable's items from position 0 up to
+	# but not including position n.
+	len(iterable) >= n -> out == iterable[0 .. n]
+	# If the iterable has fewer than n items, the output is the whole iterable, in its order.
+	len(iterable) < n -> out == iterable
+	// example wanted: n 3 over the iterable 0 through 9: more items than n, so only the leading
+	// three are kept
+	// example wanted: n 10 over the iterable 0, 1, 2: fewer items than n, so the second sentence
+	// decides it
+	// example wanted: n equal to the iterable's length: the exact threshold, where both sentences
+	// apply and must agree
+	// example wanted: n 0 over a non-empty iterable: a zero count, decided by the first sentence
+	// example wanted: n 2 over an empty iterable: no items at all, decided by the second sentence
+	// example wanted: n 2 over the iterable 5, 5, 5: repeated values, so the positions decide which
+	// occurrences are kept
+	// example wanted: n -1 over a non-empty iterable: the docstring is silent, and islice raises
+	// ValueError on a negative count, so the author decides whether this is an error case in a
+	// Result or an ordinary input

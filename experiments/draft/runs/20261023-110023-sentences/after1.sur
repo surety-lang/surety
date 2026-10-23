@@ -1,0 +1,19 @@
+// draft
+
+argmin(costs: Int[]) -> Option<Int>
+	note "the position of the first occurrence of the smallest cost, where each cost is the key applied to an element (the element itself when no key is given), and none for an empty list"
+	# The output is None exactly when the list of costs is empty.
+
+	# Every index the output gives is a position in the list: at least 0 and less than the number of costs.
+
+	# No cost in the list is less than the cost at the output position.
+
+	# Every cost before the output position is greater than the cost at the output position.
+
+	// example wanted: the empty list of costs; it decides the None side.
+	// example wanted: a single cost; the only position is the answer.
+	// example wanted: costs [3, 2, 1, 0, 4, 2, 1, 0], where the minimum occurs twice; the first occurrence decides it.
+	// example wanted: every cost equal; the first position decides it.
+	// example wanted: the minimum only at the last position; this checks that the search reaches the end.
+	// example wanted: negative costs mixed with positive ones; the comparison is on value, not magnitude.
+	// example wanted: the docstring's ages [35, 30, 10, 9, 1] under x*x - 20*x + 150, giving costs [325, 50, 50, 51, 131]; the tie between ages 30 and 10 goes to the earlier position.

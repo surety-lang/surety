@@ -388,20 +388,30 @@ fn findings_are_a_state() {
 
 /// The hardest one: the committed graph at the repository root, re-run
 /// record by record, every evidence part byte-identical, here and in CI.
+/// The eleven, and 13 and 11 each from its own directory of the corpus
+/// (slice 6).
 #[test]
 fn verify_reproduces_the_committed_graph() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../graph");
     let store = Store::open(&root);
     assert!(store.exists(), "graph/ is committed at the repository root");
     let rows = status(&store).unwrap();
-    assert_eq!(rows.len(), 11);
+    assert_eq!(rows.len(), 13);
+    // 11 is pinned with findings: its half-cent ties are one gap once its
+    // self-call is set aside in the search (reading 143), the author's to
+    // decide. Every other record is verified.
     assert!(
-        rows.iter().all(|r| r.state == State::Verified),
+        rows.iter().all(|r| r.state
+            == if r.name == "invoice_total" {
+                State::Findings
+            } else {
+                State::Verified
+            }),
         "re-pin the corpus (surety pin) after changing an obligation or a performance:\n{}",
         surety::render_status(&rows)
     );
     let vs = verify(&store, true, surety::rendered).unwrap();
-    assert_eq!(vs.len(), 11);
+    assert_eq!(vs.len(), 13);
     for v in &vs {
         assert!(
             v.result.is_ok(),

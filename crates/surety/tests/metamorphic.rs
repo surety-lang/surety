@@ -12,38 +12,9 @@ use std::path::PathBuf;
 use surety_check::{Budget, Checker, LookKind};
 use surety_syntax::load::load_with_siblings;
 
-const OBLIGATION: &str = r#"type LineItem = { amount_cents: Int }
+mod common;
 
-invoice_total(items: LineItem[], tax_rate_bps: Int) -> Int
-	note "sum the line items in cents, apply the tax rate in basis points once, round half-even to the cent"
-	# The total of the items is the total of one item carrying their sum: tax is applied to the subtotal once, never per line.
-	out == invoice_total([{amount_cents: sum(items.amount_cents)}], tax_rate_bps)
-	# At a zero rate the total is the sum of the amounts.
-	tax_rate_bps == 0 -> out == sum(items.amount_cents)
-	# At a rate of at least zero and a sum of at least zero, the total is at least the sum.
-	(tax_rate_bps >= 0 and sum(items.amount_cents) >= 0) -> out >= sum(items.amount_cents)
-	e:
-		in: ([], 1000)
-		out: 0
-	e:
-		in: ([{amount_cents: 250}, {amount_cents: 750}], 0)
-		out: 1000
-	e:
-		in: ([{amount_cents: 125}], 1000)
-		out: 138
-	e:
-		in: ([{amount_cents: 135}], 1000)
-		out: 148
-"#;
-
-const PERFORMANCE: &str = r#"def invoice_total(items, tax_rate_bps):
-    subtotal = sum(item["amount_cents"] for item in items)
-    scaled = subtotal * (10000 + tax_rate_bps)
-    q, r = divmod(scaled, 10000)
-    if r * 2 > 10000 or (r * 2 == 10000 and q % 2 == 1):
-        q += 1
-    return q
-"#;
+use common::{METAMORPHIC_PY as PERFORMANCE, METAMORPHIC_SUR as OBLIGATION};
 
 fn fixture() -> (PathBuf, PathBuf) {
     let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("metamorphic");
@@ -64,20 +35,30 @@ fn a_property_may_call_its_own_obligation() {
     c.budget = Budget::default();
 
     // In check, the call runs the performance under test. The binding and
-    // generated tiers pass; the one finding is the scalar mutant that
-    // forgets the tax, `out = sum(items.amount_cents)`: the self-call
-    // clause is consistent with it and the two bounds admit it, so only
-    // the examples catch it. That hole is why the clause never stands
-    // alone; with the tolerance line beside it (`scalar.rs`) it is caught.
+    // generated tiers pass; the findings are the obligation's. The scalar
+    // mutant that forgets the tax, `out = sum(items.amount_cents)`: the
+    // self-call clause is consistent with it and the two bounds admit it,
+    // so only the examples catch it. And the gap search sets the self-call
+    // aside, performance or none (reading 143): a performance does not
+    // judge candidates for its own obligation, and the two bounds alone do
+    // not fix the output. Those holes are why the clause never stands
+    // alone; with the tolerance line beside it (`scalar.rs`) the mutant is
+    // caught and only the half-cent ties are left.
     let r = c.check();
     let text = surety::render(&r);
     assert!(r.passed(), "{text}");
-    assert_eq!(r.findings(), 1, "{text}");
     assert!(
-        text.contains("1 mutant slipped (out = sum(items.amount_cents))"),
+        text.contains(
+            "obligation: 1 mutant slipped (out = sum(items.amount_cents)); 10 underdetermined inputs, 1 gap  performance: passes"
+        ),
         "{text}"
     );
+    assert_eq!(r.findings(), 11, "{text}");
     assert!(text.contains("caught by examples 3, 4 only"), "{text}");
+    assert!(
+        text.contains("UNDERDETERMINED  out can be 0 or 1; 10 inputs show it"),
+        "{text}"
+    );
     let self_call = &r.properties[0];
     assert!(self_call.text.contains("invoice_total("), "{text}");
     assert_eq!(self_call.runs, r.runs, "evaluated on every run:\n{text}");

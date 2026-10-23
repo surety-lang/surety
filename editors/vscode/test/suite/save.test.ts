@@ -102,7 +102,7 @@ suite('the verdict on save', () => {
         const gaps = diags.filter(d => d.message.startsWith('Gap: '));
         assert.strictEqual(gaps.length, 1, JSON.stringify(diags.map(d => d.message)));
         const verdict = await lens(uri, t => t.includes('settled'));
-        assert.ok(verdict.command!.title.startsWith('$(warning) Not settled: 1 gap, where two different outputs both pass every clause'), verdict.command!.title);
+        assert.ok(verdict.command!.title.startsWith('$(warning) No performance · Not settled: 1 gap, where two different outputs both pass every clause'), verdict.command!.title);
         assert.ok(gaps[0].message.includes('].amount can be '), gaps[0].message);
         assert.strictEqual(gaps[0].code, 'gap');
         assert.ok(!diags.some(d => /^UNDERDETERMINED|^Gap: two outputs/.test(d.message)), JSON.stringify(diags.map(d => d.message)));
@@ -159,7 +159,48 @@ suite('the verdict on save', () => {
         assert.deepStrictEqual(idle.tags, [vscode.DiagnosticTag.Unnecessary]);
         // The verdict says why there is nothing to settle on those inputs.
         const verdict = await lens(uri, t => t.includes('Unsatisfiable') || t.includes('ettled'));
-        assert.ok(/^\$\(warning\) Unsatisfiable on \d+ of \d+ inputs, which a clause about the input alone rules out$/.test(verdict.command!.title), verdict.command!.title);
+        assert.ok(/^\$\(warning\) No performance · Unsatisfiable on \d+ of \d+ inputs, which a clause about the input alone rules out$/.test(verdict.command!.title), verdict.command!.title);
+    });
+
+    test('an example its lines reject, with no performance: each contradiction on the line and on the example', async () => {
+        const uri = workspaceFile('contradicted.sur');
+        const doc = await vscode.workspace.openTextDocument(uri);
+        await vscode.window.showTextDocument(doc);
+        await vscode.commands.executeCommand('surety.mutants');
+        const lines = doc.getText().split('\n');
+        const example = lines.findIndex(l => l.includes('note "three items, size 0'));
+        const diags = await ours(uri, all => all.filter(d => d.code === 'contradiction').length === 10);
+        const found = diags.filter(d => d.code === 'contradiction');
+        // Five lines false on the one example: each line says so, and so
+        // does the example, once per line.
+        const onExample = found.filter(d => d.range.start.line === example - 1);
+        assert.strictEqual(onExample.length, 5, JSON.stringify(found.map(d => [d.range.start.line, d.message])));
+        assert.ok(onExample.every(d => /^Contradiction: line \d+ is false on this example; the example and the line are both yours, so one of them is wrong$/.test(d.message)), JSON.stringify(onExample.map(d => d.message)));
+        const okLine = lines.findIndex(l => l.trim().startsWith('exactly_one Ok(p) in out: p.total_pages * size >= len(items)'));
+        const onLine = found.find(d => d.range.start.line === okLine)!;
+        assert.strictEqual(onLine.message, 'Contradiction: this line is false on example 1 ("three items, size 0, page 0: the size threshold"); the line and the example are both yours, so one of them is wrong');
+        assert.strictEqual(onLine.severity, vscode.DiagnosticSeverity.Warning);
+        // The verdict line leads with it and is not a pass.
+        const verdict = await lens(uri, t => t.includes('Contradicted') || t.includes('ettled'));
+        assert.ok(verdict.command!.title.startsWith('$(warning) No performance · Contradicted: 5 lines are false on the examples written for them'), verdict.command!.title);
+    });
+
+    test('no example and no performance: both lenses lead with what is missing, and neither is a pass', async () => {
+        const uri = workspaceFile('nothing13.sur');
+        const doc = await vscode.workspace.openTextDocument(uri);
+        await vscode.window.showTextDocument(doc);
+        await vscode.commands.executeCommand('surety.mutants');
+        const verdict = await lens(uri, t => t.includes('No example'));
+        assert.ok(verdict.command!.title.startsWith('$(warning) No example, no performance · '), verdict.command!.title);
+        assert.ok(!verdict.command!.title.includes('Settled'), verdict.command!.title);
+        const tip = mutantLens(run('mutants', uri)).tooltip;
+        assert.ok(tip.startsWith('An example would run against every line on each save'), tip);
+        const checked = checkLens(run('check', uri))!;
+        assert.ok(checked.title.startsWith('$(warning) No example, no performance · Not accepted'), checked.title);
+        // Nothing ran at all: a state of its own, in either lens.
+        const none = { kind: 'ran', examples: 0, runs: 0, mutants: 0, searched: 0, performance: false };
+        assert.strictEqual(mutantLens([none, { kind: 'mutant_report', mutants: {} }]).title, '$(circle-slash) Nothing ran: no example, no performance');
+        assert.strictEqual(checkLens([none, { kind: 'evidence', verdict: 'NOT ACCEPTED' }])!.title, '$(circle-slash) Nothing ran: no example, no performance');
     });
 
     test('a run that settles: the pass is the line above the signature, with no squiggle under it', async () => {
@@ -168,9 +209,9 @@ suite('the verdict on save', () => {
         await vscode.window.showTextDocument(doc);
         await vscode.commands.executeCommand('surety.mutants');
         const verdict = await lens(uri, t => t.includes('ettled') || t.includes('Unsatisfiable'));
-        assert.ok(/^\$\(pass\) Settled: all \d+ mutants that fit are caught; no second passing output on the \d+ inputs searched$/.test(verdict.command!.title), verdict.command!.title);
+        assert.ok(/^\$\(pass\) No performance · Settled: all \d+ mutants that fit are caught; no second passing output on the \d+ inputs searched$/.test(verdict.command!.title), verdict.command!.title);
         const tip = mutantLens(run('mutants', uri)).tooltip;
-        assert.ok(tip.startsWith('Mutants are deliberately wrong performances from a fixed library'), tip);
+        assert.ok(tip.startsWith('A performance beside the file would run on the examples and the generated inputs, for determinism and totality. Mutants are deliberately wrong performances from a fixed library'), tip);
         assert.ok(/fit this signature and ran on \d+ inputs\. The search looked at \d+ inputs, up to \d+ candidate outputs each, for two different outputs that both pass every clause, and found none\./.test(tip), tip);
         const sig = signature(doc);
         assert.ok(!vscode.languages.getDiagnostics(uri).some(d => d.source === 'surety' && d.range.start.line === sig), 'nothing on the signature');
@@ -234,7 +275,7 @@ suite('the verdict on save', () => {
         assert.strictEqual(api.superseded(), before + 1, 'the first run was stopped by the second');
         assert.strictEqual(api.running(uri), 0);
         const verdict = await lens(uri, t => t.includes('ettled'));
-        assert.ok(verdict.command!.title.startsWith('$(pass) Settled'), verdict.command!.title);
+        assert.ok(verdict.command!.title.startsWith('$(pass) No performance · Settled'), verdict.command!.title);
     });
 
     test('a clause calling a graph reference with no performance yet is unchecked, and the save is quick', async () => {

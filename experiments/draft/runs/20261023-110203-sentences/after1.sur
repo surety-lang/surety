@@ -1,0 +1,12 @@
+// draft
+
+tail(n: Int, iterable: Text[]) -> Text[]
+	note "return the last n items of the iterable, in their original order"
+	# The output is the items of the iterable from position (the item count minus n) up to the end, in their original order.
+
+	// example wanted: n 3 over ["A","B","C","D","E","F","G"], the docstring case: the last three items are kept
+	// example wanted: n 0 over a non-empty list: the start position equals the item count, so the slice is empty
+	// example wanted: n larger than the item count: the start position is negative and clamps to 0, so the slice is the whole list
+	// example wanted: an empty iterable with n 2: there is nothing to slice
+	// example wanted: n -1 over ["A","B"]: the start is past the end, so the slice claim reads it as empty; decide whether negative n is an error case, since Python's sized path gives empty and its unsized deque path raises ValueError
+	// example wanted: duplicates, n 1 over ["A","B","A"]: the slice is positional, so the kept "A" is the last occurrence, not the first

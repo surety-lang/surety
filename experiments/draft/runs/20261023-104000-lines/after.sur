@@ -1,0 +1,77 @@
+// draft
+// drafted
+type Column = { cells: Int[] }
+// drafted
+type SortError = { code: Text, display: Text }
+
+// drafted
+length_error: SortError = {code: "e-length-mismatch", display: "ValueError: the iterables have different lengths"}
+// drafted
+key_range_error: SortError = {code: "e-key-range", display: "IndexError: a key_list index is outside the iterables"}
+
+sort_together(iterables: Column[], key_list: Int[], reverse: Bool, strict: Bool) -> Result<Column[], SortError>
+	note "sort the columns together as rows, ordered by the key columns in key_list priority, trimmed to the shortest column"
+	// cells are Int standing in for any comparable value; the key function argument is not modeled;
+	// defaults (key_list [0], reverse false, strict false) are the caller's
+	# The output is Ok exactly when neither the length error nor the key range error applies.
+	// reaching for: two abbreviations, length_ok = not strict or all a in iterables: all b in
+	// iterables: len(a.cells) == len(b.cells) and keys_ok = none k in key_list: k < 0 or k >=
+	// len(iterables), then the line length_ok and keys_ok <-> exactly_one Ok(_) in out; written as
+	// one line it joins two quantified conditions with and, and also needs exactly_one Ok(_) in out
+	// as the last operand, but a line may end in only one quantifier
+	# An Err output carries the length error exactly when strict is true and two input columns have
+	# different lengths.
+	all Err(e) in out: e == length_error <-> strict and (any a in iterables: any b in iterables: len(a.cells) != len(b.cells))
+	# An Err output carries the key range error exactly when the length error does not apply and
+	# some key_list index is less than 0 or at least the number of input columns.
+	all Err(e) in out: e == key_range_error <-> (any k in key_list where k < 0 or k >= len(iterables): not strict or (all a in iterables: all b in iterables: len(a.cells) == len(b.cells)))
+	# If every input column is non-empty, an Ok output has one column per input column, and if some
+	# input column is empty, an Ok output has no columns.
+	all Ok(cols) in out: all c in iterables where len(c.cells) == 0: len(cols) == 0 else len(cols) == len(iterables)
+	# Every column of an Ok output has the length of the shortest input column.
+	all Ok(cols) in out: all c in cols: any i in iterables where len(i.cells) == len(c.cells): all j in iterables: len(i.cells) <= len(j.cells)
+	# Every row of an Ok output (the cells at one position across its columns) is an input row at a
+	# position below the shortest column's length, and each such input row is used exactly once.
+	// reaching for: the rows of a column list as a list of tuples (a zip or transpose: the row at
+	// position p is the cells at p across the columns), so the line is rows(cols) same_elements_as
+	// rows(iterables) with each input column first cut to the shortest column's length; the
+	// notation has no transpose and no binder over positions, so it cannot assemble a row from its
+	// cells
+	# If reverse is false, the rows of an Ok output are sorted ascending by their cells in the key
+	# columns, compared in key_list order.
+	// reaching for: not reverse -> rows(cols) sorted_by (row[k] asc for each k in key_list, in
+	// key_list order); sorted_by takes a fixed tuple of named fields, while here the keys are
+	// positions within a row given by an input list, and rows themselves cannot be formed (see the
+	// row sentence above)
+	# If reverse is true, the rows of an Ok output are sorted descending by their cells in the key
+	# columns, compared in key_list order.
+	// reaching for: reverse -> rows(cols) sorted_by (row[k] desc for each k in key_list, in
+	// key_list order); this has the same two gaps: a lexicographic key built from an input list of
+	// positions, and rows formed across columns
+	# Two rows whose cells are equal in every key column keep their input order in an Ok output,
+	# whether or not reverse is set.
+	// reaching for: for any two input rows at positions p < q below the shortest length whose cells
+	// are equal at every index in key_list, the output row equal to row p comes before the output
+	// row equal to row q (row p before row q in rows(cols)); this needs rows formed across columns
+	// and an occurrence-based before over those rows
+	// example wanted: columns [4,3,2,1] and [10,20,30,40], key_list [0]: rows ordered by the first
+	// column
+	// example wanted: columns [3,1,2], [0,1,0], [3,2,1], key_list [1,2]: the tie on column 1 is
+	// broken by column 2
+	// example wanted: reverse true with two rows tied on every key column: stability decides their
+	// order, not reversal
+	// example wanted: columns of lengths 3 and 2, strict false: both trimmed to 2, the third row of
+	// the longer column dropped
+	// example wanted: columns of lengths 3 and 2, strict true: the length error
+	// example wanted: columns [2,1] and [], strict false: Python returns no columns at all, not two
+	// empty ones
+	// example wanted: no input columns, key_list [0]: Python returns [] because no row is ever
+	// keyed; decide whether the key range error applies
+	// example wanted: two columns, key_list [2]: the exact threshold, index equal to the number of
+	// columns
+	// example wanted: two columns, key_list [-1]: Python counts from the end; decide whether the
+	// obligation allows it
+	// example wanted: two non-empty columns, key_list []: Python raises TypeError; decide whether
+	// it is an error case
+	// example wanted: strict true, unequal lengths and key_list [5]: Python consumes the zip before
+	// keying, so the length error is the one reported

@@ -1,0 +1,32 @@
+```surety
+// draft
+// drafted
+type ChunkError = { kind: Text }
+// drafted
+uneven_error: ChunkError = { kind: "ValueError" }
+
+chunked(iterable: Int[], n: Int, strict: Bool) -> Result<Int[][], ChunkError>
+	note "break the iterable into consecutive lists of n elements; the last may be shorter unless strict is true, in which case a short last list is an error"
+	# The output is the uneven error exactly when strict is true and chunking the same iterable with strict false ends with a chunk of fewer than n elements.
+
+	# An error output is always the uneven error and never any other error.
+
+	# In an Ok output, the chunks joined end to end in order are exactly the iterable.
+
+	# In an Ok output, every chunk except the last has exactly n elements.
+
+	# In an Ok output, the number of chunks times n is at least the length of the iterable.
+
+	# In an Ok output, the number of chunks times n is less than the length of the iterable plus n.
+
+	# If strict is true, every chunk of an Ok output has exactly n elements.
+
+	// example wanted: iterable [1, 2, 3, 4, 5, 6] with n 3, strict false: the length is a multiple of n, so every chunk is full
+	// example wanted: iterable [1, 2, 3, 4, 5, 6, 7, 8] with n 3, strict false: the docstring's short last chunk
+	// example wanted: iterable [1, 2, 3, 4, 5, 6, 7, 8] with n 3, strict true: the length is not a multiple of n, so the error is decided by strict
+	// example wanted: iterable [1, 2, 3, 4, 5, 6] with n 3, strict true: the exact multiple, where strict changes nothing
+	// example wanted: the empty iterable with n 3, under both values of strict: whether the result has no chunks or one empty chunk, decided by the chunk-count bounds
+	// example wanted: iterable [1, 2] with n 5, strict false and strict true: n is larger than the whole iterable
+	// example wanted: iterable [1, 2, 3] with n 1: every element is its own chunk
+	// example wanted: n of 0 or a negative n: the docstring does not say what happens, so the author decides between an error case and a refinement
+```

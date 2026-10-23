@@ -1,0 +1,43 @@
+// draft
+// drafted
+type Item = { value: Text, is_sep: Bool }
+// drafted
+type Group = { items: Item[] }
+
+split_at(iterable: Item[], maxsplit: Int, keep_separator: Bool) -> Group[]
+	note "split the items into groups at each item pred holds for (is_sep carries pred's answer), making at most maxsplit splits when maxsplit is not negative, and keeping each separator split on as a group of its own when keep_separator is set"
+	# Without keep_separator, the groups' items, taken in order, are drawn from the input items and keep the input's order.
+
+	# Without keep_separator, every input item left out of the groups is a separator.
+
+	# Without keep_separator, the output has exactly one more group than there are input items left out of the groups.
+
+	# Without keep_separator, no group except the last holds a separator.
+
+	# Without keep_separator, the last group holds a separator only when maxsplit is not negative and the output has exactly maxsplit plus one groups.
+
+	# Without keep_separator, if maxsplit is not negative, the output has at most maxsplit plus one groups.
+
+	# Without keep_separator, two input items in the groups are in different groups exactly when an input item left out of the groups lies between them.
+
+	# With keep_separator, the groups' items, taken in order, are exactly the input items in the input's order.
+
+	# With keep_separator, every group except the last that holds a separator holds only that one item.
+
+	# With keep_separator, the last group holds a separator only when maxsplit is not negative and the output has exactly two times maxsplit plus one groups.
+
+	# With keep_separator, the output has one fewer than twice as many groups as the output for the same items and maxsplit without keep_separator.
+
+	# The groups of the output without keep_separator appear among the groups of the output with keep_separator, in the same order.
+
+	// example wanted: items a b c d c b a with b the separators, maxsplit -1, no keep: the docstring's first case, the b's are dropped and split the run
+	// example wanted: items 0 to 9 with the odd ones separators, maxsplit -1, no keep: a trailing separator leaves an empty last group
+	// example wanted: items 0 to 9 with the odd ones separators, maxsplit 2, no keep: splitting stops after the second separator and the rest, separators included, is the last group
+	// example wanted: items a b c d c b a with b the separators, maxsplit -1, keep_separator: each b is a group of its own between the runs
+	// example wanted: the empty input, maxsplit -1, no keep: the output is still one group, and it is empty
+	// example wanted: items with separators, maxsplit 0, no keep: no split is made, so one group holds the whole input
+	// example wanted: items b a with b the separator, maxsplit -1, no keep: a leading separator leaves an empty first group, which the pair claim does not place on its own
+	// example wanted: items a b b c with b the separators, maxsplit -1, no keep: two adjacent separators leave an empty group between them
+	// example wanted: items a b b with b the separators, maxsplit 1, keep_separator: the last group is the second b by itself, the remainder after the limit, not a split
+	// example wanted: items with three separators, maxsplit 3, no keep: the limit equals the number of separators, so every separator is split on
+	// example wanted: items with separators, maxsplit -2: a negative maxsplit other than -1 also means no limit

@@ -1,0 +1,1 @@
+one  inputs 0+500  mutants 9 of 20 apply  slipped 0  caught 9  underdetermined 0

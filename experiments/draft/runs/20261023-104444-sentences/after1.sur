@@ -1,0 +1,21 @@
+// draft
+// drafted
+// The predicate and the windowing are not in this fragment: a window is one call of pred (one item when window_size is none, window_size items otherwise), carrying the index it starts at and pred's verdict on it. Which windows exist for a given window_size, the padded window when the iterable is shorter than window_size, and the error for a window_size below 1 belong to a sibling obligation.
+type Window = { start: Int, matched: Bool }
+
+rlocate(windows: Window[unique start]) -> Int[]
+	note "yield the index of each window the predicate accepted, starting from the right and moving left"
+	# Every output index is the start of some window on which the predicate returned true.
+
+	# Every window on which the predicate returned true has its start in the output.
+
+	# No index appears twice in the output.
+
+	# The output is sorted from the largest index to the smallest.
+
+	// example wanted: no windows at all; decided by there being nothing to yield
+	// example wanted: windows from the items [0, 1, 1, 0, 1, 0, 0] with pred as bool, so matched where the item is truthy; decided by which starts are truthy and the right-to-left order
+	// example wanted: every window matched; decided by every start appearing, largest first
+	// example wanted: no window matched; decided by nothing being yielded
+	// example wanted: the windows of size 3 over [0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3], matched where the window is (1, 2, 3); decided by the matched starts, right to left
+	// example wanted: matched windows listed out of start order in the input; decided by the output following index order, not the input's order

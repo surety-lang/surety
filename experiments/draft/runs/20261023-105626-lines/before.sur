@@ -1,0 +1,50 @@
+// draft
+// drafted
+type Item = { value: Text, size: Int }
+// drafted
+type Batch = { items: Item[] }
+// drafted
+type BatchError = { code: Text, display: Text }
+
+// drafted
+count_error: BatchError = {code: "e-max-count", display: "max_count must be at least one"}
+// drafted
+oversize_error: BatchError = {code: "e-item-size", display: "item size exceeds maximum size"}
+
+constrained_batches(items: Item[], max_size: Int, max_count: Option<Int>, strict: Bool) -> Result<Batch[], BatchError>
+	note "split the items, in order, into consecutive batches whose combined size stays within max_size and whose item count stays within max_count, each item's size being what get_len gave for it"
+	# The count error is reported exactly when max_count is given and is less than one.
+
+	# The oversize error is reported exactly when max_count is absent or at least one, strict is
+	# true, and some item's size is more than max_size.
+
+	# The output is a list of batches exactly when neither error is reported.
+
+	# The batches' items, taken batch by batch, are the input items in their input order, with none
+	# dropped, none added and none repeated.
+
+	# No batch is empty.
+
+	# Every batch with more than one item has a combined size of at most max_size.
+
+	# If max_count is given, every batch has at most max_count items.
+
+	# For every batch except the last, the next batch's first item would not have fit in it: the
+	# batch's combined size plus that item's size is more than max_size, or max_count is given and
+	# the batch already has max_count items.
+	// example wanted: no items at all: decided by whether an empty input gives no batches rather
+	// than one empty batch
+	// example wanted: the docstring's sizes 5, 3, 8, 1, 1, 2, 1 at max_size 10 with no max_count:
+	// decided by the greedy fill, a batch closing only when the next item would overflow it
+	// example wanted: the same sizes at max_size 10 with max_count 2: decided by the count limit
+	// closing batches that still have room
+	// example wanted: items whose sizes sum to exactly max_size: decided by whether a combined size
+	// equal to max_size still fits in one batch
+	// example wanted: an item larger than max_size between two small items with strict false:
+	// decided by the oversize item standing alone in its own batch
+	// example wanted: the same items with strict true: decided by the oversize error
+	// example wanted: max_count 0 with items that all fit: decided by the count error
+	// example wanted: max_count 0 and an oversize item with strict true: decided by which of the
+	// two errors is the one reported
+	// example wanted: several items of size 0 at max_size 0: decided by zero-size items fitting
+	// with no limit on their number when max_count is absent

@@ -1,0 +1,31 @@
+```surety
+// draft
+// drafted
+type Item = { value: Text, pred: Bool }
+// drafted
+type Chunk = { items: Item[] }
+
+split_after(iterable: Item[], maxsplit: Int) -> Chunk[]
+	note "split the items into chunks that each end with an item where pred holds, doing at most maxsplit splits when maxsplit is not negative; each item carries pred's result as a field, and the absent maxsplit is -1"
+	# The chunks, joined end to end, are the input items in their input order.
+
+	# Every chunk except the last ends with an item where pred holds.
+
+	# In every chunk except the last, pred holds for no item before the chunk's final one.
+
+	# When maxsplit is not negative, the output has at most maxsplit plus one chunks.
+
+	# Unless the output has exactly maxsplit plus one chunks, pred holds for no item of the last chunk before its final one.
+
+	# Some chunk is empty exactly when the input is empty and maxsplit is 0.
+
+	// example wanted: an empty input with maxsplit -1; no split can happen, so whether any chunk is produced decides it
+	// example wanted: an empty input with maxsplit 0; the single empty chunk is the case the last sentence admits
+	// example wanted: 'one1two2' with maxsplit 0; no split is allowed, so the whole input stays in one chunk
+	// example wanted: 'one1two2' with maxsplit -1, pred on the digits; the last item is a match, so whether a trailing empty chunk follows decides it
+	// example wanted: 'one1' with maxsplit 1; the one split uses up the input, so whether an empty remainder chunk follows decides it
+	// example wanted: range(10) with maxsplit 2, pred on multiples of 3; the limit is reached and later matches stay inside the last chunk
+	// example wanted: range(10) with maxsplit 10, pred on multiples of 3; the limit exceeds the matches, so every match closes a chunk
+	// example wanted: items where pred holds for none, maxsplit -1; no item closes a chunk
+	// example wanted: range(10) with maxsplit -2, pred on multiples of 3; a negative value other than -1 means no limit
+```

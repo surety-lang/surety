@@ -1,0 +1,29 @@
+// draft
+// drafted
+type Block = { items: Text[] }
+// drafted
+type Partition = { blocks: Block[] }
+
+partitions(iterable: Text[]) -> Partition[]
+	note "every way of cutting the input into consecutive blocks, keeping the input's order, fewest blocks first"
+	# For every partition in the output, its blocks' items, concatenated in block order, are exactly
+	# the input elements in the input's order.
+
+	# If the input has at least one element, no block of any output partition is empty.
+
+	# Every way of cutting the input into consecutive non-empty blocks is one of the output
+	# partitions.
+
+	# No two output partitions are equal.
+
+	# The output is sorted by the number of blocks, fewest first.
+
+	# Of two output partitions with the same number of blocks, the one whose first differing block
+	# is shorter comes first.
+	// example wanted: iterable ["a", "b", "c"], the docstring's case: pins all four cuttings and
+	// their order
+	// example wanted: the empty input: no partitions at all, or one partition holding one empty
+	// block; the docstring does not say, the author decides
+	// example wanted: a single element ["a"]: no cut is possible, so only the uncut cutting exists
+	// example wanted: repeated elements ["a", "a"]: different cuts must stay distinct partitions
+	// even though every element is equal

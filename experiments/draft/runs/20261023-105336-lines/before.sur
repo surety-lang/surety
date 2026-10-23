@@ -1,0 +1,31 @@
+
+// draft
+// The element type is generic in the library; Int stands in for it here.
+// n below 1 makes the library raise (islice refuses the step), so no output satisfies these
+// sentences there.
+// Author to decide: n as an error case in a Result, or a precondition. Not drafted: the problem
+// names no error.
+chunked_even(iterable: Int[], n: Int) -> Int[][]
+	note "break the list into the fewest chunks of at most n items, in order, with chunk lengths differing by at most one"
+	# The chunks, joined in order, are the input list.
+
+	# Every chunk has at most n items.
+
+	# Any two chunks' lengths differ by at most one.
+
+	# One fewer chunk than the output has, at n items each, could not hold the input: the output's
+	# chunk count minus one, times n, is less than the input's length.
+
+	# No chunk is longer than the chunk before it.
+	// example wanted: the docstring case, [1, 2, 3, 4, 5, 6, 7] at n 3, where the balance moves one
+	// item off the first chunk compared with plain chunking
+	// example wanted: an empty input at n 3; the count bound alone decides how many chunks there
+	// are
+	// example wanted: an input whose length is an exact multiple of n, such as six items at n 3,
+	// where every chunk is full
+	// example wanted: fewer items than n, such as two items at n 5; the count bound allows only one
+	// chunk
+	// example wanted: n of 1, where every chunk holds a single item
+	// example wanted: a long input, such as 23 items at n 4, where the library yields full chunks
+	// of n while streaming before it balances the remainder; the lengths are still decided by the
+	// balance and count sentences

@@ -1,0 +1,25 @@
+// draft
+// drafted
+type Iterable = { position: Int, elements: Text[] }
+
+unique_to_each(iterables: Iterable[unique position]) -> Iterable[]
+	note "for each input iterable, keep the elements that appear in none of the other input iterables, duplicates and order included"
+	# For every input iterable there is exactly one output entry with the same position.
+
+	# The output entries are in the same order as the input iterables, by position.
+
+	# Each output entry's elements are drawn from the elements of the input iterable at the same position.
+
+	# Each output entry's elements keep the order they have in the input iterable at the same position.
+
+	# No element of an output entry appears in any input iterable at a different position.
+
+	# Every element of an input iterable that is left out of the output entry at the same position appears in some input iterable at a different position.
+
+	// example wanted: no iterables at all: the output has one entry per input, so it is empty
+	// example wanted: one iterable ["a", "b", "a"]: there are no other iterables, so every element and its duplicate stay, in order
+	// example wanted: the docstring's packages ["A", "B"], ["B", "C"], ["B", "D"]: "B" is in all three, each of the others in one
+	// example wanted: "mississippi" and "missouri" as character lists: a repeated element found in no other iterable is kept every time it occurs
+	// example wanted: two identical iterables ["a", "b"] and ["a", "b"]: they are at different positions, so each one's elements count as in another iterable
+	// example wanted: ["a", "a"] and ["b"]: an element repeated within one iterable is not in a different one, so both copies stay
+	// example wanted: an empty iterable [] beside ["a"]: the empty one's entry has no elements, and it removes nothing from the other

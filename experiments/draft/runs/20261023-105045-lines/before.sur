@@ -1,0 +1,46 @@
+// draft
+// drafted
+type CombinationError = { code: Text, display: Text }
+
+// drafted
+negative_r_error: CombinationError = {code: "value-error", display: "r must not be negative"}
+// drafted
+index_error: CombinationError = {code: "index-error", display: "index is not a valid position among the combinations"}
+
+nth_combination_with_replacement(iterable: Int[], r: Int, index: Int) -> Result<Int[], CombinationError>
+	note "return the combination with replacement of length r at position index in lexicographic order, without computing the ones before it"
+	# The output is Ok exactly when r is not negative and the index is a valid position among the
+	# combinations with replacement of length r, as a sibling obligation counting them decides.
+
+	# The output is the negative-r error exactly when r is negative.
+
+	# The output is the index error exactly when r is not negative and the index is not a valid
+	# position among the combinations.
+
+	# An Ok combination has exactly r elements.
+
+	# Every element of an Ok combination is an element of the iterable.
+
+	# The elements of an Ok combination keep the iterable's order: no element of the combination
+	# comes before an earlier element of the combination in the iterable.
+	// example wanted: the docstring's case, range(5) with r 3 at index 5; the docstring decides it
+	// example wanted: iterable [0, 1, 2] with r 2 at index 0; decided by the first combination in
+	// lexicographic order, r copies of the first element
+	// example wanted: iterable [0, 1, 2] with r 2 at index 5; decided by the last of the six
+	// combinations
+	// example wanted: iterable [0, 1, 2] with r 2 at index 6; the index equals the number of
+	// combinations, so it is the first invalid one
+	// example wanted: iterable [0, 1, 2] with r 2 at index -1; decided by whether a negative index
+	// counts from the end, as list indexing does in the "equivalent to" line
+	// example wanted: iterable [0, 1, 2] with r 2 at index -7; one past the most negative valid
+	// index
+	// example wanted: iterable [0, 1] with r -1 at index 0; r is negative
+	// example wanted: iterable [0, 1] with r 3 at index 0; r is more than the iterable's length,
+	// which combinations with replacement allows. Decided by whether the docstring's equivalence
+	// holds or the library raises ValueError here
+	// example wanted: iterable [0, 1, 2] with r 0 at index 0; decided by there being exactly one
+	// combination of length 0, the empty one
+	// example wanted: empty iterable with r 0 at index 0, then the empty iterable with r 1 at index
+	// 0; decided by how many combinations an empty pool has
+	// example wanted: iterable [1, 1] with r 2 at index 1; repeated values in the iterable are
+	// separate positions, which decides which combination is at index 1

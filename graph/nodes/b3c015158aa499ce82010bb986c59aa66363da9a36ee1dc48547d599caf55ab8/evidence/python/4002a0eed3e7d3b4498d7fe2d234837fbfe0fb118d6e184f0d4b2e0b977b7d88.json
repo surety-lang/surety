@@ -11,75 +11,6 @@
     "report": [
       {
         "clause": {
-          "canonical": "(all err($) out (body (drawn_from $0 (list (rec (code (text \"e1-missing-removed-sku\")) (display (text \"Item in diff.removed not present in old\"))) (rec (code (text \"e1-missing-changed-sku\")) (display (text \"Item in diff.changed not present in old\"))) (rec (code (text \"e1-added-present-sku\")) (display (text \"Item in diff.added already present in old\"))) (rec (code (text \"e1-conflicting-sku\")) (display (text \"A sku is in both diff.removed and diff.changed\")))))))",
-          "clause": 5
-        },
-        "inputs": [
-          {
-            "json": [
-              [
-                {
-                  "qty": 5,
-                  "sku": "A"
-                },
-                {
-                  "qty": 2,
-                  "sku": "B"
-                },
-                {
-                  "qty": 1,
-                  "sku": "C"
-                }
-              ],
-              {
-                "added": [
-                  {
-                    "qty": 7,
-                    "sku": "D"
-                  }
-                ],
-                "changed": [
-                  {
-                    "new_qty": 3,
-                    "old_qty": 2,
-                    "sku": "B"
-                  }
-                ],
-                "removed": [
-                  {
-                    "qty": 1,
-                    "sku": "C"
-                  }
-                ]
-              }
-            ],
-            "sur": "in: ([{qty: 5, sku: \"A\"}, {qty: 2, sku: \"B\"}, {qty: 1, sku: \"C\"}], {added: [{qty: 7, sku: \"D\"}], changed: [{new_qty: 3, old_qty: 2, sku: \"B\"}], removed: [{qty: 1, sku: \"C\"}]})"
-          }
-        ],
-        "kind": "look_here",
-        "obligation": "apply_diff",
-        "obligation_hash": "b3c015158aa499ce82010bb986c59aa66363da9a36ee1dc48547d599caf55ab8",
-        "output": {
-          "ok": [
-            {
-              "qty": 5,
-              "sku": "A"
-            },
-            {
-              "qty": 3,
-              "sku": "B"
-            },
-            {
-              "qty": 7,
-              "sku": "D"
-            }
-          ]
-        },
-        "performance_hash": "4002a0eed3e7d3b4498d7fe2d234837fbfe0fb118d6e184f0d4b2e0b977b7d88",
-        "why": "no mutant can violate it"
-      },
-      {
-        "clause": {
           "canonical": "(all err($) out (body (unordered $0)))",
           "clause": 6
         },
@@ -365,6 +296,10 @@
           "passed": 8,
           "total": 8
         },
+        "examples_against": {
+          "contradictions": 0,
+          "evaluated": 8
+        },
         "findings": 0,
         "generated": [
           {
@@ -529,12 +464,17 @@
         },
         "underdetermination": {
           "accepted": 0,
-          "applicable": 13,
-          "caught": 13,
-          "causes": 0,
+          "applicable": 14,
+          "caught": 14,
+          "gaps": 0,
+          "not_judged": [],
           "open": 0,
+          "passing_search": {
+            "inputs": 508,
+            "no_passing_output": 0
+          },
           "slipped": 0,
-          "total": 13,
+          "total": 14,
           "underdetermined_inputs": 0
         },
         "verdict": "ACCEPTED"
@@ -1052,11 +992,11 @@
     ],
     "target": "python",
     "timeout_secs": 10,
-    "verdict": "apply_diff  ACCEPTED  examples 8/8; 15 clauses clean over 508 runs; 13 of 13 mutants apply, none slipped"
+    "verdict": "apply_diff  ACCEPTED  examples 8/8; 15 clauses clean over 508 runs; 14 of 14 mutants apply, none slipped"
   },
   "provenance": {
     "checker": "0.1.0",
-    "format": 2,
+    "format": 3,
     "performance_source": "crates/surety/tests/corpus/apply_diff.py",
     "presentation": "a73669b5f16c9ef1600112cdd54b3de00720fc3e9c05422128b5fb89b52933c2",
     "python": "3.14.0",

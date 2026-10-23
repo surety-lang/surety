@@ -1,0 +1,2 @@
+flatten  inputs 0+500  mutants 1 of 13 apply  slipped 0  caught 1  underdetermined 6 in 1 gap
+  gap  out can have 0 or not; 6 inputs show it; the smallest in: []

@@ -1,0 +1,3 @@
+extract  inputs 0+500  mutants 7 of 13 apply  slipped 0  caught 7  underdetermined 7 in 2 gaps
+  gap  out can be Ok([]) or Err({code: "", display: ""}); 1 input show it; the smallest in: ([], [], false)
+  gap  on Ok, out[0] can be "" or "An index is less than the one before it while monotonic is …; 6 inputs show it; the smallest in: ([], [-1], false)

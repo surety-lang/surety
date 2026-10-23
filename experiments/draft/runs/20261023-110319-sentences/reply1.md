@@ -1,0 +1,24 @@
+```surety
+// draft
+// drafted
+type Tested = { value: Int, holds: Bool }
+
+quantify(iterable: Tested[]) -> Int
+	note "count the items of the iterable on which the predicate holds; each item carries its value and the predicate's verdict on it (`pred(value)`, by default the value's truthiness), since a predicate argument has no type in the fragment"
+	# The count is at least 0.
+
+	# The count is at most the number of items.
+
+	# The count is 0 exactly when no item holds.
+
+	# The count is 1 exactly when exactly one item holds.
+
+	# The count is the number of items exactly when every item holds.
+
+	// example wanted: an empty iterable: no item to hold, so the third and fifth sentences both apply
+	// example wanted: the docstring's [True, False, True] under the default predicate, with each item's holds equal to its truthiness
+	// example wanted: values 100 through 199 with the predicate x < 120: 119 holds and 120 does not, so the threshold decides it
+	// example wanted: values [0, 1, 2] under the default predicate: 0 is falsy, so the verdict on 0 decides it
+	// example wanted: two items with the same value, both holding: occurrences are counted, not distinct values
+	// example wanted: every item holding: the count meets its upper bound
+```

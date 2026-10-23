@@ -1,0 +1,59 @@
+// draft
+// drafted
+type Group = { items: Option<Text>[] }
+// drafted
+type GroupError = { code: Text, display: Text }
+
+// drafted
+mode_error: GroupError = {code: "e-grouper-incomplete-mode", display: "Expected fill, strict, or ignore"}
+// drafted
+length_error: GroupError = {code: "e-grouper-strict-length", display: "Iterables have different lengths"}
+
+grouper(iterable: Option<Text>[], n: Int, incomplete: Text, fillvalue: Option<Text>) -> Result<Group[], GroupError>
+	note "group the iterable's elements, in order, into groups of n; incomplete ('fill' by default) says whether a short last group is padded with fillvalue (None by default), dropped, or an error"
+	# The output is the mode error exactly when incomplete is none of 'fill', 'ignore' and 'strict'.
+
+	# When incomplete is 'strict', the output is the length error exactly when grouping the same
+	# iterable by the same n with incomplete 'ignore' leaves some element of the iterable out of
+	# every group.
+
+	# When incomplete is one of the three modes and n is less than 1, the output is Ok with no
+	# groups.
+
+	# Every group in an Ok output has exactly n items.
+
+	# When incomplete is 'fill' or 'strict' and n is at least 1, the groups' items taken in order
+	# begin with the iterable's elements in their order.
+
+	# When incomplete is 'fill', every item of the groups past the iterable's length is the
+	# fillvalue.
+
+	# When incomplete is 'fill' and n is at least 1, the groups hold fewer than n items beyond the
+	# iterable's length.
+
+	# When incomplete is 'strict', an Ok output's groups hold exactly as many items as the iterable.
+
+	# When incomplete is 'ignore', the groups' items taken in order are the iterable's elements from
+	# position 0 up to but not including the number of groups times n.
+
+	# When incomplete is 'ignore' and n is at least 1, fewer than n elements of the iterable are
+	# left out of the groups.
+	// example wanted: 'ABCDEF' as single-letter elements, n 3, incomplete 'fill': the length is a
+	// multiple of n, so no fill value appears
+	// example wanted: 'ABCDEFG', n 3, 'fill', fillvalue 'x': one element over a multiple, so the
+	// last group is padded
+	// example wanted: 'ABCDEFG', n 3, 'ignore', fillvalue 'x': the short last group is dropped and
+	// the fillvalue never appears
+	// example wanted: 'ABCDEFG', n 3, 'strict': the length is not a multiple of n, which decides
+	// the error
+	// example wanted: 'ABCDEF', n 3, 'strict': the length is a multiple of n, so strict succeeds
+	// example wanted: 'AB', n 3, 'fill', fillvalue None: the iterable is shorter than one group,
+	// and the default fillvalue is None
+	// example wanted: 'AB', n 3, 'ignore': the iterable is shorter than one group, so every element
+	// is left out
+	// example wanted: the empty iterable, n 3, under each of 'fill', 'ignore' and 'strict': zero is
+	// a multiple of n
+	// example wanted: 'ABC', n 1, 'strict': every length is a multiple of 1
+	// example wanted: 'ABC', n 0, 'fill': n below 1 decides the result regardless of the iterable
+	// example wanted: 'ABC', n 0, 'pad': an unknown mode is reported even when n is below 1
+	// example wanted: 'ABCDEF', n 3, incomplete 'pad': not one of the three modes

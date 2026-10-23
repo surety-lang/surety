@@ -58,6 +58,15 @@ function prepare(workspace: string, corpus: string, binary: string): void {
     fs.writeFileSync(path.join(workspace, 'settled.sur'), p2);
     // P2 with its left-out clause over `out`: a file that does not parse.
     fs.writeFileSync(path.join(workspace, 'broken.sur'), p2.replace('all o leftover in orders:', 'all o leftover in out:'));
+    // The frozen 13 with one error example and no performance: its lines
+    // run against the example on save, and five of them are false there.
+    const p13 = fs.readFileSync(path.join(corpus, 'drafts', 'p13.sur'), 'utf8');
+    // The frozen 13 as it is: no example, no performance.
+    fs.writeFileSync(path.join(workspace, 'nothing13.sur'), p13);
+    // The frozen 13 with an example-wanted line whose input is a literal
+    // on the `// in:` line beneath: the code action writes its example.
+    fs.writeFileSync(path.join(workspace, 'wanted.sur'), p13 + '\t// example wanted: four items, size 2, page 1: the has_next boundary\n\t// in: ([{id: "a"}, {id: "b"}, {id: "c"}, {id: "d"}], 1, 2)\n');
+    fs.writeFileSync(path.join(workspace, 'contradicted.sur'), p13 + '\te:\n\t\tnote "three items, size 0, page 0: the size threshold"\n\t\tin: ([{id: "a"}, {id: "b"}, {id: "c"}], 0, 0)\n\t\tout: Err([{code: "e-page-size", display: "Page size must be at least 1"}])\n');
     fs.mkdirSync(path.join(workspace, '.vscode'));
     fs.writeFileSync(path.join(workspace, '.vscode', 'settings.json'), JSON.stringify({ 'surety.path': binary }, null, 2));
 }

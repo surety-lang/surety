@@ -193,13 +193,24 @@ const HALF_EVEN: &str = "def invoice_total(items, tax_rate_bps):
 ";
 
 /// Problem 11's "tax applied once" as one line: the half-even performance
-/// passes it, and the mutant that returns 0 does not.
+/// passes it, and the mutant that returns 0 does not. The line alone does not
+/// decide a tie.
 #[test]
 fn a_tolerance_is_one_abs_line() {
     let (sur, py) = scratch("invoice_total", INVOICE, HALF_EVEN);
     let r = surety::check_file_with(&sur, &py, Budget::default()).unwrap();
     let text = surety::render(&r);
-    assert!(r.passed() && r.findings() == 0, "{text}");
+    assert!(r.passed(), "{text}");
+    // Since slice 6 the gap search tries the outputs in hand and their
+    // neighbours either side for an Int output: the abs line alone admits
+    // both sides of the half-even tie, 138 and 137, one gap, the example's
+    // input the smallest. The binding tier passes.
+    assert!(
+        text.contains("UNDERDETERMINED  out can be 138 or 137"),
+        "{text}"
+    );
+    // Two underdetermined inputs, both in that one gap.
+    assert_eq!(r.findings(), 2, "{text}");
     let m = r.mutants.as_ref().unwrap();
     let empty = m
         .mutants
@@ -213,6 +224,8 @@ fn a_tolerance_is_one_abs_line() {
 /// 2^43 cubed is past the checker's i128. A performance's integers do not
 /// overflow, so the error is the obligation's, named under `obligation:`
 /// in the verdict line and carried as the obligation's party in the JSON.
+/// Since slice 6 it is found on the example's own pair, before the
+/// performance: the example and the line are both the author's.
 #[test]
 fn an_overflow_is_the_obligations_error_not_the_performances() {
     let sur = "cube_zero(x: Int) -> Int
@@ -225,22 +238,25 @@ fn an_overflow_is_the_obligations_error_not_the_performances() {
     let (s, p) = scratch("cube_zero", sur, "def cube_zero(x):\n    return 0\n");
     let r = surety::check_file_with(&s, &p, Budget::default()).unwrap();
     let text = surety::render(&r);
-    let PropVerdict::Error(m) = &r.properties[0].verdict else {
+    let faults = r.against.contradictions();
+    let Some(m) = faults.first().and_then(|c| c.fault) else {
         panic!("{text}");
     };
     assert!(surety_check::is_obligation_fault(m), "{m}");
     assert!(m.contains("overflows"), "{m}");
+    // The performance reproduces the example, so it is not blamed.
+    assert_eq!(r.properties[0].verdict, PropVerdict::Pass, "{text}");
     let line = surety::verdict_line(&r);
     let (obligation, performance) = line.split_once("  performance: ").unwrap();
     assert!(
         obligation
-            .contains("cannot evaluate property (line 3): the obligation's arithmetic overflows"),
+            .contains("cannot evaluate line 3 on example 1: the obligation's arithmetic overflows"),
         "{line}"
     );
     assert_eq!(performance, "passes", "{line}");
     let errors: Vec<_> = surety::json_lines(&r)
         .into_iter()
-        .filter(|j| j["kind"] == "error")
+        .filter(|j| j["kind"] == "example_unevaluable")
         .collect();
     assert!(!errors.is_empty(), "{text}");
     assert!(
@@ -263,10 +279,9 @@ fn boundary_values_multiply_without_overflow() {
     let (s, p) = scratch("scale", sur, "def scale(xs, k):\n    return 0\n");
     let r = surety::check_file_with(&s, &p, Budget::default()).unwrap();
     let text = surety::render(&r);
-    // The example fails the property (0 is not the product), but the
-    // product itself evaluated: a Fail, not an Error.
-    assert!(
-        matches!(r.properties[0].verdict, PropVerdict::Fail { .. }),
-        "{text}"
-    );
+    // The example contradicts the line (0 is not the product), but the
+    // product itself evaluated: a contradiction, not a fault.
+    let found = r.against.contradictions();
+    assert_eq!(found.len(), 1, "{text}");
+    assert!(found[0].fault.is_none(), "{text}");
 }

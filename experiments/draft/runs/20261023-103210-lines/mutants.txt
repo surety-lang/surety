@@ -1,0 +1,1 @@
+windowed  inputs 0+500  mutants 2 of 13 apply  slipped 0  caught 2  underdetermined 0

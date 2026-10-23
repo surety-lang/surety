@@ -305,7 +305,14 @@ fn hash_and_structure_survive_reextraction() {
         eprintln!("skipping: {} not present", md.display());
         return;
     };
-    let extracted = surety_syntax::extract::extract(&text);
+    // The document is where the eleven were written; an obligation after
+    // them enters the corpus as the file that was pinned, copied verbatim
+    // (13, slice 6), so the document is checked for the eleven by name and
+    // anything else in it is not the corpus.
+    let extracted: Vec<_> = surety_syntax::extract::extract(&text)
+        .into_iter()
+        .filter(|ex| common::FIXTURES.contains(&ex.name.as_str()))
+        .collect();
     assert_eq!(extracted.len(), 11);
     for ex in extracted {
         let path = common::corpus_dir().join(format!("{}.sur", ex.name));

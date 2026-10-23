@@ -236,8 +236,50 @@ function setLens(doc: vscode.TextDocument, lens: { title: string; tooltip: strin
 
 const MUTANTS_ARE = 'Mutants are deliberately wrong performances from a fixed library: return nothing, return the input unchanged, drop, repeat or swap an element, and others.';
 
+/** What ran, as both commands print it (slice 6, piece 2). */
+interface RanCounts { examples: number; runs: number; mutants: number; searched: number; performance: boolean }
+
+const ranOf = (lines: any[]): RanCounts | undefined => lines.find(l => l.kind === 'ran');
+
+const nothingRan = (ran?: RanCounts) => !!ran && ran.examples === 0 && ran.runs === 0 && ran.mutants === 0 && ran.searched === 0;
+
+/** The lead a verdict line opens with: what is missing, or nothing. */
+function missingLead(ran?: RanCounts): string {
+    const missing: string[] = [];
+    if (ran && ran.examples === 0) {
+        missing.push('no example');
+    }
+    if (ran && !ran.performance) {
+        missing.push('no performance');
+    }
+    if (!missing.length) {
+        return '';
+    }
+    const s = missing.join(', ');
+    return `${s[0].toUpperCase()}${s.slice(1)} · `;
+}
+
+/** What each missing thing would run, for the hover. */
+function wouldRun(ran?: RanCounts): string {
+    const parts: string[] = [];
+    if (ran && ran.examples === 0) {
+        parts.push('An example would run against every line on each save, a contradiction shown on both, and would confirm what the mutants and the search find; an example-wanted line is a case to turn into one.');
+    }
+    if (ran && !ran.performance) {
+        parts.push('A performance beside the file would run on the examples and the generated inputs, for determinism and totality.');
+    }
+    return parts.length ? `${parts.join(' ')} ` : '';
+}
+
+const NOTHING_RAN = '$(circle-slash) Nothing ran: no example, no performance';
+
 /** The mutants run in a line: settled or not, and why, with the counts in the tooltip. */
 export function mutantLens(lines: any[]): { title: string; tooltip: string } {
+    const did = ranOf(lines);
+    if (nothingRan(did)) {
+        return { title: NOTHING_RAN, tooltip: `${wouldRun(did)}No mutant fits this signature and the search had no budget. Click for the full report.` };
+    }
+    const lead = missingLead(did);
     const report = lines.find(l => l.kind === 'mutant_report') ?? {};
     const m = report.mutants ?? {};
     const applicable: number = m.applicable ?? 0;
@@ -252,8 +294,21 @@ export function mutantLens(lines: any[]): { title: string; tooltip: string } {
     const ran = `${MUTANTS_ARE} ${applicable} of the ${total} fit this signature and ran on ${inputs} inputs. `
         + `The search looked at ${plural(searched, 'input', 'inputs')}, up to ${cap} candidate outputs each, for two different outputs that both pass every clause`;
     const excluded: number = report.excluded_inputs ?? 0;
-    if (gaps || slipped || excluded) {
+    const contradicted = lines.filter(isContradiction).length;
+    const noPassing: number = report.no_passing_output ?? 0;
+    if (gaps || slipped || excluded || contradicted || noPassing) {
         const problems = [];
+        // An example its own lines reject comes before anything the
+        // mutants say: one of the author's two statements is wrong.
+        if (contradicted) {
+            problems.push(`Contradicted: ${plural(contradicted, 'line is', 'lines are')} false on the examples written for them`);
+        }
+        // Inputs with a catch and no passing output found: the catches there
+        // are unconfirmed, and a mutant caught only there is not judged.
+        if (noPassing) {
+            const notJudged: number = m.not_judged ?? 0;
+            problems.push(`No passing output on ${noPassing} of ${report.passing_searched ?? noPassing} inputs with a catch${notJudged ? `; ${plural(notJudged, 'mutant', 'mutants')} not judged` : ''}`);
+        }
         // No output at all on some inputs comes first: there the question of
         // which output does not arise, which is why a gap can vanish.
         if (excluded) {
@@ -270,14 +325,21 @@ export function mutantLens(lines: any[]): { title: string; tooltip: string } {
             problems.push(`Not settled: ${parts.join('; ')}`);
         }
         return {
-            title: `$(warning) ${problems.join(' · ')}${open}`,
-            tooltip: `${ran}. Each problem is a warning in the file. Click for the full report.`,
+            title: `$(warning) ${lead}${problems.join(' · ')}${open}`,
+            tooltip: `${wouldRun(did)}${ran}. Each problem is a warning in the file. Click for the full report.`,
         };
     }
     const mutants = applicable ? `all ${applicable} mutants that fit are caught` : `none of the ${total} mutants fits this signature`;
+    // No pass with no example: what nothing ran against cannot be settled.
+    if (did && did.examples === 0) {
+        return {
+            title: `$(warning) ${lead}${mutants}; no second passing output on the ${plural(searched, 'input', 'inputs')} searched${open}`,
+            tooltip: `${wouldRun(did)}${ran}, and found none. Click for the full report.`,
+        };
+    }
     return {
-        title: `$(pass) Settled: ${mutants}; no second passing output on the ${plural(searched, 'input', 'inputs')} searched${open}`,
-        tooltip: `${ran}, and found none. ${applicable ? 'A clause rejected every mutant. ' : ''}Click for the full report.`,
+        title: `$(pass) ${lead}Settled: ${mutants}; no second passing output on the ${plural(searched, 'input', 'inputs')} searched${open}`,
+        tooltip: `${wouldRun(did)}${ran}, and found none. ${applicable ? 'A clause rejected every mutant. ' : ''}Click for the full report.`,
     };
 }
 
@@ -287,6 +349,11 @@ export function checkLens(lines: any[]): { title: string; tooltip: string } | un
     if (!e) {
         return undefined;
     }
+    const did = ranOf(lines);
+    if (nothingRan(did)) {
+        return { title: NOTHING_RAN, tooltip: `${wouldRun(did)}Click for the full report.` };
+    }
+    const lead = missingLead(did);
     const u = e.underdetermination;
     const mutants = typeof u === 'object' && u
         ? `${MUTANTS_ARE} ${u.applicable} of the ${u.total} fit this signature; ${u.caught} caught, ${u.slipped} passing every clause.`
@@ -307,8 +374,8 @@ export function checkLens(lines: any[]): { title: string; tooltip: string } | un
         parts.push(`performance: ${e.performance_findings.join('; ')}`);
     }
     return {
-        title: `$(warning) Not accepted: ${parts.join(' · ')}`,
-        tooltip: `${ran} Each finding is a warning in the file. Click for the full report.`,
+        title: `$(warning) ${lead}Not accepted${parts.length ? `: ${parts.join(' · ')}` : ''}`,
+        tooltip: `${wouldRun(did)}${ran} Each finding is a warning in the file. Click for the full report.`,
     };
 }
 
@@ -343,6 +410,29 @@ const UNNEEDED: Finding = { label: 'Unneeded clause', code: 'unneeded-clause' };
 const UNTESTED: Finding = { label: 'Untested clause', code: 'untested-clause' };
 const INPUT_ONLY: Finding = { label: 'Input-only clause', code: 'input-only-clause' };
 const UNCHECKED: Finding = { label: 'Unchecked clause', code: 'unchecked-clause' };
+const CONTRADICTION: Finding = { label: 'Contradiction', code: 'contradiction' };
+
+const isContradiction = (l: any) => l.kind === 'example_contradicts' || l.kind === 'example_unevaluable';
+
+/**
+ * A clause false on an example's own output, or not evaluable there, before
+ * any performance: the example and the line are both the author's, so one
+ * of them is wrong. Shown on the line and on the example.
+ */
+function contradiction(doc: vscode.TextDocument, l: any): vscode.Diagnostic[] {
+    const example = `example ${l.example}${l.note ? ` (${JSON.stringify(l.note)})` : ''}`;
+    const fault = l.kind === 'example_unevaluable';
+    const out: vscode.Diagnostic[] = [];
+    if (l.clause?.line !== undefined) {
+        const says = fault ? `this line cannot be evaluated on ${example}: ${l.message}` : `this line is false on ${example}`;
+        out.push(finding(lineRange(doc, l.clause.line - 1), CONTRADICTION, `${says}; the line and the example are both yours, so one of them is wrong`, vscode.DiagnosticSeverity.Warning));
+    }
+    if (l.example_line !== undefined) {
+        const says = fault ? `line ${l.clause?.line} cannot be evaluated on this example: ${l.message}` : `line ${l.clause?.line} is false on this example`;
+        out.push(finding(lineRange(doc, l.example_line - 1), CONTRADICTION, `${says}; the example and the line are both yours, so one of them is wrong`, vscode.DiagnosticSeverity.Warning));
+    }
+    return out;
+}
 
 function finding(range: vscode.Range, f: Finding, message: string, severity: vscode.DiagnosticSeverity): vscode.Diagnostic {
     const d = diagAt(range, `${f.label}: ${message}`, severity);
@@ -446,7 +536,12 @@ function checkDiagnostics(doc: vscode.TextDocument, lines: any[], sig: number): 
     }
     const binding = evidence && evidence.passed === false;
     for (const l of lines) {
-        if (l.kind === 'evidence' || (l.gap !== undefined && l.kind !== 'gap')) {
+        // The reach object is the hints' (piece 6), not a finding.
+        if (l.kind === 'evidence' || l.kind === 'reach' || l.kind === 'ran' || (l.gap !== undefined && l.kind !== 'gap')) {
+            continue;
+        }
+        if (isContradiction(l)) {
+            out.push(...contradiction(doc, l));
             continue;
         }
         if (l.kind === 'gap') {
@@ -478,6 +573,9 @@ function mutantDiagnostics(doc: vscode.TextDocument, lines: any[], sig: number):
     const underdetermined = lines.filter(l => l.kind === 'underdetermined');
     // The run's verdict is the line above the signature; only problems are
     // diagnostics, each on its own line.
+    for (const l of lines.filter(isContradiction)) {
+        out.push(...contradiction(doc, l));
+    }
     for (const g of gaps) {
         out.push(gapDiag(doc, sig, g));
     }
@@ -698,6 +796,15 @@ export function activate(context: vscode.ExtensionContext): {
         vscode.commands.registerCommand('surety.check', () => {
             const doc = vscode.window.activeTextEditor?.document;
             if (doc) { return checkDocument(doc, 'check'); }
+        }),
+        // The server's code action that writes an example from an
+        // example-wanted line leaves the cursor after `out:`, for the author.
+        vscode.commands.registerCommand('surety.cursorAt', (uri: string, line: number, character: number) => {
+            const editor = vscode.window.activeTextEditor;
+            if (editor && editor.document.uri.toString() === uri) {
+                const at = new vscode.Position(line, character);
+                editor.selection = new vscode.Selection(at, at);
+            }
         }),
         vscode.commands.registerCommand('surety.mutants', () => {
             const doc = vscode.window.activeTextEditor?.document;

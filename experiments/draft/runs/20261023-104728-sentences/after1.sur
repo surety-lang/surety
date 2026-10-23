@@ -1,0 +1,32 @@
+// draft
+// drafted
+type Combination = { items: Int[] }
+// drafted
+type CombinationError = { message: Text }
+// drafted
+negative_r_error: CombinationError = { message: "r must be non-negative" }
+
+distinct_combinations(iterable: Int[], r: Int) -> Result<Combination[], CombinationError>
+	note "yield each distinct combination of r items taken from the iterable once, as set(combinations(iterable, r)) would, without generating duplicates"
+	# The output is Ok exactly when r is at least 0.
+
+	# Every error output is the negative-r error.
+
+	# In an Ok output, every combination has exactly r items.
+
+	# In an Ok output, every combination's items are drawn from the iterable and keep the iterable's order, so each combination is a sub-sequence of the iterable.
+
+	# In an Ok output, no two combinations have the same items.
+
+	# In an Ok output, every sub-sequence of r items of the iterable is the items of some combination.
+
+	# In an Ok output, the combinations are not claimed in any order.
+
+	// example wanted: the docstring's case, [0, 0, 1] with r 2: the two sub-sequences (0, 1) collapse to one, and (0, 0) is kept
+	// example wanted: [0, 1, 0] with r 2: (0, 1) and (1, 0) are both sub-sequences with different items, so both are kept as distinct combinations
+	// example wanted: r 0 on a non-empty iterable: the empty sub-sequence is the only combination of zero items
+	// example wanted: an empty iterable with r 0: the empty sub-sequence still exists, so the empty combination is the only one
+	// example wanted: r greater than the iterable's length: no sub-sequence has r items
+	// example wanted: r equal to the iterable's length, with a duplicate in it: the whole iterable is the only sub-sequence of that length
+	// example wanted: r of -1: the threshold just below 0, which decides the error case
+	// example wanted: every item the same, [5, 5, 5] with r 2: every sub-sequence has the same items, so only one combination remains

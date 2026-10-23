@@ -1,0 +1,3 @@
+tabulate  inputs 0+500  mutants 7 of 13 apply  slipped 0  caught 7  underdetermined 6 in 2 gaps
+  gap  on Err, out.display can be "" or "The function has no value given for an argument the results…; 4 inputs show it; the smallest in: ([{arg: 0, value: 0}, {arg: 4, value: 0}, {arg: 2, value: 0}], 1, 3)
+  gap  out can be Ok([]) or Err({code: "", display: ""}); 2 inputs show it; the smallest in: ([{arg: 1, value: 0}, {arg: 2, value: 2}, {arg: 3, value: 0}, {arg: -1, value: 0…

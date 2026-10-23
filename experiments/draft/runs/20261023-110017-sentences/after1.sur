@@ -1,0 +1,17 @@
+// draft
+
+nth_prime(n: Int, approximate: Bool) -> Int
+	note "return the nth prime counting from 0, or, when approximate is true, a prime close to it found faster; how close is not stated by the docstring"
+	# The output is a prime, as a sibling obligation on primality decides.
+
+	# If approximate is false, the number of primes less than the output is n, a count a sibling obligation decides.
+
+	# If approximate is false, the output for n is less than the output for n plus one, also with approximate false.
+
+	# If approximate is false, the output is more than twice n.
+
+	// example wanted: n 0, approximate false: the first prime, counting from 0
+	// example wanted: n 100, approximate false: the docstring's exact case, the hundred-and-first prime
+	// example wanted: n 200000000, approximate true: the docstring's approximate case; the docstring shows an estimate that differs from the exact prime, so the author decides whether to pin that value or leave it unpinned
+	// example wanted: n 0, approximate true: whether the estimate gives the exact prime when n is small
+	// example wanted: n -1: the docstring is silent on a negative n; the author decides whether it is refused (a Result with an error case) or left out of the domain

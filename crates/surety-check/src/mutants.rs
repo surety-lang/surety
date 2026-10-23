@@ -15,7 +15,8 @@ use surety_syntax::parser::BUILTINS;
 use surety_syntax::resolve::Scope;
 use surety_syntax::{Expr, Type};
 
-use crate::checker::Checker;
+use crate::against::Against;
+use crate::checker::{Checker, Outcome};
 use crate::examples::{Step, compare};
 use crate::frame::{Correspondence, frame_pairs};
 use crate::generate::{Bucket, Domain, candidates};
@@ -25,6 +26,10 @@ use crate::value::{Value, from_json, to_json};
 pub enum Mutant {
     Empty,
     OkEmpty,
+    /// `Err` holding a fabricated value, for a `Result` whose error side is
+    /// a record or a list of records: what only a claim that every error is
+    /// one of the declared ones (`errs drawn_from valid_errors`) catches.
+    ErrFabricated,
     Identity,
     DropOne,
     DuplicateOne,
@@ -171,11 +176,12 @@ impl Scalar {
     }
 }
 
-/// The structural library: the same thirteen for every signature. The
+/// The structural library: the same fourteen for every signature. The
 /// scalar family joins them per signature in `library`.
-pub const LIBRARY: [Mutant; 13] = [
+pub const LIBRARY: [Mutant; 14] = [
     Mutant::Empty,
     Mutant::OkEmpty,
+    Mutant::ErrFabricated,
     Mutant::Identity,
     Mutant::DropOne,
     Mutant::DuplicateOne,
@@ -201,6 +207,7 @@ impl Mutant {
         match self {
             Mutant::Empty => "empty",
             Mutant::OkEmpty => "ok_empty",
+            Mutant::ErrFabricated => "err_fabricated",
             Mutant::Identity => "identity",
             Mutant::DropOne => "drop_one",
             Mutant::DuplicateOne => "duplicate_one",
@@ -250,6 +257,9 @@ impl Mutant {
             Mutant::Scalar(_) => "replaces one scalar of the output",
             Mutant::Empty => "returns the empty value of the output type",
             Mutant::OkEmpty => "returns Ok of the empty value",
+            Mutant::ErrFabricated => {
+                "returns Err holding a fabricated error, one of no declared value"
+            }
             Mutant::Identity => "returns the input unchanged",
             Mutant::DropOne => "returns the input without its first element",
             Mutant::AppendFabricated => "returns the input with a fabricated element appended",
@@ -463,6 +473,22 @@ fn scalar(ty: &Type, text: &str) -> Value {
         Type::Result(_, err) => Value::Err(Box::new(scalar(err, text))),
         Type::Named(_) | Type::Unknown => Value::None,
     }
+}
+
+/// `Err` of a fabricated record (`{code: "fab", display: "fab"}`), or of a
+/// list of one, when the output is a `Result` whose error side is either.
+fn fabricated_error(out: &Type) -> Option<Value> {
+    let Type::Result(_, err) = out else {
+        return None;
+    };
+    let v = match err.as_ref() {
+        Type::Record { .. } => fabricated(err),
+        Type::List(elem, _) if matches!(elem.as_ref(), Type::Record { .. }) => {
+            Value::List(vec![fabricated(elem)])
+        }
+        _ => return None,
+    };
+    Some(Value::Err(Box::new(v)))
 }
 
 /// The empty value of a type: `[]`, `""`, 0, the epoch, `None`, a record of
@@ -707,6 +733,7 @@ pub fn applies(m: &Mutant, scope: &Scope<'_>, plan: &[Correspondence]) -> bool {
         Mutant::Scalar(_) => true,
         Mutant::Empty => true,
         Mutant::OkEmpty => matches!(out, Type::Result(..)),
+        Mutant::ErrFabricated => fabricated_error(out).is_some(),
         Mutant::Identity => identity_source(scope).is_some(),
         Mutant::DropOne
         | Mutant::DuplicateOne
@@ -734,6 +761,7 @@ pub fn apply(
             Type::Result(ok, _) => Some(Value::Ok(Box::new(empty_value(ok)))),
             _ => None,
         },
+        Mutant::ErrFabricated => fabricated_error(out),
         m if m.is_skeleton() => {
             if !applies(m, scope, plan) {
                 return None;
@@ -877,6 +905,10 @@ pub enum MutantVerdict {
     Slipped,
     Caught,
     NotApplicable,
+    /// Caught only on inputs where no passing output was found: each catch
+    /// is kept, unconfirmed, and the mutant is judged neither way, since a
+    /// bounded search never withdraws a clause's credit (slice 6, piece 5).
+    NotJudged,
 }
 
 /// The input a report shows for a mutant: an example that caught it when
@@ -897,6 +929,9 @@ pub struct MutantRun {
     pub inputs_tried: usize,
     /// Inputs on which at least one clause caught it.
     pub caught_inputs: usize,
+    /// Those inputs, by index among the inputs the mutants ran on: the
+    /// examples, then the generated.
+    pub caught_on: Vec<usize>,
     pub kills: Vec<Kill>,
     /// Clauses never false for it.
     pub slipped: Vec<Clause>,
@@ -948,6 +983,25 @@ pub struct MutantReport {
     /// Inputs tried on which some clause about the inputs alone is false:
     /// no output passes there, so the obligation is unsatisfiable on them.
     pub excluded_inputs: usize,
+    /// Every clause over each example's own pair, as `check` has it.
+    pub against: Against,
+    /// What ran; `mutants` never runs the performance, so `runs` is zero.
+    pub ran: crate::checker::Ran,
+    /// Inputs with a catch on which the passing search, seeded with every
+    /// output in hand, found no output that passes every clause: the
+    /// catches there are unconfirmed.
+    pub no_passing: Vec<NoPassing>,
+    /// Inputs with a catch that the passing search looked at, once each.
+    pub passing_searched: usize,
+}
+
+/// An input with a catch and no passing output found.
+#[derive(Debug, Clone)]
+pub struct NoPassing {
+    pub inputs: Vec<Value>,
+    /// 1-based example number, when the input is an example's.
+    pub example: Option<usize>,
+    pub candidates_tried: usize,
 }
 
 impl MutantReport {
@@ -970,6 +1024,13 @@ impl MutantReport {
             .iter()
             .filter(|m| m.verdict == MutantVerdict::Caught)
             .count()
+    }
+
+    pub fn not_judged(&self) -> Vec<&MutantRun> {
+        self.mutants
+            .iter()
+            .filter(|m| m.verdict == MutantVerdict::NotJudged)
+            .collect()
     }
 
     /// Underdetermined inputs no `accept` covers.
@@ -1146,6 +1207,23 @@ fn drawn_list(
     out
 }
 
+/// For a scalar `Int` output, the values one either side of each output
+/// given: where a tie or a rounding leaves two answers, the other one is
+/// tried even when the pool's values miss it.
+fn neighbours(out_ty: &Type, outputs: &[Value]) -> Vec<Value> {
+    if !matches!(out_ty, Type::Int) {
+        return Vec::new();
+    }
+    outputs
+        .iter()
+        .filter_map(|v| match v {
+            Value::Int(n) => Some([Value::Int(n - 1), Value::Int(n + 1)]),
+            _ => None,
+        })
+        .flatten()
+        .collect()
+}
+
 fn kill(run: &mut MutantRun, clause: Clause, message: Option<String>, case: &Case, out: &Value) {
     if let Some(k) = run.kills.iter_mut().find(|k| k.clause == clause) {
         k.count += 1;
@@ -1192,6 +1270,35 @@ impl<'g> Checker<'g> {
             found
         }
         walk(&self.scope, e, 0)
+    }
+
+    /// Whether a clause calls its own obligation, directly or through an
+    /// abbreviation: the metamorphic form. Both searches set such a clause
+    /// aside, performance or none, since a performance judging candidates
+    /// for its own obligation breaks the referee rule; it stays the test of
+    /// the performance over its runs in `check`, and of each mutant here.
+    pub fn calls_self(&self, e: &Expr) -> bool {
+        fn walk(scope: &Scope<'_>, own: &str, e: &Expr, depth: usize) -> bool {
+            let mut found = false;
+            e.walk(&mut |sub| {
+                if found {
+                    return;
+                }
+                match sub {
+                    Expr::Call(n, _, _) if n == own => found = true,
+                    Expr::Name(n, _) | Expr::Call(n, _, _) => {
+                        if let Some(a) = scope.abbrev(n) {
+                            if depth < 8 && walk(scope, own, &a.body, depth + 1) {
+                                found = true;
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            });
+            found
+        }
+        walk(&self.scope, &self.fun.name, e, 0)
     }
 
     /// Whether a clause's truth can depend on the output: it names `out`,
@@ -1253,11 +1360,39 @@ impl<'g> Checker<'g> {
         clauses
     }
 
+    /// The outputs already decided on these inputs: an example's expected
+    /// output, and the performance's where `check` ran it.
+    pub(crate) fn outputs_in_hand(&self, inputs: &[Value]) -> Vec<Value> {
+        let mut out = Vec::new();
+        for ex in &self.fun.examples {
+            if self.example_inputs(ex).is_ok_and(|i| i == inputs) {
+                if let Ok(e) = self.expected_output(ex, inputs) {
+                    out.push(e);
+                }
+            }
+        }
+        out.extend(
+            self.runs
+                .iter()
+                .filter(|r| r.inputs == inputs)
+                .map(|r| r.output.clone()),
+        );
+        out.extend(self.generated.iter().filter_map(|g| match &g.outcome {
+            Outcome::Output(v) if g.inputs == inputs => Some(v.clone()),
+            _ => None,
+        }));
+        out
+    }
+
     /// An output that passes every clause on these inputs, if the
     /// candidate search finds one, and how many candidates it tried. This
     /// is how a generated-input failure is attributed: a passing output
     /// exists and the performance did not produce it, or none does and the
-    /// obligation is unsatisfiable there.
+    /// obligation is unsatisfiable there. The outputs already in hand on
+    /// the input come first, before the pool: the example's, the
+    /// performance's, and the library's, the skeletons among them, since a
+    /// mutant that passes every clause on an input is a passing output
+    /// there, whatever it does elsewhere.
     pub fn find_passing(&mut self, inputs: &[Value]) -> (Option<Value>, usize) {
         let cap = self.budget.search_candidates;
         if cap == 0 {
@@ -1273,15 +1408,41 @@ impl<'g> Checker<'g> {
         typed.extend(named.iter().map(|(v, t)| (v, t)));
         let domain = Domain::seeded(&typed);
         let drawn = drawn_candidates(&out_ty, inputs, &self.scope, &named);
+        // The outputs in hand, in order: an example's on its own input (a
+        // contradicted one fails the clauses below like any candidate) and
+        // the performance's where it ran on the input, a scalar's neighbours
+        // either side of them, then the mutants'.
+        let mut seeds = self.outputs_in_hand(inputs);
+        seeds.extend(neighbours(&out_ty, &seeds));
+        seeds.extend(
+            library(&self.scope)
+                .iter()
+                .filter(|m| applies(m, &self.scope, &self.plan))
+                .filter_map(|m| apply(m, inputs, &self.scope, &self.plan)),
+        );
+        let judged: Vec<Expr> = clauses
+            .iter()
+            .filter(|(_, e)| !self.calls_self(e))
+            .map(|(_, e)| e.clone())
+            .collect();
         let mut tried = 0;
-        for cand in candidates(&out_ty, &domain, cap, drawn) {
+        for cand in seeds
+            .into_iter()
+            .chain(candidates(&out_ty, &domain, cap, drawn))
+        {
             tried += 1;
             if from_json(&to_json(&cand), &out_ty).is_err() {
                 continue;
             }
-            let all = clauses
-                .iter()
-                .all(|(_, e)| matches!(self.holds(e, inputs, &cand), Ok(true)));
+            // A clause calling a performance that cannot start is unchecked,
+            // as it is for the mutants' catches: it neither passes nor fails
+            // a candidate, or one graph reference with no performance yet
+            // would leave every input without a passing output. A self-call
+            // is set aside always (`calls_self`).
+            let all = judged.iter().all(|e| match self.holds(e, inputs, &cand) {
+                Ok(b) => b,
+                Err(m) => self.unstartable(&m),
+            });
             if all {
                 return (Some(cand), tried);
             }
@@ -1292,6 +1453,7 @@ impl<'g> Checker<'g> {
     /// The underdetermination check: the library against the obligation
     /// over the examples and the generated inputs, then the search.
     pub fn mutants(&mut self) -> MutantReport {
+        let against = self.against();
         let mut cases: Vec<Case> = Vec::new();
         for (i, ex) in self.fun.examples.iter().enumerate() {
             if let Ok(inputs) = self.example_inputs(ex) {
@@ -1330,6 +1492,9 @@ impl<'g> Checker<'g> {
             .map(|((_, e), _)| e.clone())
             .collect();
         let mut input_only_false = vec![0; only.len()];
+        // Per input: whether a clause about the inputs alone is false there,
+        // which proves no output passes (reading 113).
+        let mut excluded: Vec<bool> = Vec::with_capacity(cases.len());
         let mut excluded_inputs = 0;
         for case in &cases {
             let mut any = false;
@@ -1342,6 +1507,7 @@ impl<'g> Checker<'g> {
             if any {
                 excluded_inputs += 1;
             }
+            excluded.push(any);
         }
         let unordered: Vec<Vec<Step>> = self.unordered().to_vec();
         let mut unchecked: Vec<(Clause, String)> = Vec::new();
@@ -1352,6 +1518,7 @@ impl<'g> Checker<'g> {
                 verdict: MutantVerdict::NotApplicable,
                 inputs_tried: 0,
                 caught_inputs: 0,
+                caught_on: Vec::new(),
                 kills: Vec::new(),
                 slipped: Vec::new(),
                 example_catches: Vec::new(),
@@ -1362,7 +1529,7 @@ impl<'g> Checker<'g> {
                 continue;
             }
             self.mutant = Some(m.clone());
-            for case in &cases {
+            for (ci, case) in cases.iter().enumerate() {
                 let Some(out) = apply(&m, &case.inputs, &self.scope, &self.plan) else {
                     continue;
                 };
@@ -1389,6 +1556,7 @@ impl<'g> Checker<'g> {
                 }
                 if run.kills.iter().map(|k| k.count).sum::<usize>() > before {
                     run.caught_inputs += 1;
+                    run.caught_on.push(ci);
                 }
                 let example_caught = case
                     .expected
@@ -1434,6 +1602,48 @@ impl<'g> Checker<'g> {
                     .any(|r| r.kills.iter().any(|k| k.clause == *c))
             })
             .collect();
+        // The credit rule: every input with a catch gets one passing search,
+        // shared by the mutants, since the answer is the input's. A catch on
+        // an input where none is found stays a catch, unconfirmed; a mutant
+        // whose every catch is unconfirmed is not judged. With no search
+        // budget nothing is searched and the verdicts stand.
+        let mut no_passing = Vec::new();
+        let mut passing_searched = 0;
+        if self.budget.search_candidates > 0 {
+            let mut caught: Vec<usize> = mutants
+                .iter()
+                .flat_map(|m: &MutantRun| m.caught_on.iter().copied())
+                .collect();
+            caught.sort_unstable();
+            caught.dedup();
+            let mut unconfirmed = Vec::new();
+            for i in caught {
+                // Proved unsatisfiable by a clause about the inputs alone:
+                // no output passes, so none is searched for, and the input is
+                // the input-only clause's to report, not a bounded search's.
+                if excluded[i] {
+                    unconfirmed.push(i);
+                    continue;
+                }
+                passing_searched += 1;
+                let (found, tried) = self.find_passing(&cases[i].inputs);
+                if found.is_none() {
+                    unconfirmed.push(i);
+                    no_passing.push(NoPassing {
+                        inputs: cases[i].inputs.clone(),
+                        example: cases[i].example,
+                        candidates_tried: tried,
+                    });
+                }
+            }
+            for run in &mut mutants {
+                if run.verdict == MutantVerdict::Caught
+                    && run.caught_on.iter().all(|i| unconfirmed.contains(i))
+                {
+                    run.verdict = MutantVerdict::NotJudged;
+                }
+            }
+        }
         let (mut search, search_inputs, mut unevaluable) =
             self.search(&cases, &clauses, &unordered);
         for (c, e) in unchecked {
@@ -1461,6 +1671,13 @@ impl<'g> Checker<'g> {
             }
         }
 
+        let ran = crate::checker::Ran {
+            examples: against.evaluated(),
+            runs: 0,
+            mutants: mutants.iter().map(|m| m.inputs_tried).sum(),
+            searched: search_inputs,
+            performance: self.performance.is_file(),
+        };
         MutantReport {
             obligation: self.fun.name.clone(),
             obligation_hash: surety_syntax::normalize::canonical_file(self.graph, self.idx)
@@ -1483,6 +1700,10 @@ impl<'g> Checker<'g> {
                 .collect(),
             input_only_false,
             excluded_inputs,
+            ran,
+            against,
+            no_passing,
+            passing_searched,
         }
     }
 
@@ -1525,6 +1746,7 @@ impl<'g> Checker<'g> {
             .map(|(_, e)| self.has_graph_call(e))
             .collect();
         let mut order: Vec<usize> = (0..clauses.len()).collect();
+        let self_calls: Vec<bool> = clauses.iter().map(|(_, e)| self.calls_self(e)).collect();
         order.sort_by_key(|i| expensive[*i]);
         let named = self.named_values_typed();
         let mut evaluated = vec![0usize; clauses.len()];
@@ -1542,9 +1764,40 @@ impl<'g> Checker<'g> {
             typed.extend(named.iter().map(|(v, t)| (v, t)));
             let domain = Domain::seeded(&typed);
             let drawn = drawn_candidates(&out_ty, &case.inputs, &self.scope, &named);
-            let mut passing: Vec<Value> = case.expected.iter().cloned().collect();
-            for (tried, cand) in candidates(&out_ty, &domain, cap, drawn)
+            // An example's output counts as the first passing output only
+            // once it passes every clause: a contradicted example is the
+            // obligation's finding, never one side of a gap.
+            // A clause calling a performance that cannot start is unchecked
+            // here as in the passing search (reading 134): it neither passes
+            // nor fails an output.
+            let mut passing: Vec<Value> = Vec::new();
+            if let Some(e) = &case.expected {
+                if clauses
+                    .iter()
+                    .zip(&self_calls)
+                    .filter(|(_, own)| !**own)
+                    .all(|((_, x), _)| match self.holds(x, &case.inputs, e) {
+                        Ok(b) => b,
+                        Err(m) => self.unstartable(&m),
+                    })
+                {
+                    passing.push(e.clone());
+                }
+            }
+            let seeded = !passing.is_empty();
+            // For a scalar output the outputs in hand and their neighbours
+            // either side lead: where a tie leaves two answers, the other
+            // one is tried even when the pool's values miss it.
+            let leading: Vec<Value> = if matches!(out_ty, Type::Int) {
+                let in_hand = self.outputs_in_hand(&case.inputs);
+                let near = neighbours(&out_ty, &in_hand);
+                in_hand.into_iter().chain(near).collect()
+            } else {
+                Vec::new()
+            };
+            for (tried, cand) in leading
                 .into_iter()
+                .chain(candidates(&out_ty, &domain, cap, drawn))
                 .enumerate()
             {
                 let tried = tried + 1;
@@ -1556,6 +1809,10 @@ impl<'g> Checker<'g> {
                 }
                 let mut ok = true;
                 for &i in &order {
+                    // A self-call is set aside here, performance or none.
+                    if self_calls[i] {
+                        continue;
+                    }
                     evaluated[i] += 1;
                     match self.holds(&clauses[i].1, &case.inputs, &cand) {
                         Ok(true) => {}
@@ -1563,6 +1820,7 @@ impl<'g> Checker<'g> {
                             ok = false;
                             break;
                         }
+                        Err(e) if self.unstartable(&e) => {}
                         Err(e) => {
                             errors[i].0 += 1;
                             if errors[i].1.is_none() {
@@ -1588,7 +1846,7 @@ impl<'g> Checker<'g> {
                         example: case.example,
                         a: passing[0].clone(),
                         b: passing[1].clone(),
-                        a_is_expected: case.expected.is_some(),
+                        a_is_expected: seeded,
                         candidates_tried: tried,
                         accepted_by,
                         same_as: None,

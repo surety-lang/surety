@@ -41,8 +41,11 @@ pub const TARGET: &str = "python";
 /// The record format, in provenance: bumped when the evidence part's shape
 /// changes, so `verify` can say "format moved" rather than "evidence
 /// differs". 1: clauses by presentation line. 2: clauses and examples by
-/// canonical ordinal, the domain sorted.
-pub const FORMAT: u64 = 2;
+/// canonical ordinal, the domain sorted. 3 (slice 6): the examples against
+/// the lines as one count, the passing search's outcome per input, the
+/// mutants not judged, `err_fabricated` in the library, and the
+/// underdetermination's `causes` named `gaps`.
+pub const FORMAT: u64 = 3;
 
 /// What the caller renders from a report for the record: the verdict line
 /// and the `--json` lines. The graph does not render reports itself.
@@ -442,7 +445,23 @@ pub fn admit(
         }
     }
 
-    // 4. Every finding names an input the log holds.
+    // 4. The examples against the lines: the count the record claims is
+    // the one the examples it has give, evaluated again here.
+    let against = checker.against();
+    let claimed = &ev["examples_against"];
+    if claimed["evaluated"] != against.evaluated()
+        || claimed["contradictions"] != against.contradictions().len()
+    {
+        return Err(format!(
+            "kernel: {} contradictions over {} examples claimed; the examples give {} over {}",
+            claimed["contradictions"],
+            claimed["evaluated"],
+            against.contradictions().len(),
+            against.evaluated()
+        ));
+    }
+
+    // 5. Every finding names an input the log holds.
     if let Some(lines) = evidence["report"].as_array() {
         for line in lines.iter().filter(|l| l["kind"] != "evidence") {
             if let Some(ins) = line["inputs"].as_array() {
@@ -458,7 +477,7 @@ pub fn admit(
         }
     }
 
-    // 5. The derived fields agree with the parts.
+    // 6. The derived fields agree with the parts.
     let strict = ev["strict_passed"] == true;
     let passed = ev["passed"] == true;
     if strict && !(passed && ev["findings"] == 0) {

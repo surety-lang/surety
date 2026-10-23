@@ -1,0 +1,22 @@
+```surety
+// draft
+
+map_if(items: Int[], else_given: Bool) -> Int[]
+	note "replace each item with func of it when pred holds of it, and otherwise with func_else of it, or with the item itself when no func_else is given; pred, func and func_else are sibling obligations, and else_given stands for whether func_else was passed"
+	# The output has exactly as many elements as the input has items.
+
+	# Mapping the input with its first item left off gives the output with its first element left off.
+
+	# If pred holds of the input's first item, the output's first element is func of that item.
+
+	# If pred does not hold of the input's first item and func_else is given, the output's first element is func_else of that item.
+
+	# If pred does not hold of the input's first item and no func_else is given, the output's first element is that item unchanged.
+
+	// example wanted: an empty input, with and without func_else: nothing is evaluated, and the length claim decides it
+	// example wanted: items -5 through 4, pred "more than 3", func a constant, no func_else (the docstring's first case): only the last item is replaced, and the rest pass through unchanged
+	// example wanted: the same items with pred "at least 0" and a func_else: the identity default must not be used, and 0 is the item on the threshold
+	// example wanted: items that all sit exactly on the threshold of pred "more than 3" (e.g. [3, 3]): pred is false for each one, so none of them goes to func
+	// example wanted: items for which pred holds of every one: func_else is never applied, so whether it was given makes no difference
+	// example wanted: a repeated item at two positions, e.g. [4, 4]: both positions are decided by the same pred result, so neither copy may be dropped or merged
+```

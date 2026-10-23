@@ -1,0 +1,8 @@
+```surety
+# The output has exactly the elements of the inner lists taken together, each as many times as it occurs across them.
+	reaching for: out same_elements_as the built-in flatten applied to list_of_lists. This obligation is itself named flatten, and a property that calls its own obligation runs the performance under test, so the line would compare out with itself and claim nothing. I want a way to name the built-in, or an operator that concatenates a list of lists, so that out's multiset of values can be compared with the inner lists' multiset taken together.
+# The elements of each inner list appear in the output in the same order as in that inner list.
+	all l in list_of_lists: l same_order_as out
+# Every element of an inner list comes before every element of each later inner list in the output.
+	reaching for: for each pair of inner lists a and b with a earlier in list_of_lists, each element x of a sits at an earlier position in out than each element y of b, where "position" means the occurrence in out that x and y themselves became. Writing "x before y in out" places x and y at the first occurrence of their values in out, because they are not occurrences of out. That makes the line false when a value repeats: on [[1, 2], [2, 1]] the correct output [1, 2, 2, 1] fails, since 2's first occurrence is after 1's. I want to say that an element of an inner list lands in out at the summed lengths of the earlier inner lists plus its own position in that list, and the notation has no index binder to say it.
+```

@@ -48,7 +48,12 @@ fn an_int_output_gets_the_wrong_performances_the_inputs_afford() {
     let (s, p) = scratch("invoice_total", INVOICE, HALF_EVEN);
     let r = surety::check_file_with(&s, &p, Budget::default()).unwrap();
     let text = surety::render(&r);
-    assert!(r.passed() && r.findings() == 0, "{text}");
+    // Since slice 6 the gap search tries the outputs in hand and their
+    // neighbours either side for an Int output: the abs line alone admits
+    // both sides of the half-even tie, 138 and 137: one gap, `arith.rs`'
+    // a_tolerance_is_one_abs_line. The binding tier passes; two inputs show
+    // the one gap.
+    assert!(r.passed() && r.findings() == 2, "{text}");
     let m = r.mutants.as_ref().unwrap();
     let names: Vec<String> = m.mutants.iter().map(|x| x.mutant.name()).collect();
     for expected in [

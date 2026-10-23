@@ -1,0 +1,2 @@
+product_index  inputs 0+500  mutants 14 of 24 apply  slipped 0  caught 14  underdetermined 6 in 1 gap
+  gap  on Ok, out can be 0 or 1; 6 inputs show it; the smallest in: ([], [], 0)

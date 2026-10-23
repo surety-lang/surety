@@ -1,0 +1,10 @@
+```surety
+# The result is the window-size error exactly when n is less than 1.
+	n < 1 <-> exactly_one Err(e) in out: e == window_error
+# On success, the output is drawn from the items and keeps their order.
+	all Ok(res) in out: res same_order_as items
+# On success, every output item's key matches no key among the n minus 1 items just before it in the input.
+	reaching for: a binder that gives an input occurrence's position p and says which input occurrences the output kept, so I could write: every kept occurrence of items at position p has its key not in items[p - (n - 1) .. p].key. The notation has no position binder, and leftover's earliest-match pairing gives the wrong occurrence when equal items are both dropped and kept: with [x, x, y, z, x] and n = 2 the kept copies are positions 0 and 4, but leftover pairs the output's second x with position 1.
+# On success, every item left out of the output has its key among the n minus 1 items just before it in the input, whether or not those items were kept.
+	reaching for: a position binder over the input occurrences the output dropped, so I could write: every dropped occurrence of items at position p has its key in items[p - (n - 1) .. p].key, with the window taken over all input items and not only the kept ones. `leftover` cannot stand in for this, because it treats the earliest equal occurrences as kept and so can name a kept copy as the dropped one when an item repeats.
+```

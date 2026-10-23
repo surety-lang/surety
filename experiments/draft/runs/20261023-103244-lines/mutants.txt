@@ -1,0 +1,3 @@
+interleave  inputs 0+500  mutants 1 of 13 apply  slipped 0  caught 1  underdetermined 7 in 2 gaps
+  gap  out can have 0 or not; 5 inputs show it; the smallest in: []
+  gap  out[0] can be 0 or 1; 2 inputs show it; the smallest in: [[2]]

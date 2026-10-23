@@ -11,7 +11,8 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 const HELP: &str = "\
 Usage:
   surety extract <markdown> <out-dir>   cut the obligations out of the authored markdown
-  surety parse <file.sur>...            parse and check each file (siblings form the graph)
+  surety parse <file.sur>...            parse and check each file (siblings form the graph); --json
+                                        gives each error and hint with the edit it carries
   surety hash <file.sur>                print the canonical form and its hash
   surety check <file.sur> [<perf.py>]   run the examples, the properties over the examples and
                                         over generated inputs, determinism and totality against
@@ -145,7 +146,7 @@ fn main() -> ExitCode {
             ExitCode::SUCCESS
         }
         ["extract", md, out] => cmd_extract(Path::new(md), Path::new(out)),
-        ["parse", files @ ..] if !files.is_empty() => cmd_parse(files),
+        ["parse", files @ ..] if !files.is_empty() => cmd_parse(files, &flags),
         ["hash", file] => cmd_hash(Path::new(file)),
         ["check", file] => cmd_check(Path::new(file), None, &flags),
         ["check", file, perf] => cmd_check(Path::new(file), Some(Path::new(perf)), &flags),
@@ -204,10 +205,14 @@ fn cmd_extract(md: &Path, out: &Path) -> ExitCode {
     ExitCode::SUCCESS
 }
 
-fn cmd_parse(files: &[&str]) -> ExitCode {
+fn cmd_parse(files: &[&str], flags: &Flags) -> ExitCode {
     let mut failed = false;
     for f in files {
         let path = Path::new(f);
+        if flags.json {
+            failed |= parse_json(path);
+            continue;
+        }
         match surety::load_with_siblings(path) {
             Ok((graph, idx)) => match graph.check_file(idx) {
                 Ok(()) => {
@@ -242,6 +247,70 @@ fn cmd_parse(files: &[&str]) -> ExitCode {
     } else {
         ExitCode::SUCCESS
     }
+}
+
+/// `parse --json`: one object per error and per hint, through
+/// `mend::diagnose` as the language server has them, an error or a hint
+/// carrying its verified edit; then one per obligation when the file
+/// parses. Whether the file failed, as `parse` exits: a hint never fails.
+fn parse_json(path: &Path) -> bool {
+    let text = fs::read_to_string(path).unwrap_or_default();
+    let shown = path.display().to_string();
+    let (errors, oks) = match surety::load_with_siblings(path) {
+        Ok((graph, idx)) => match graph.check_file(idx) {
+            Ok(()) => {
+                let oks: Vec<serde_json::Value> = graph
+                    .functions_in(idx)
+                    .iter()
+                    .map(|f| {
+                        serde_json::json!({
+                            "kind": "ok", "file": shown, "obligation": f.name,
+                            "props": f.properties.len(), "accepts": f.accepts.len(),
+                            "examples": f.examples.len(), "abbrevs": f.abbrevs.len(),
+                            "pins": graph.file(idx).pins.len(),
+                        })
+                    })
+                    .collect();
+                (Vec::new(), oks)
+            }
+            Err(e) => (vec![e], Vec::new()),
+        },
+        Err(errs) => (errs.into_iter().map(|(_, e)| e).collect(), Vec::new()),
+    };
+    let failed = !errors.is_empty();
+    let found = surety_syntax::mend::diagnose(&text, errors);
+    let edit = |e: &surety_syntax::Edit| surety_lsp::edit_json(e);
+    for e in &found.errors {
+        let mut j = serde_json::json!({
+            "kind": "error", "file": shown, "code": e.kind.name(),
+            "line": e.line, "message": e.message,
+        });
+        if let Some((from, to)) = e.span {
+            j["span"] = serde_json::json!([from, to]);
+        }
+        if let Some(f) = &e.fix {
+            j["fix"] =
+                serde_json::json!({ "title": f.title, "find": f.find, "replace": f.replace });
+        }
+        if let Some(ed) = &e.edit {
+            j["edit"] = edit(ed);
+        }
+        println!("{j}");
+    }
+    for h in &found.hints {
+        let mut j = serde_json::json!({
+            "kind": "hint", "file": shown, "code": h.code,
+            "line": h.line, "message": h.message,
+        });
+        if let Some(ed) = &h.edit {
+            j["edit"] = edit(ed);
+        }
+        println!("{j}");
+    }
+    for ok in oks {
+        println!("{ok}");
+    }
+    failed
 }
 
 fn cmd_hash(file: &Path) -> ExitCode {

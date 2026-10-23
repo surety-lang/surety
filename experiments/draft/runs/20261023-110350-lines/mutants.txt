@@ -1,0 +1,1 @@
+quantify  inputs 0+500  mutants 8 of 20 apply  slipped 0  caught 8  underdetermined 0

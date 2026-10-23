@@ -1,0 +1,17 @@
+// draft
+// drafted
+type Applied = { element: Text, result: Option<Int> }
+
+filter_map(iterable: Applied[]) -> Int[]
+	note "keep func's result for every element of iterable where that result is not None; each element carries the result func gives it, since a function is not a value the notation has"
+	# The output is drawn from the input elements' results.
+
+	# Every input element whose result is left out of the output has a result of None.
+
+	# The output keeps the input's order of results.
+
+	// example wanted: the docstring case, elements '1', 'a', '2', 'b', '3' with results 1, None, 2, None, 3: decided by which results are None
+	// example wanted: the empty iterable: decided by drawn_from with nothing to draw from
+	// example wanted: every element's result is None: decided by the leftover sentence leaving nothing out but Nones
+	// example wanted: an element whose result is 0: kept, because only None is dropped, not a falsy result (unlike filter over map)
+	// example wanted: two elements with the same result 5: decided by occurrences, so the result is kept twice

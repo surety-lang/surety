@@ -14,6 +14,7 @@ use surety_syntax::normalize::canonical_file;
 use surety_syntax::resolve::Scope;
 use surety_syntax::{BinOp, Decl, Example, Expr, Function, Graph, Refinement, Type};
 
+use crate::against::Against;
 use crate::eval::Env;
 use crate::examples::{Step, compare, fill_rest, unordered_paths};
 use crate::generate::{Bucket, Budget, Domain, Generated, generate};
@@ -121,6 +122,39 @@ impl FrameReport {
     }
 }
 
+/// What ran, four counts apart (slice 6, piece 2): the examples evaluated
+/// against the lines, the performance's runs, the mutants' evaluations (one
+/// mutant on one input), and the inputs the search looked at; and whether
+/// a performance stands beside the obligation at all. A verdict line leads
+/// with what is missing and is never a pass with no example.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Ran {
+    pub examples: usize,
+    pub runs: usize,
+    pub mutants: usize,
+    pub searched: usize,
+    pub performance: bool,
+}
+
+impl Ran {
+    /// All four counts zero.
+    pub fn nothing(&self) -> bool {
+        self.examples == 0 && self.runs == 0 && self.mutants == 0 && self.searched == 0
+    }
+
+    /// What is missing, in the words a verdict line leads with.
+    pub fn missing(&self) -> Vec<&'static str> {
+        let mut out = Vec::new();
+        if self.examples == 0 {
+            out.push("no example");
+        }
+        if !self.performance {
+            out.push("no performance");
+        }
+        out
+    }
+}
+
 /// Whose problem a finding is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Party {
@@ -151,6 +185,10 @@ pub struct Cause {
     /// For the performance's: an output that passes every clause there.
     pub passing: Option<Value>,
     pub candidates_tried: usize,
+    /// Every clause of the group is about the inputs alone: false there
+    /// whatever the output, so no output passes, by evaluation, not by a
+    /// search. The one case the word "unsatisfiable" is kept for.
+    pub proved: bool,
 }
 
 impl Cause {
@@ -219,6 +257,10 @@ pub struct Report {
     pub look_here: Vec<LookHere>,
     /// Claims false on generated inputs, grouped by cause and attributed.
     pub causes: Vec<Cause>,
+    /// Every clause over each example's own pair, before the performance:
+    /// a clause false there is the obligation's.
+    pub against: Against,
+    pub ran: Ran,
 }
 
 /// One `accept` line: the inputs on which the obligation deliberately
@@ -243,6 +285,11 @@ pub struct LookHere {
 
 #[derive(Debug, Clone)]
 pub enum LookKind {
+    /// An input with a catch on which no output among the candidates
+    /// passes every clause (piece 5): listed first.
+    NoPassing {
+        candidates: usize,
+    },
     Uncaught(crate::mutants::Clause),
     Accept {
         /// The accept's index in source order.
@@ -260,10 +307,11 @@ impl AcceptReport {
 }
 
 impl Report {
-    /// The binding tier: examples, the claims over them, and the boundary
-    /// on every output.
+    /// The binding tier: the examples against the lines, the examples, the
+    /// claims over them, and the boundary on every output.
     pub fn passed(&self) -> bool {
-        self.examples.iter().all(|e| e.verdict == Verdict::Pass)
+        self.against.clean()
+            && self.examples.iter().all(|e| e.verdict == Verdict::Pass)
             && self
                 .properties
                 .iter()
@@ -403,6 +451,8 @@ pub struct Checker<'g> {
     pub generated: Vec<GenRun>,
     pub graph_refs: Vec<String>,
     pub(crate) call_cache: HashMap<String, serde_json::Value>,
+    /// The examples against the lines, once computed.
+    pub(crate) against: Option<Against>,
 }
 
 impl<'g> Checker<'g> {
@@ -437,6 +487,7 @@ impl<'g> Checker<'g> {
             generated: Vec::new(),
             graph_refs: Vec::new(),
             call_cache: HashMap::new(),
+            against: None,
         };
         checker.decode_named_values()?;
         checker.plan =
@@ -678,9 +729,10 @@ impl<'g> Checker<'g> {
     /// Everything `check` checks: the binding tier over the examples, then
     /// the generated tier and the evidence record.
     pub fn check(&mut self) -> Report {
+        let against = self.against();
         let examples = self.check_examples();
-        let mut properties = self.check_properties();
-        let mut frame = self.check_frame();
+        let mut properties = self.check_properties(&against);
+        let mut frame = self.check_frame(&against);
         let example_runs = self.runs.len();
         let example_inputs = examples
             .iter()
@@ -754,6 +806,18 @@ impl<'g> Checker<'g> {
         };
         let accepts = self.check_accepts();
         let look_here = self.look_here(&examples, mutants.as_ref(), &accepts);
+        let performance = self.performance.is_file();
+        let ran = Ran {
+            examples: against.evaluated(),
+            runs: if performance {
+                example_inputs + generated.inputs.len()
+            } else {
+                0
+            },
+            mutants: mutants.as_ref().map_or(0, |m| m.ran.mutants),
+            searched: mutants.as_ref().map_or(0, |m| m.ran.searched),
+            performance,
+        };
         Report {
             obligation: self.fun.name.clone(),
             obligation_hash,
@@ -778,6 +842,8 @@ impl<'g> Checker<'g> {
             accepts,
             look_here,
             causes,
+            against,
+            ran,
         }
     }
 
@@ -801,6 +867,19 @@ impl<'g> Checker<'g> {
         }));
         let mut out = Vec::new();
         if let Some(m) = mutants {
+            for np in &m.no_passing {
+                let output = runs
+                    .iter()
+                    .find(|(inputs, _)| *inputs == np.inputs)
+                    .map(|(_, o)| o.clone());
+                out.push(LookHere {
+                    kind: LookKind::NoPassing {
+                        candidates: np.candidates_tried,
+                    },
+                    inputs: np.inputs.clone(),
+                    output,
+                });
+            }
             for c in &m.uncaught {
                 if let Some((inputs, output)) = runs.first() {
                     out.push(LookHere {
@@ -848,18 +927,22 @@ impl<'g> Checker<'g> {
             line: usize,
             label: String,
             text: String,
+            /// The clause reads the output; a frame clause always does.
+            reads: bool,
             binding_pass: bool,
             cex: Vec<Counterexample>,
             suggest: Option<String>,
             note: Option<String>,
         }
         let mut items: Vec<Item> = Vec::new();
-        for p in properties {
+        let fun = self.fun;
+        for (p, fp) in properties.iter().zip(&fun.properties) {
             if !p.counterexamples.is_empty() {
                 items.push(Item {
                     line: p.line,
                     label: format!("property (line {})", p.line),
                     text: p.text.clone(),
+                    reads: self.reads_output(&fp.expr),
                     binding_pass: !p.verdict.contradicted(),
                     cex: p.counterexamples.clone(),
                     suggest: p.suggest.clone(),
@@ -877,6 +960,7 @@ impl<'g> Checker<'g> {
                         f.description,
                         f.preserved.join(", ")
                     ),
+                    reads: true,
                     binding_pass: !f.verdict.contradicted(),
                     cex: f.counterexamples.clone(),
                     suggest: f.suggest.clone(),
@@ -943,6 +1027,7 @@ impl<'g> Checker<'g> {
                 witness,
                 passing,
                 candidates_tried: tried,
+                proved: members.iter().all(|&m| !items[m].reads),
             });
         }
         causes
@@ -1277,11 +1362,12 @@ impl<'g> Checker<'g> {
     }
 
     /// Acceptance test 6: the frame rule's implicit properties.
-    pub fn check_frame(&mut self) -> Vec<FrameReport> {
+    pub fn check_frame(&mut self, against: &Against) -> Vec<FrameReport> {
         let pairs = crate::frame::frame_pairs(&self.scope, self.fun);
+        let first = self.fun.properties.len();
         let mut reports = Vec::new();
-        for p in pairs {
-            let verdict = self.check_property(&p.implicit);
+        for (j, p) in pairs.into_iter().enumerate() {
+            let verdict = self.check_property(&p.implicit, &against.contradicted_on(first + j));
             reports.push(FrameReport {
                 description: p.description,
                 line: p.line,
@@ -1300,10 +1386,10 @@ impl<'g> Checker<'g> {
     /// (the performance's actual output for each example input). Runs
     /// whose output failed the boundary are not here: that verdict stands
     /// on its own.
-    pub fn check_properties(&mut self) -> Vec<PropertyReport> {
+    pub fn check_properties(&mut self, against: &Against) -> Vec<PropertyReport> {
         let mut reports = Vec::new();
-        for p in self.fun.properties.clone() {
-            let verdict = self.check_property(&p.expr);
+        for (k, p) in self.fun.properties.clone().into_iter().enumerate() {
+            let verdict = self.check_property(&p.expr, &against.contradicted_on(k));
             reports.push(PropertyReport {
                 line: p.line,
                 text: p.text.clone(),
@@ -1318,13 +1404,25 @@ impl<'g> Checker<'g> {
         reports
     }
 
-    /// One claim over every example run.
-    pub fn check_property(&mut self, expr: &Expr) -> PropVerdict {
+    /// One claim over every example run. `contradicted` are the examples
+    /// on whose own pair the claim is already the obligation's finding: a
+    /// run that reproduces such an example is not the performance's fault.
+    pub fn check_property(&mut self, expr: &Expr, contradicted: &[usize]) -> PropVerdict {
         if self.runs.is_empty() {
             return PropVerdict::Skipped;
         }
         let runs = self.runs.clone();
+        let fun = self.fun;
         for run in &runs {
+            if contradicted.contains(&run.index) {
+                let ex = &fun.examples[run.index];
+                let reproduced = self
+                    .expected_output(ex, &run.inputs)
+                    .is_ok_and(|e| compare(&e, &run.output, &self.unordered).is_ok());
+                if reproduced {
+                    continue;
+                }
+            }
             match self.holds(expr, &run.inputs, &run.output) {
                 Ok(true) => {}
                 Ok(false) => {

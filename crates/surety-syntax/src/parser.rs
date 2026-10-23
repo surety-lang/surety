@@ -456,6 +456,118 @@ fn parse_body(fun: &mut Function, items: &[Item], pins: &mut Vec<Pin>) -> Result
     Ok(())
 }
 
+/// A literal on its own, as an example's `in:` holds one: what a `// in:`
+/// line under an example-wanted line carries (`wanted.rs`).
+pub fn parse_literal(text: &str, line: usize) -> Result<Expr, Error> {
+    let toks = crate::lexer::tokens(text, line)?;
+    let e = parse_expr(&toks, &[], Ctx::Literal, line)?;
+    check_literal(
+        &e,
+        false,
+        ErrorKind::ExampleInNotLiteral,
+        line,
+        "an example's `in`",
+    )?;
+    Ok(e)
+}
+
+/// A property line of a function body, found by any physical line it
+/// covers, read leniently (`ExprParser::lenient`) for the edit an error on
+/// it carries.
+pub(crate) struct PropertyLine {
+    pub expr: Expr,
+    /// The physical lines it covers, its vertical body included.
+    pub from: usize,
+    pub to: usize,
+    pub indent: String,
+    /// The function's inputs, and the names its body and the file define
+    /// beside this line: what a fresh binder must not be.
+    pub names: Vec<String>,
+}
+
+/// The property line covering `line`, read leniently; none when the line
+/// is no function's property line, a comment sits among its lines, or it
+/// does not parse even so.
+pub(crate) fn lenient_property(src: &str, line: usize) -> Option<PropertyLine> {
+    let lexed = lex(src).ok()?;
+    let mut pos = 0;
+    let items = build_block(&lexed.lines, &mut pos, None).ok()?;
+    let mut file_names = Vec::new();
+    for it in &items {
+        let toks = &it.line.tokens;
+        if let (Some(name), Some(second)) = (toks.first().and_then(|t| t.ident()), toks.get(1)) {
+            if name != "type"
+                && !is_signature(toks)
+                && (second.is_sym(":") || second.is_sym("=") || second.is_sym("("))
+            {
+                file_names.push(name.to_string());
+            }
+        }
+    }
+    for it in items.iter().filter(|it| is_signature(&it.line.tokens)) {
+        let toks = &it.line.tokens;
+        let close = matching_paren(toks, 1)?;
+        let Ok(params) = Cursor::new(&toks[..close], 2, it.line.line).parse_params() else {
+            continue;
+        };
+        for (i, body) in it.children.iter().enumerate() {
+            let (from, to) = (body.line.line, last_line(body));
+            if line < from || line > to {
+                continue;
+            }
+            let toks = &body.line.tokens;
+            let first = toks.first()?;
+            if first.is_ident("note")
+                || first.is_ident("accept")
+                || (first.is_ident("e") && toks.get(1).is_some_and(|t| t.is_sym(":")))
+                || is_clause_start(toks)
+                || abbrev_shape(toks).is_some()
+                || lexed.pins.iter().any(|p| p.line > from && p.line < to)
+            {
+                return None;
+            }
+            let expr =
+                parse_expr_with(toks, &body.children, Ctx::Property, body.line.line, true).ok()?;
+            let mut names: Vec<String> = params.iter().map(|(n, _)| n.clone()).collect();
+            names.extend(file_names.iter().cloned());
+            for (j, other) in it.children.iter().enumerate() {
+                if let Some((n, _)) = abbrev_shape(&other.line.tokens).filter(|_| j != i) {
+                    names.push(n);
+                }
+            }
+            return Some(PropertyLine {
+                expr,
+                from,
+                to,
+                indent: body.line.indent.clone(),
+                names,
+            });
+        }
+    }
+    None
+}
+
+/// `name(params) -> Type`: a function's signature, not an abbreviation.
+fn is_signature(toks: &[Token]) -> bool {
+    toks.get(1).is_some_and(|t| t.is_sym("("))
+        && matching_paren(toks, 1)
+            .is_some_and(|close| toks.get(close + 1).is_some_and(|t| t.is_sym("->")))
+}
+
+/// The last physical line an item covers, its continuation lines and
+/// vertical body included.
+fn last_line(item: &Item) -> usize {
+    let own = item.line.tokens.last().map_or(item.line.line, |t| t.line);
+    item.children.iter().map(last_line).fold(own, usize::max)
+}
+
+/// One property line standing alone, parsed as a function body parses it:
+/// how an edit is verified before it is offered.
+pub(crate) fn property_line(text: &str) -> Result<Expr, Error> {
+    let toks = crate::lexer::tokens(text, 1)?;
+    parse_expr(&toks, &[], Ctx::Property, 1)
+}
+
 fn parse_example(toks: &[Token], line: usize) -> Result<Example, Error> {
     let mut p = ExprParser {
         toks,
@@ -465,6 +577,7 @@ fn parse_example(toks: &[Token], line: usize) -> Result<Example, Error> {
         block_used: false,
         line,
         q_done: false,
+        lenient: false,
     };
     let mut note = None;
     let mut input = None;
@@ -498,6 +611,15 @@ fn parse_example(toks: &[Token], line: usize) -> Result<Example, Error> {
         } else if t.is_ident("out") && p.peek_at(1).is_some_and(|t| t.is_sym(":")) {
             p.bump();
             p.bump();
+            // An example started from an example-wanted line has its input
+            // and waits for its output, which only the author writes.
+            if p.peek().is_none() {
+                return Err(Error::new(
+                    ErrorKind::ExampleOutMissing,
+                    tline,
+                    "this example has no output yet: the output is yours to write, or the example yours to delete",
+                ));
+            }
             let e = p.parse_iff()?;
             check_literal(
                 &e,
@@ -785,9 +907,23 @@ struct ExprParser<'a> {
     block_used: bool,
     line: usize,
     q_done: bool,
+    /// Read `Ok(..)` and `Err(..)` as values and a quantifier at any
+    /// operand: the line as its writer meant it, so an error on it can be
+    /// mended on the tree (`mend.rs`). Never for a line the file keeps.
+    lenient: bool,
 }
 
 fn parse_expr(toks: &[Token], block: &[Item], ctx: Ctx, line: usize) -> Result<Expr, Error> {
+    parse_expr_with(toks, block, ctx, line, false)
+}
+
+fn parse_expr_with(
+    toks: &[Token],
+    block: &[Item],
+    ctx: Ctx,
+    line: usize,
+    lenient: bool,
+) -> Result<Expr, Error> {
     let mut p = ExprParser {
         toks,
         pos: 0,
@@ -796,10 +932,11 @@ fn parse_expr(toks: &[Token], block: &[Item], ctx: Ctx, line: usize) -> Result<E
         block_used: false,
         line,
         q_done: false,
+        lenient,
     };
     let e = p.parse_iff()?;
     if let Some(t) = p.peek() {
-        if p.q_done {
+        if p.q_done && !p.lenient {
             return Err(Error::new(
                 ErrorKind::QuantifierMidLine,
                 t.line,
@@ -893,7 +1030,7 @@ impl<'a> ExprParser<'a> {
     /// An operator after a complete quantifier means the quantifier was not
     /// the last operand on the line.
     fn operator_ok(&self) -> Result<(), Error> {
-        if self.q_done {
+        if self.q_done && !self.lenient {
             Err(Error::new(
                 ErrorKind::QuantifierMidLine,
                 self.cur_line(),
@@ -1262,7 +1399,7 @@ impl<'a> ExprParser<'a> {
                 "true" => Ok(Expr::Bool(true)),
                 "false" => Ok(Expr::Bool(false)),
                 "Ok" | "Err" if self.peek_sym("(") => {
-                    if self.ctx == Ctx::Property {
+                    if self.ctx == Ctx::Property && !self.lenient {
                         return Err(Error::new(
                             ErrorKind::PatternAsValue,
                             t.line,
@@ -1433,11 +1570,12 @@ impl<'a> ExprParser<'a> {
                     ));
                 }
                 let item = &self.block[0];
-                body = Some(parse_expr(
+                body = Some(parse_expr_with(
                     &item.line.tokens,
                     &item.children,
                     self.ctx,
                     item.line.line,
+                    self.lenient,
                 )?);
                 self.block_used = true;
             } else {

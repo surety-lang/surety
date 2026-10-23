@@ -1,0 +1,28 @@
+```surety
+// draft
+// drafted
+type PermutationError = { code: Text, display: Text }
+// drafted
+not_a_permutation_error: PermutationError = { code: "e-not-a-permutation", display: "The given element isn't one of the permutations of iterable" }
+
+permutation_index(element: Int[], iterable: Int[]) -> Result<Int, PermutationError>
+	note "the position of element in the lexicographic list of length-len(element) permutations of iterable, computed without listing the earlier permutations"
+	# The result is Ok exactly when the element is drawn from the iterable: every item of the element is an occurrence of an item of the iterable, and no occurrence is used twice.
+
+	# An error result is the not-a-permutation error.
+
+	# An Ok index is at least 0.
+
+	# An Ok index is 0 exactly when the element is the iterable's first len(element) items, in order.
+
+	# If the element's first item is the iterable's first item, the result is the result for the element without its first item over the iterable without its first item.
+
+	// example wanted: element [1, 3, 2] over iterable [0, 1, 2, 3, 4], the docstring's case: decided by each item's position among the iterable items not yet used (1, then 2, then 1), weighted by how many permutations each choice skips
+	// example wanted: element [2, 1, 0] over iterable [0, 1, 2], a full-length permutation that comes last in the order: decided by the count of permutations of three items
+	// example wanted: empty element over iterable [0, 1, 2]: the empty sequence is the one permutation of length 0
+	// example wanted: empty element over empty iterable: drawn from, with nothing to place
+	// example wanted: element [5] over iterable [0, 1, 2]: 5 is not in the iterable, so it is not drawn from it
+	// example wanted: element [0, 1, 2] over iterable [0, 1]: longer than the iterable, so it is not drawn from it
+	// example wanted: element [1, 1] over iterable [1, 2]: 1 is needed twice but occurs once
+	// example wanted: element [1, 1] over iterable [1, 0, 1]: with duplicates, the earliest permutation in position order is the one with these values, so the first remaining occurrence of each item decides
+```

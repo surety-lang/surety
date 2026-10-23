@@ -1,0 +1,21 @@
+// draft
+// drafted
+type Item = { value: Text, matches_pred: Bool }
+
+lstrip(iterable: Item[]) -> Item[]
+	note "drop the leading items for which pred is true and keep the rest; each item carries pred's answer for it as matches_pred, since the fragment cannot call a function"
+	# The output is a tail of the input: the input's items from position (the input's length minus
+	# the output's length) up to the end.
+	out == iterable[len(iterable) - len(out) .. len(iterable)]
+	# Every input item left out of the output satisfies pred.
+	all x leftover in iterable: x.matches_pred == true
+	# The output is empty or its first item does not satisfy pred.
+	all x in out[0 .. 1]: x.matches_pred == false
+	// example wanted: an empty iterable: nothing to strip, decided by the tail claim alone
+	// example wanted: every item satisfies pred: the stripping runs to the end of the input
+	// example wanted: no item satisfies pred: the first item already stops the stripping
+	// example wanted: the docstring's (None, False, None, 1, 2, None, 3, False, None) with pred
+	// true on None, False and '': the matching items after 1 are kept, because stripping stops at
+	// the first non-matching item
+	// example wanted: two equal values, one leading and matching, one later and kept: the tail is
+	// taken by position, not by value

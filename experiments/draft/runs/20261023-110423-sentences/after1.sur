@@ -1,0 +1,15 @@
+// draft
+
+flatten(list_of_lists: Int[][]) -> Int[]
+	note "join the inner lists end to end into one list, removing one level of nesting and keeping every element in its place"
+	# The output has exactly the elements of the inner lists taken together, each as many times as it occurs across them.
+
+	# The elements of each inner list appear in the output in the same order as in that inner list.
+
+	# Every element of an inner list comes before every element of each later inner list in the output.
+
+	// example wanted: the docstring's [[0, 1], [2, 3]]: the inner lists are joined end to end
+	// example wanted: an empty outer list []: there are no inner lists, so there are no elements to keep
+	// example wanted: empty inner lists among non-empty ones, [[], [1], []]: an empty inner list adds nothing and takes no position
+	// example wanted: the same value in two inner lists, [[1, 2], [2, 1]]: both copies of each value are kept, and the order across lists decides where each copy goes
+	// example wanted: a single inner list [[3, 1, 2]]: the output keeps its order and does not sort it

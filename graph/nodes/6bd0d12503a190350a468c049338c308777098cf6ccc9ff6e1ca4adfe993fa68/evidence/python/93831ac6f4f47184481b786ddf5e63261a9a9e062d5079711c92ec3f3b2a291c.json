@@ -20,6 +20,10 @@
           "passed": 5,
           "total": 5
         },
+        "examples_against": {
+          "contradictions": 0,
+          "evaluated": 5
+        },
         "findings": 0,
         "generated": [
           {
@@ -126,10 +130,15 @@
           "accepted": 0,
           "applicable": 6,
           "caught": 6,
-          "causes": 0,
+          "gaps": 0,
+          "not_judged": [],
           "open": 0,
+          "passing_search": {
+            "inputs": 505,
+            "no_passing_output": 0
+          },
           "slipped": 0,
-          "total": 13,
+          "total": 14,
           "underdetermined_inputs": 0
         },
         "verdict": "ACCEPTED"
@@ -644,11 +653,11 @@
     ],
     "target": "python",
     "timeout_secs": 10,
-    "verdict": "top_three_scores  ACCEPTED  examples 5/5; 4 clauses clean over 505 runs; 6 of 13 mutants apply, none slipped"
+    "verdict": "top_three_scores  ACCEPTED  examples 5/5; 4 clauses clean over 505 runs; 6 of 14 mutants apply, none slipped"
   },
   "provenance": {
     "checker": "0.1.0",
-    "format": 2,
+    "format": 3,
     "performance_source": "crates/surety/tests/corpus/p4.py",
     "presentation": "c32ac1382735d4c8726ca44a5ee27be30d87f67925839f12d301446e2835af48",
     "python": "3.14.0",

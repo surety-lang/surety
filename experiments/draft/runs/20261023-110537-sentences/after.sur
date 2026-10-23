@@ -1,0 +1,26 @@
+// draft
+// drafted
+type Iterable = { items: Text[] }
+
+roundrobin(iterables: Iterable[]) -> Text[]
+	note "visit the input iterables in a cycle, taking the next element of each, until every one is exhausted"
+	# The output holds exactly the elements of all the iterables taken together, each occurrence
+	# once, nothing added and nothing lost.
+
+	# Every iterable's elements appear in the output in that iterable's own order.
+
+	# An element at an earlier position in its iterable comes before an element at a later position
+	# in its iterable, whichever iterables the two come from.
+
+	# Of two elements at the same position in their iterables, the one from the earlier iterable
+	# comes first in the output.
+	// example wanted: no iterables at all; the first claim decides it
+	// example wanted: several iterables, every one empty; the first claim decides it
+	// example wanted: a single iterable; the second claim decides it
+	// example wanted: the docstring case 'ABC', 'D', 'EF', with unequal lengths; the third and
+	// fourth claims decide where each shorter iterable drops out
+	// example wanted: an empty iterable between two non-empty ones; the third and fourth claims
+	// decide it, since the empty one contributes nothing to any round
+	// example wanted: the same value in two iterables, e.g. ['A', 'B'] and ['A']; the first claim
+	// decides how many times 'A' appears, and the fourth claim decides the order within the first
+	// round

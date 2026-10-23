@@ -1,0 +1,34 @@
+// draft
+// drafted
+type Item = { value: Text, key: Int }
+
+is_sorted(items: Item[], reverse: Bool, strict: Bool) -> Bool
+	note "true when the items' keys never decrease in list order (never increase when reverse), and never repeat when strict"
+	# If reverse is false and strict is false, the result is true exactly when no item comes before
+	# another item with a smaller key.
+	not reverse and not strict -> out == (none a in items: any b in items where a before b in items: b.key < a.key)
+	# If reverse is false and strict is true, the result is true exactly when no item comes before
+	# another item with an equal or smaller key.
+	not reverse and strict -> out == (none a in items: any b in items where a before b in items: b.key <= a.key)
+	# If reverse is true and strict is false, the result is true exactly when no item comes before
+	# another item with a larger key.
+	reverse and not strict -> out == (none a in items: any b in items where a before b in items: b.key > a.key)
+	# If reverse is true and strict is true, the result is true exactly when no item comes before
+	# another item with an equal or larger key.
+	reverse and strict -> out == (none a in items: any b in items where a before b in items: b.key >= a.key)
+	// example wanted: the empty list, under each of the four flag settings: no pair exists, so
+	// nothing can be out of order
+	// example wanted: a single item with strict and reverse both true: no second item to equal or
+	// exceed it
+	// example wanted: values "1".."5" carrying keys 1..5, reverse and strict false: the docstring's
+	// key=int case, decided by the keys and not the text
+	// example wanted: keys [5, 4, 3, 1, 2] with reverse true: descending until the last pair, which
+	// rises
+	// example wanted: keys [1, 2, 2] with strict false, then the same with strict true: the
+	// adjacent equal keys decide it
+	// example wanted: keys [2, 2] with reverse true and strict true: equal keys fail strictness in
+	// either direction
+	// example wanted: two items with equal keys and different values, strict false: only the key is
+	// compared, never the value
+	// example wanted: keys [1, 3, 2, 4], reverse and strict false: the only descent is between the
+	// middle two items

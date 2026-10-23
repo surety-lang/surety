@@ -1,0 +1,27 @@
+```surety
+// draft
+
+argmax(values: Int[]) -> Option<Int>
+	note "the index of the first occurrence of a maximum value in the list, or none when the list is empty"
+	# The output is None exactly when the values are empty.
+
+	# A returned index is a position in the values: at least 0 and less than the number of values.
+
+	# No value is greater than the value at the returned index.
+
+	# Every value before the returned index is less than the value at the returned index.
+
+	// example wanted: values [] (the empty list; the library raises here, and the draft reads that as None)
+
+	// example wanted: one value: the only position is the answer
+
+	// example wanted: values [0, 1, 2, 3, 3, 2, 1, 0]: the maximum occurs twice, and the first occurrence decides it
+
+	// example wanted: every value equal: every position holds the maximum, so the first one decides it
+
+	// example wanted: all values negative, such as [-5, -2, -9]: the maximum is below 0, so an answer that assumes a floor of 0 fails here
+
+	// example wanted: the maximum occurs only at the last position: the scan has to reach the end
+
+	// example wanted: values [68, 61, 84, 72] (the docstring's accuracies): one strict maximum in the middle
+```

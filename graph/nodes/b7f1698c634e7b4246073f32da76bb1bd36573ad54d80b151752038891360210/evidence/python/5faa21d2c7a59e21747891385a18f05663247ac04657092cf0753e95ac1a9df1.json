@@ -11,36 +11,6 @@
     "report": [
       {
         "clause": {
-          "canonical": "(all err($) out (body (drawn_from $0 (list (rec (code (text \"e-pass-length\")) (display (text \"Your password must be at least 12 characters\"))) (rec (code (text \"e-age-invalid\")) (display (text \"You are not old enough or did not enter a valid birthday.\"))) (rec (code (text \"e-email-shape\")) (display (text \"Please provide a valid email\")))))))",
-          "clause": 4
-        },
-        "inputs": [
-          {
-            "json": [
-              {
-                "age": 41,
-                "email": "test@test.com",
-                "password": "asb32fslasdlkal343"
-              }
-            ],
-            "sur": "in: {age: 41, email: \"test@test.com\", password: \"asb32fslasdlkal343\"}"
-          }
-        ],
-        "kind": "look_here",
-        "obligation": "validate_signup",
-        "obligation_hash": "b7f1698c634e7b4246073f32da76bb1bd36573ad54d80b151752038891360210",
-        "output": {
-          "ok": {
-            "age": 41,
-            "email": "test@test.com",
-            "password": "asb32fslasdlkal343"
-          }
-        },
-        "performance_hash": "5faa21d2c7a59e21747891385a18f05663247ac04657092cf0753e95ac1a9df1",
-        "why": "no mutant can violate it"
-      },
-      {
-        "clause": {
           "canonical": "(all err($) out (body (unordered $0)))",
           "clause": 5
         },
@@ -79,6 +49,10 @@
         "examples": {
           "passed": 12,
           "total": 12
+        },
+        "examples_against": {
+          "contradictions": 0,
+          "evaluated": 12
         },
         "findings": 0,
         "generated": [
@@ -170,12 +144,17 @@
         },
         "underdetermination": {
           "accepted": 0,
-          "applicable": 10,
-          "caught": 10,
-          "causes": 0,
+          "applicable": 11,
+          "caught": 11,
+          "gaps": 0,
+          "not_judged": [],
           "open": 0,
+          "passing_search": {
+            "inputs": 512,
+            "no_passing_output": 0
+          },
           "slipped": 0,
-          "total": 20,
+          "total": 21,
           "underdetermined_inputs": 0
         },
         "verdict": "ACCEPTED"
@@ -697,11 +676,11 @@
     ],
     "target": "python",
     "timeout_secs": 10,
-    "verdict": "validate_signup  ACCEPTED  examples 12/12; 7 clauses clean over 512 runs; 10 of 20 mutants apply, none slipped"
+    "verdict": "validate_signup  ACCEPTED  examples 12/12; 7 clauses clean over 512 runs; 11 of 21 mutants apply, none slipped"
   },
   "provenance": {
     "checker": "0.1.0",
-    "format": 2,
+    "format": 3,
     "performance_source": "crates/surety/tests/corpus/p8.py",
     "presentation": "b2363852db8cad3a74bca0e04c44d2ec434ffde5e63cbcf19ea0832e55b034cc",
     "python": "3.14.0",

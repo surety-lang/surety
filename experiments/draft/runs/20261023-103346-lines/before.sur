@@ -1,0 +1,46 @@
+// draft
+// drafted
+type InterleaveError = { code: Text, display: Text }
+
+// drafted
+count_error: InterleaveError = {code: "e-lengths-count", display: "Mismatching number of iterables and lengths"}
+// drafted
+// the library does not check this; every list here has a known length, so a given length that
+// disagrees with its iterable relates two inputs and is an error case
+length_error: InterleaveError = {code: "e-lengths-value", display: "A given length differs from its iterable's length"}
+
+interleave_evenly(iterables: Id[][], lengths: Option<Int[]>) -> Result<Id[], InterleaveError>
+	note "interleave the iterables so each one's elements are spread evenly through the output, Bresenham-style, led by the longest"
+	# The output is Ok exactly when lengths is None, or lengths has one entry per iterable and each
+	# entry equals the length of the iterable at its position.
+
+	# The output is the count error exactly when lengths is given and its number of entries differs
+	# from the number of iterables.
+
+	# The output is the length error exactly when lengths is given with one entry per iterable and
+	# some entry differs from the length of the iterable at its position.
+
+	# An Ok output has the same elements as all the iterables taken together.
+
+	# An Ok output keeps each iterable's elements in that iterable's order.
+
+	# A non-empty Ok output starts with the first element of the longest iterable, the
+	# earliest-listed one when several share the longest length.
+
+	# In an Ok output, between any two consecutive elements of an iterable other than that leading
+	# longest one, some element of the leading iterable comes.
+	// example wanted: [[1, 2, 3, 4, 5], ['a', 'b']] with lengths None: the placement of 'a' and 'b'
+	// is decided by the Bresenham error terms starting at 5 // 2
+	// example wanted: [[1, 2, 3], [4, 5], [6, 7, 8]] with lengths None: two iterables tie for
+	// longest, and the earlier one leads; the other two are placed by their error terms
+	// example wanted: no iterables at all, lengths None: the library fails on the empty list of
+	// lengths, so the author decides whether this is an empty output or an error
+	// example wanted: iterables all empty, lengths None: nothing to interleave
+	// example wanted: a single non-empty iterable, lengths None: no other iterable to place
+	// example wanted: two iterables of equal length: the second alternates with the first, one for
+	// one
+	// example wanted: lengths given and equal to the actual lengths, as in the combinations case:
+	// the same output as with lengths None
+	// example wanted: three iterables with lengths of two entries: the counts disagree
+	// example wanted: two iterables with lengths of two entries, one of them off by one: the count
+	// agrees but a value does not

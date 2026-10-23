@@ -1,0 +1,21 @@
+// draft
+// drafted
+type Row = { cells: Text[] }
+// drafted
+type Column = { cells: Text[] }
+
+unzip(iterable: Row[]) -> Column[]
+	note "the inverse of zip: the i-th column holds the i-th cell of each row, the first row deciding how many columns there are"
+	# The output has as many columns as the first row of the iterable has cells, and no columns when the iterable has no rows.
+
+	# For every column position i and every position j in column i, the j-th cell of column i is the i-th cell of the j-th row of the iterable.
+
+	# Every row of the iterable before position len(column i) has more than i cells.
+
+	# If column i has fewer cells than the iterable has rows, the row at position len(column i) has at most i cells.
+
+	// example wanted: the docstring's rows [("a","1"), ("b","2"), ("c","3"), ("d","4")]: two columns, each read straight down the rows
+	// example wanted: no rows at all: decided by the first sentence's no-rows clause
+	// example wanted: a first row with no cells followed by longer rows: the first row alone decides the column count
+	// example wanted: rows [("a","1"), ("b"), ("c","3")]: the second column stops at the short row even though a later row is long again
+	// example wanted: rows [("a","1"), ("b","2","x")]: the cell past the first row's length is in no column

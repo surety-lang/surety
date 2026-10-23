@@ -53,12 +53,14 @@ fn applicability_matches_the_table() {
         ("p5b", ALL),
         ("p6", SKELETON),
         ("p7", SKELETON),
-        ("p8", &["empty", "ok_empty", "identity"]),
+        // A Result whose error side is a list of records: `err_fabricated` too.
+        ("p8", &["empty", "ok_empty", "err_fabricated", "identity"]),
         (
             "apply_diff",
             &[
                 "empty",
                 "ok_empty",
+                "err_fabricated",
                 "identity",
                 "drop_one",
                 "duplicate_one",

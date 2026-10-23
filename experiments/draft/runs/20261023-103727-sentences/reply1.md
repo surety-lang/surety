@@ -1,0 +1,24 @@
+```surety
+// draft
+// the Python function yields forever; the obligation models the first `count` values, as `islice(repeat_last(items, default), count)` does
+// the iterable may itself yield None, so items and output share the element type Option<Int>
+
+repeat_last(items: Option<Int>[], default: Option<Int>, count: Int) -> Option<Int>[]
+	note "the first count values yielded by repeat_last: the items in order, then the last item repeated, or the default repeated when there are no items"
+	# The output has count elements, and none when count is below zero.
+
+	# The output starts with the items in their input order, as far as count reaches: the output from position 0 up to count is the items from position 0 up to count.
+
+	# When there is at least one item, every output element at a position at or past the number of items is the last item.
+
+	# When there are no items, every output element is the default.
+
+	// example wanted: items [0, 1, 2], no default, count 5: the items run out after three, so the last item fills the remaining positions
+	// example wanted: no items, default 42, count 5: every position is filled by the default
+	// example wanted: no items, no default, count 3: the default is None, so every position is None
+	// example wanted: items [0, 1, 2], count 2: count is below the number of items, so the items are cut short and the last item never repeats
+	// example wanted: items [0, 1, 2], count 3: count equals the number of items exactly, so no repeat yet
+	// example wanted: items [None], default 7, count 3: the last item is None, which is repeated; the default is not used because the items are not empty
+	// example wanted: items [0, 1, 2], count 0: the empty output
+	// example wanted: items [0, 1, 2], count -1: a negative count, decided by the first sentence (Python's islice raises here; the author decides whether to keep this or make it an error case)
+```

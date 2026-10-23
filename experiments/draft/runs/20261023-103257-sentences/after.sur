@@ -1,0 +1,45 @@
+// draft
+// drafted
+type Container = { id: Id, type_name: Text }
+// drafted
+type Leaf = { value: Text, ancestors: Container[] }
+// drafted
+type Piece = { root: Option<Container>, leaves: Leaf[] }
+
+collapse(iterable: Leaf[], base_type: Option<Text>, levels: Option<Int>) -> Piece[]
+	note "flatten nested containers, given as leaves listed with their enclosing containers from outermost to innermost, into loose leaves, except that a container of the base type or one nested past levels is kept whole as one piece"
+	# The leaves of the output pieces, taken together, are the same leaves as the input's, with none
+	# lost, none added and none repeated.
+
+	# The leaves of the output pieces, taken together, keep the input's order.
+
+	# Every piece with no root holds exactly one leaf.
+
+	# A leaf is in a piece with no root exactly when none of its ancestors is of the base type and
+	# either levels is not given or the leaf has at most levels ancestors.
+
+	# A piece with a root holds every input leaf that has that root among its ancestors, and no
+	# other leaf.
+
+	# No two pieces share a root.
+
+	# Every piece's root is of the base type, or it sits at position levels in each of its leaves'
+	# ancestors.
+
+	# In each leaf of a piece with a root, no ancestor before the root is of the base type, and the
+	# root sits at a position no greater than levels.
+	// example wanted: the docstring's [(1, 2), ([3, 4], [[5], [6]])] with no base type and no
+	// levels: every leaf comes out loose, in order
+	// example wanted: the docstring's ['ab', ('cd', 'ef'), ['gh', 'ij']] with base type tuple: the
+	// tuple is one piece rooted at it, and the list's leaves come out loose
+	// example wanted: the docstring's [('a', ['b']), ('c', ['d'])] at levels 1: each inner list is
+	// one rooted piece, and 'a' and 'c' come out loose
+	// example wanted: the same input at levels 0: each top-level tuple is one piece, so nothing is
+	// flattened
+	// example wanted: an empty iterable: no leaves in, so no pieces out
+	// example wanted: a base-type container nested inside another base-type container, with no
+	// levels: the outer one is the root
+	// example wanted: a base-type container that sits deeper than levels: the container at position
+	// levels is the root, not the base-type one
+	// example wanted: two equal leaves in one container, as in [[1, 1]] at levels 0: both
+	// occurrences land in the one rooted piece

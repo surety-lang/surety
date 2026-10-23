@@ -1,0 +1,31 @@
+```surety
+// draft
+// drafted
+type ComboError = { code: Text, display: Text }
+// drafted
+not_a_combination_err: ComboError = { code: "e-not-a-combination", display: "element is not a combination with replacement of iterable" }
+
+combination_with_replacement_index(element: Text[], iterable: Text[]) -> Result<Int, ComboError>
+	note "the position of the element among the iterable's combinations with replacement of the element's length, in lexicographic order, computed without listing the earlier ones"
+	# The result is Ok exactly when the element is a combination with replacement of the iterable: its items can be matched, front to back, to positions of the iterable that never go back.
+
+	# An error result is always not_a_combination_err.
+
+	# An Ok index is the position of the first combination equal to the element among the iterable's combinations with replacement of the element's length, as the sibling obligation combinations_with_replacement lists them.
+
+	# An Ok index is 0 exactly when every item of the element is the iterable's first item.
+
+	# If the element's first item is the iterable's first item, the result is the result for the element without its first item.
+
+	# If the element is not empty, no item of it is the iterable's first item, and the result is Ok, then the index is greater than the index for the same element in the iterable without its first item.
+
+	// example wanted: element ['a','d','f'] in ['a','b','c','d','e','f','g'], the docstring's case: the first item is the iterable's first, so it reduces to ['d','f']
+	// example wanted: empty element, empty iterable: the single empty combination exists
+	// example wanted: empty element, non-empty iterable: the empty combination is the first one
+	// example wanted: element ['a'], empty iterable: an empty iterable has no combination of length 1
+	// example wanted: element ['b','a'] in ['a','b']: the matched positions go back
+	// example wanted: element ['z'] in ['a','b']: an item that is not in the iterable
+	// example wanted: element ['b','a'] in ['a','b','a']: the repeated 'a' lets the matched positions stay in order
+	// example wanted: element ['a','a','a'] in ['a','b']: the first item repeated, the index-0 boundary
+	// example wanted: element ['b','b'] in ['a','b']: the last combination of length 2
+```

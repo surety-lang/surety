@@ -1,0 +1,17 @@
+```surety
+// draft
+
+subfactorial(n: Int) -> Int
+	note "the number of permutations of n elements that leave no element in its original position, the length of derangements"
+	# For every n at least 2, the output is n minus one times the sum of the subfactorial of n minus one and the subfactorial of n minus two.
+
+	# For every n at least 1, the output differs from n times the subfactorial of n minus one by exactly one.
+
+	# The output is never negative.
+
+	// example wanted: n = 0: the empty arrangement is the one permutation of nothing, and it fixes no point; this is the base the first recurrence stands on
+	// example wanted: n = 1: the single element can only stay where it is, so no permutation qualifies; the second base case
+	// example wanted: n = 2: the swap is the only rearrangement and it moves both elements; the smallest input the first recurrence covers
+	// example wanted: n = 7: the docstring's "epsilon" case, where the count is decided by ilen(derangements('epsilon'))
+	// example wanted: n = -1: the docstring says nothing about negative n; the library's behaviour decides whether this returns a count, and the author decides whether it should
+```

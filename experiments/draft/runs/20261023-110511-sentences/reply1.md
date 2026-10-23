@@ -1,0 +1,28 @@
+```surety
+// draft
+// drafted
+type RepeatError = { code: Text, display: Text }
+// drafted
+too_few_results_err: RepeatError = {
+	code: "e-too-few-results",
+	display: "times asks for more calls than there are results"
+}
+
+repeatfunc(results: Int[], times: Option<Int>) -> Result<Int[], RepeatError>
+	note "call function with args repeatedly and yield each call's result; results stands for what the successive calls return (function and args fixed), and with times None the endless iterable is the results drawn so far"
+	# The output is an error exactly when times is given and is more than the number of results.
+
+	# Every error output is too_few_results_err.
+
+	# When times is given and the output is Ok, the output is the results from position 0 up to but not including times.
+
+	# When times is None and the output is Ok, the output is the results, all of them, in the order the calls produced them.
+
+	// example wanted: the add doctest, times 4 over four results that are all 8; what decides it is the slice taking all four
+	// example wanted: times 0 over a non-empty list of results; the slice from 0 to 0 decides it
+	// example wanted: a negative times over a non-empty list of results; the slice clamps rather than counting from the end
+	// example wanted: times exactly equal to the number of results; the exact threshold of the error claim
+	// example wanted: times one more than the number of results; the other side of the threshold
+	// example wanted: times None over an empty list of results; nothing drawn yet
+	// example wanted: times None over results that differ from call to call, as with randrange; order of the calls decides it
+```

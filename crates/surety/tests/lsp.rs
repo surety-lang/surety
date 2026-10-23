@@ -684,6 +684,25 @@ fn hover_writes_out_spreads_and_gives_every_callee_its_interface() {
         ),
         "{value}"
     );
+
+    // The brackets and dots of a slice say what a slice is, in words that
+    // keep a Python habit from misreading a negative start.
+    let sliced = dir.join("sliced.sur");
+    fs::write(
+        &sliced,
+        "window(xs: Int[], a: Int, b: Int) -> Int[]\n\t# The window of xs from a to b.\n\tout == xs[a .. b]\n",
+    )
+    .unwrap();
+    lsp.open(&sliced);
+    for needle in ["..", "[a"] {
+        let value = hover_text(lsp.at("textDocument/hover", &sliced, needle));
+        assert!(
+            value.contains("never counts from the end"),
+            "{needle}: {value}"
+        );
+    }
+    let value = hover_text(lsp.at("textDocument/hover", &sliced, "out =="));
+    assert!(value.contains("The window of xs"), "{value}");
     lsp.stop();
 }
 

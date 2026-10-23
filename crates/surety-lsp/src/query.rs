@@ -667,9 +667,16 @@ pub fn hover(
             }
         }
     }
-    // Not a name: a property line, or a continuation line of a vertical
+    // Not a name: the brackets or dots of a slice show the slice's rule; any
+    // other place on a property line, or a continuation line of a vertical
     // body, shows the sentence above the property.
     let cursor = line + 1;
+    let on_slice_mark = text.lines().nth(line).is_some_and(|l| {
+        let chars: Vec<char> = l.chars().collect();
+        let at = |i: usize| chars.get(i).copied();
+        matches!(at(character), Some('[' | ']'))
+            || (at(character) == Some('.') && (at(character + 1) == Some('.') || at(character.wrapping_sub(1)) == Some('.')))
+    });
     for f in graph.functions_in(idx) {
         let first_example = f
             .examples
@@ -690,6 +697,9 @@ pub fn hover(
             })
             .map(|(_, p)| *p);
         if let Some(p) = at {
+            if on_slice_mark && has_slice(&p.expr) {
+                return markdown(SLICE_HOVER.to_string());
+            }
             return match &p.sentence {
                 Some(s) => markdown(s.clone()),
                 None => Json::Null,
@@ -697,6 +707,21 @@ pub fn hover(
         }
     }
     Json::Null
+}
+
+/// The slice's rule, shown on its brackets and dots, in the words of the
+/// slice 5 brief: a model drafting from Python habits reads `xs[-1 .. n]`
+/// as counting from the end, and it does not.
+const SLICE_HOVER: &str = "`xs[a .. b]`: the elements of `xs` from position `a` up to but not including `b`, positions counted from 0, both clamped to the list. A negative `a` clamps to 0 and never counts from the end, which is what Python's `xs[-1:]` means; a `b` past the end stops at the end; a `b` below `a` is the empty list. The result has the list's element type with its refinements dropped.";
+
+fn has_slice(e: &Expr) -> bool {
+    let mut found = false;
+    e.walk(&mut |sub| {
+        if matches!(sub, Expr::Slice { .. }) {
+            found = true;
+        }
+    });
+    found
 }
 
 fn symbol(name: String, kind: u32, line: usize, text: &str, children: Vec<Json>) -> Json {

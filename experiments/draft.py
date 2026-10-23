@@ -529,12 +529,43 @@ def wanted_left(text: str) -> list[tuple[str, str]]:
     return out
 
 
-def parse_error(surety: str, path: pathlib.Path, text: str) -> str:
-    """`surety parse` on `text` written at `path`: '' when it parses, else
-    what the checker reports."""
+def diagnose(surety: str, path: pathlib.Path, text: str) -> list[dict]:
+    """`surety parse --json` on `text` written at `path`: every error and
+    hint, each with the edit it carries when the checker verified one."""
     path.write_text(text, encoding="utf-8")
-    code, errors = run_surety(surety, "parse", str(path))
-    return "" if code == 0 else errors.strip()
+    code, out = run_surety(surety, "parse", "--json", str(path))
+    found = []
+    for line in out.splitlines():
+        try:
+            j = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(j, dict) and j.get("kind") in ("error", "hint"):
+            found.append(j)
+    # A failure that printed no error object is still a failure.
+    if code != 0 and not any(d["kind"] == "error" for d in found):
+        found.append({"kind": "error", "line": 0, "code": "parse", "message": out.strip()})
+    return found
+
+
+def reported(d: dict) -> str:
+    return f"line {d['line']}: {d['message']} ({d['code']})"
+
+
+def on_line(text: str, d: dict, proposed: str) -> bool:
+    """Whether the error or hint is on the proposed line, as inserted."""
+    lines = text.split("\n")
+    n = d["line"] - 1
+    return 0 <= n < len(lines) and lines[n].strip() == proposed.strip().split("\n")[0].strip()
+
+
+def mended(text: str, d: dict, proposed: str) -> str | None:
+    """The proposed line as the checker's verified edit has it, when the
+    error carries one and it replaces exactly that line."""
+    e = d.get("edit")
+    if not e or e["from"] != e["to"] or not on_line(text, d, proposed):
+        return None
+    return e["text"].strip()
 
 
 def cmd_lines(args: argparse.Namespace) -> int:
@@ -562,10 +593,14 @@ def cmd_lines(args: argparse.Namespace) -> int:
               docs_text(), corpus_text(args.withhold)]
     prompt = "\n\n".join(p for p in header if p)
     # A line that parsed is kept across rounds; a retry asks again only for
-    # the sentences whose line failed, each with what the checker said.
+    # the sentences whose line failed, each with what the checker said. An
+    # error whose edit the checker verified is mended by the tool before
+    # the model is asked at all; a hint keeps its line and goes back once,
+    # as an error does, for the model to keep the line or give a better one.
     kept: dict[str, str] = {}
     comments: dict[str, list[str]] = {}
     failing: dict[str, tuple[str, str]] = {}
+    hinted: dict[str, tuple[str, str]] = {}
     pending = list(todo)
     rounds: list[dict] = []
     replies = args.reply if args.reply else []
@@ -573,8 +608,13 @@ def cmd_lines(args: argparse.Namespace) -> int:
         if round_no == 1:
             ask = prompt
         else:
-            again = "\n\n".join(f"# {s}\n\t{failing[s][0]}\nThe checker reports: {failing[s][1]}" for s in pending)
-            ask = prompt + f"\n\nEvery other line parsed and is kept. These did not; give the pairs again for these sentences only, corrected:\n\n{again}"
+            ask = prompt + "\n\nEvery other line parsed and is kept."
+            again = "\n\n".join(f"# {s}\n\t{failing[s][0]}\nThe checker reports: {failing[s][1]}" for s in pending if s in failing)
+            if again:
+                ask += f" These did not; give the pairs again for these sentences only, corrected:\n\n{again}"
+            again = "\n\n".join(f"# {s}\n\t{hinted[s][0]}\nThe checker hints: {hinted[s][1]}" for s in pending if s not in failing)
+            if again:
+                ask += f"\n\nThese parse and are kept as they are unless you give a better pair; the checker has a hint on each:\n\n{again}"
         (d / f"prompt{round_no}.md").write_text(ask, encoding="utf-8")
         if replies:
             reply = read(pathlib.Path(replies[min(round_no, len(replies)) - 1]))
@@ -590,7 +630,11 @@ def cmd_lines(args: argparse.Namespace) -> int:
         for r in refused:
             print(f"refused a line the model wrote (the author's): {r}")
         asked, pending = pending, []
+        mends: list[dict] = []
+        hints: dict[str, str] = {}
         for sentence in asked:
+            if sentence in hinted and sentence not in pairs:
+                continue  # the hinted line stands
             proposed = pairs.get(sentence, "reaching for: a line the model gave no answer for")
             if sentence in said:
                 comments[sentence] = said[sentence]
@@ -600,29 +644,45 @@ def cmd_lines(args: argparse.Namespace) -> int:
                 continue
             # Each line on its own under its sentence, the kept ones beside it.
             text, _ = insert_lines(original, {**kept, sentence: proposed})
-            err = parse_error(surety, path, text)
-            if err:
-                failing[sentence] = (proposed, err)
+            found = diagnose(surety, path, text)
+            errors = [d for d in found if d["kind"] == "error"]
+            fixed = mended(text, errors[0], proposed) if errors else None
+            if fixed is not None:
+                text, _ = insert_lines(original, {**kept, sentence: fixed})
+                again = diagnose(surety, path, text)
+                if not any(d["kind"] == "error" for d in again):
+                    mends.append({"sentence": sentence, "code": errors[0]["code"], "was": proposed, "now": fixed})
+                    print(f"round {round_no}: mended by the checker's verified edit ({errors[0]['code']}): {proposed}  ->  {fixed}")
+                    proposed, found, errors = fixed, again, []
+            if errors:
+                failing[sentence] = (proposed, reported(errors[0]))
                 pending.append(sentence)
-            else:
-                kept[sentence] = proposed
-                failing.pop(sentence, None)
+                continue
+            kept[sentence] = proposed
+            failing.pop(sentence, None)
+            hint = next((d for d in found if d["kind"] == "hint" and on_line(text, d, proposed)), None)
+            if hint is not None and sentence not in hinted:
+                hinted[sentence] = (proposed, reported(hint))
+                hints[sentence] = reported(hint)
+                pending.append(sentence)
         text, reach = insert_lines(original, kept, comments)
         rounds.append({
             "round": round_no,
             "asked": asked,
-            "errors": {s: failing[s][1] for s in pending},
+            "errors": {s: failing[s][1] for s in pending if s in failing},
+            "hints": hints,
+            "mended": mends,
             "reach": len(reach),
         })
         if usage:
             print(f"round {round_no}: tokens {usage['input']}/{usage['output']}")
         for s in pending:
-            print(f"round {round_no}: {failing[s][1]}")
+            print(f"round {round_no}: {failing[s][1] if s in failing else 'hint: ' + hinted[s][1]}")
         if not pending:
             break
     # Lines still failing after the last round go in as written, so the
     # author sees them where they stand.
-    text, reach = insert_lines(original, {**kept, **{s: failing[s][0] for s in pending}}, comments)
+    text, reach = insert_lines(original, {**kept, **{s: failing[s][0] for s in pending if s in failing}}, comments)
     path.write_text(text, encoding="utf-8")
     code, errors = run_surety(surety, "parse", str(path))
     (d / "rounds.json").write_text(json.dumps(rounds, indent=1) + "\n", encoding="utf-8")

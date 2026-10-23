@@ -11,7 +11,8 @@ use std::io::{self, BufRead, Write};
 use std::path::{Path, PathBuf};
 
 use serde_json::{Value as Json, json};
-use surety_syntax::Error;
+use surety_syntax::mend::{Diagnosis, Hint, diagnose};
+use surety_syntax::{Edit, Error};
 
 pub mod query;
 pub mod siblings;
@@ -21,13 +22,15 @@ use siblings::Siblings;
 /// The errors `parse` reports for a file with this text and its siblings
 /// on disk: at most one, since the parser and the resolver stop at the
 /// first. A sibling's error is the sibling's and is not reported here.
-pub fn diagnostics_for(path: &Path, text: &str) -> Vec<Error> {
+/// Through `diagnose`, as `surety parse --json` reports them: each error
+/// with the edit that mends it where one is verified, and the hints.
+pub fn diagnostics_for(path: &Path, text: &str) -> Diagnosis {
     diagnostics_with(&mut Siblings::default(), path, text)
 }
 
 /// The same, the siblings' parses kept in `siblings` between calls.
-pub fn diagnostics_with(siblings: &mut Siblings, path: &Path, text: &str) -> Vec<Error> {
-    match siblings.load(path, text) {
+pub fn diagnostics_with(siblings: &mut Siblings, path: &Path, text: &str) -> Diagnosis {
+    let errors = match siblings.load(path, text) {
         Err(errs) => errs
             .into_iter()
             .filter(|(p, _)| p == path)
@@ -37,7 +40,8 @@ pub fn diagnostics_with(siblings: &mut Siblings, path: &Path, text: &str) -> Vec
             Ok(()) => Vec::new(),
             Err(e) => vec![e],
         },
-    }
+    };
+    diagnose(text, errors)
 }
 
 /// The whole document replaced by its rendering: prose wrapped at the
@@ -113,7 +117,33 @@ pub fn diagnostic(e: &Error, text: &str) -> Json {
     if let Some(f) = &e.fix {
         d["data"] = json!({ "fix": { "title": f.title, "find": f.find, "replace": f.replace } });
     }
+    if let Some(ed) = &e.edit {
+        d["data"]["edit"] = edit_json(ed);
+    }
     d
+}
+
+/// A hint as an LSP diagnostic: severity Hint, its line from the first
+/// character after the indentation, the edit it carries in `data`.
+pub fn hint_diagnostic(h: &Hint, text: &str) -> Json {
+    let line = h.line.saturating_sub(1);
+    let l = text.lines().nth(line).unwrap_or_default();
+    let indent = l.chars().take_while(|c| c.is_whitespace()).count();
+    let mut d = json!({
+        "range": { "start": { "line": line, "character": indent }, "end": { "line": line, "character": l.encode_utf16().count() } },
+        "severity": 4,
+        "code": h.code,
+        "source": "surety",
+        "message": h.message,
+    });
+    if let Some(ed) = &h.edit {
+        d["data"] = json!({ "edit": edit_json(ed) });
+    }
+    d
+}
+
+pub fn edit_json(e: &Edit) -> Json {
+    json!({ "title": e.title, "from": e.from, "to": e.to, "text": e.text })
 }
 
 /// The columns of the first whole term `find` on a line: not inside a
@@ -180,6 +210,30 @@ pub fn code_actions(uri: &str, text: &str, line: Option<usize>, diagnostics: &[J
         .into_iter()
         .collect();
     for d in diagnostics {
+        // A verified edit replaces its lines whole.
+        let ed = &d["data"]["edit"];
+        if let (Some(from), Some(to), Some(new)) =
+            (ed["from"].as_u64(), ed["to"].as_u64(), ed["text"].as_str())
+        {
+            let (from, to) = (from as usize - 1, to as usize - 1);
+            let end = text
+                .lines()
+                .nth(to)
+                .unwrap_or_default()
+                .encode_utf16()
+                .count();
+            actions.push(json!({
+                "title": ed["title"],
+                "kind": "quickfix",
+                "diagnostics": [d],
+                "isPreferred": true,
+                "edit": { "changes": { uri: [{
+                    "range": { "start": { "line": from, "character": 0 }, "end": { "line": to, "character": end } },
+                    "newText": new,
+                }] } },
+            }));
+            continue;
+        }
         let fix = &d["data"]["fix"];
         let (Some(find), Some(replace)) = (fix["find"].as_str(), fix["replace"].as_str()) else {
             continue;
@@ -262,10 +316,9 @@ impl Server {
         let text = self.docs.get(uri).cloned().unwrap_or_default();
         let path = uri_to_path(uri);
         let diagnostics: Vec<Json> = if self.docs.contains_key(uri) {
-            let mut all: Vec<Json> = diagnostics_with(&mut self.siblings, &path, &text)
-                .iter()
-                .map(|e| diagnostic(e, &text))
-                .collect();
+            let found = diagnostics_with(&mut self.siblings, &path, &text);
+            let mut all: Vec<Json> = found.errors.iter().map(|e| diagnostic(e, &text)).collect();
+            all.extend(found.hints.iter().map(|h| hint_diagnostic(h, &text)));
             all.extend(long_prose_lines(&text));
             all
         } else {

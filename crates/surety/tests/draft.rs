@@ -248,3 +248,131 @@ fn a_retry_asks_again_only_for_the_failing_pair() {
         "{stdout}"
     );
 }
+
+/// Slice 6, tests 5 and 8, the draft's half of the edits: a Result output,
+/// three sentences, one example.
+const RESULT_SENTENCES: &str = "// draft\ntype Item = { amount: Int }\ntype ListError = { code: Text }\n\nbad: ListError = {code: \"e-bad\"}\n\ncheck(items: Item[], limit: Int) -> Result<Item[], ListError>\n\tnote \"the items at or under the limit, or the error when the limit is negative\"\n\t# The output is the error exactly when the limit is negative.\n\n\t# Every Ok output item is at or under the limit.\n\n\t# The output is the error exactly when the limit is negative and some amount is negative.\n\n\te:\n\t\tin: ([{amount: 1}], 2)\n\t\tout: Ok([{amount: 1}])\n";
+
+const ERROR_SENTENCE: &str = "The output is the error exactly when the limit is negative.";
+const OK_SENTENCE: &str = "Every Ok output item is at or under the limit.";
+const BOTH_SENTENCE: &str =
+    "The output is the error exactly when the limit is negative and some amount is negative.";
+
+fn the_run(dir: &Path) -> PathBuf {
+    fs::read_dir(dir.join("runs"))
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap()
+        .path()
+}
+
+#[test]
+fn a_failing_line_with_a_verified_edit_is_mended_with_no_second_call() {
+    let dir = scratch("mended");
+    let file = RESULT_SENTENCES.replace(&format!("\t# {BOTH_SENTENCE}\n\n"), "");
+    let round1 = format!(
+        "```surety\n# {ERROR_SENTENCE}\n\tlimit < 0 <-> out == Err(bad)\n# {OK_SENTENCE}\n\tall Ok(os) in out: all o in os: o.amount <= limit\n```\n"
+    );
+    let out = lines(&dir, &file, &[&round1]);
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        out.status.success(),
+        "{stdout}{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let written = fs::read_to_string(dir.join("keep_small.sur")).unwrap();
+    assert!(
+        written.contains(&format!(
+            "\t# {ERROR_SENTENCE}\n\tlimit < 0 <-> (exactly_one Err(e) in out: e == bad)\n"
+        )),
+        "{written}"
+    );
+    assert!(
+        stdout.contains("mended by the checker's verified edit (pattern_as_value): limit < 0 <-> out == Err(bad)  ->  limit < 0 <-> (exactly_one Err(e) in out: e == bad)"),
+        "{stdout}"
+    );
+    // One round, one prompt: the model was not asked again.
+    let run = the_run(&dir);
+    assert!(run.join("prompt1.md").exists() && !run.join("prompt2.md").exists());
+    let rounds: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(run.join("rounds.json")).unwrap()).unwrap();
+    assert_eq!(rounds.as_array().unwrap().len(), 1, "{rounds}");
+    assert_eq!(rounds[0]["errors"], serde_json::json!({}));
+    assert_eq!(rounds[0]["mended"][0]["sentence"], ERROR_SENTENCE);
+    assert_eq!(rounds[0]["mended"][0]["code"], "pattern_as_value");
+}
+
+#[test]
+fn a_reply_with_any_of_the_three_goes_back_for_a_round() {
+    let dir = scratch("three");
+    // Round 1: one line the tool mends; one standalone line, a hint; one
+    // `out == Err(x)` beside another quantifier, an error with no edit.
+    let round1 = format!(
+        "```surety\n# {ERROR_SENTENCE}\n\tout == Err(bad) <-> limit < 0\n# {OK_SENTENCE}\n\texactly_one Ok(os) in out: all o in os: o.amount <= limit\n# {BOTH_SENTENCE}\n\tout == Err(bad) <-> limit < 0 and any i in items: i.amount < 0\n```\n"
+    );
+    let round2 = format!(
+        "```surety\n# {OK_SENTENCE}\n\tall Ok(os) in out: all o in os: o.amount <= limit\n# {BOTH_SENTENCE}\n\tlimit < 0 -> all i in items: i.amount >= 0 or (exactly_one Err(e) in out: e == bad)\n```\n"
+    );
+    let out = lines(&dir, RESULT_SENTENCES, &[&round1, &round2]);
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        out.status.success(),
+        "{stdout}{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let run = the_run(&dir);
+    let prompt2 = fs::read_to_string(run.join("prompt2.md")).unwrap();
+    let again = prompt2
+        .split("Every other line parsed and is kept.")
+        .nth(1)
+        .unwrap();
+    // The mended line is not asked for again.
+    assert!(!again.contains(ERROR_SENTENCE), "{again}");
+    // The error with no edit goes back with the form named.
+    assert!(
+        again.contains(&format!("# {BOTH_SENTENCE}\n\tout == Err(bad) <-> limit < 0 and any i in items: i.amount < 0\nThe checker reports: line ")),
+        "{again}"
+    );
+    assert!(
+        again.contains("`name = limit < 0 and (any i in items: i.amount < 0)`"),
+        "{again}"
+    );
+    // The hint goes back too, its line kept meanwhile.
+    assert!(
+        again.contains(&format!("# {OK_SENTENCE}\n\texactly_one Ok(os) in out: all o in os: o.amount <= limit\nThe checker hints: line ")),
+        "{again}"
+    );
+    assert!(again.contains("(standalone_side)"), "{again}");
+    let rounds: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(run.join("rounds.json")).unwrap()).unwrap();
+    assert_eq!(
+        rounds[0]["mended"][0]["sentence"], ERROR_SENTENCE,
+        "{rounds}"
+    );
+    assert!(
+        rounds[0]["hints"][OK_SENTENCE]
+            .as_str()
+            .unwrap()
+            .contains("claims the `Ok` side"),
+        "{rounds}"
+    );
+    assert!(
+        rounds[0]["errors"][BOTH_SENTENCE]
+            .as_str()
+            .unwrap()
+            .contains("(pattern_as_value)"),
+        "{rounds}"
+    );
+    assert_eq!(rounds[1]["errors"], serde_json::json!({}), "{rounds}");
+    assert_eq!(rounds[1]["hints"], serde_json::json!({}), "{rounds}");
+    let written = fs::read_to_string(dir.join("keep_small.sur")).unwrap();
+    assert!(
+        written.contains("\tlimit < 0 <-> (exactly_one Err(e) in out: e == bad)\n"),
+        "{written}"
+    );
+    assert!(
+        written.contains("\tall Ok(os) in out: all o in os: o.amount <= limit\n"),
+        "{written}"
+    );
+}

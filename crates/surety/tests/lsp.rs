@@ -152,7 +152,7 @@ fn every_bad_fixture_gets_parses_diagnostic_and_the_corpus_gets_none() {
             d["range"]["start"]["character"].as_u64().unwrap() as usize,
             d["range"]["end"]["character"].as_u64().unwrap() as usize,
         );
-        let error = surety_lsp::diagnostics_for(&path, &text).remove(0);
+        let error = surety_lsp::diagnostics_for(&path, &text).errors.remove(0);
         match error.span {
             Some(span) => assert_eq!((start, end), span, "{}: the span", path.display()),
             None if indent < at.chars().count() => {
@@ -923,5 +923,72 @@ fn the_server_offers_the_flatten_an_error_names() {
         lsp.change(&path, &fixed).is_empty(),
         "the file checks after the fix"
     );
+    lsp.stop();
+}
+
+/// Slice 6, piece 6: a verified edit rides in the diagnostic's data and
+/// comes back as a quick fix that replaces its lines whole, for an error
+/// (`pattern_as_value`) and for a hint (the standalone side), the hint at
+/// severity Hint.
+#[test]
+fn the_server_offers_the_edits_an_error_and_a_hint_carry() {
+    let mut lsp = Lsp::start();
+    let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("lsp-edit");
+    let _ = fs::remove_dir_all(&dir);
+    fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("check.sur");
+    let head = "type Item = { amount: Int }\ntype ListError = { code: Text }\n\nbad: ListError = {code: \"e-bad\"}\n\ncheck(items: Item[], limit: Int) -> Result<Item[], ListError>\n";
+    let text = format!("{head}\tout == Err(bad) <-> limit < 0\n");
+    fs::write(&path, &text).unwrap();
+    let uri = surety_lsp::path_to_uri(&fs::canonicalize(&path).unwrap());
+    let mut fixed = text.clone();
+    for (code, severity, want) in [
+        (
+            "pattern_as_value",
+            1,
+            "\tlimit < 0 <-> (exactly_one Err(e) in out: e == bad)",
+        ),
+        ("standalone_side", 4, ""),
+    ] {
+        let diagnostics = if code == "pattern_as_value" {
+            lsp.open(&path)
+        } else {
+            fixed = format!("{head}\texactly_one Ok(os) in out: len(os) <= len(items)\n");
+            lsp.change(&path, &fixed)
+        };
+        let [d] = &diagnostics[..] else {
+            panic!("{diagnostics:?}")
+        };
+        assert_eq!(
+            (d["code"].as_str(), d["severity"].as_u64()),
+            (Some(code), Some(severity))
+        );
+        assert_eq!(d["data"]["edit"]["from"], 7, "{d}");
+        let reply = lsp.request(
+            "textDocument/codeAction",
+            json!({ "textDocument": { "uri": uri }, "range": d["range"], "context": { "diagnostics": [d] } }),
+        );
+        let actions = reply["result"].as_array().cloned().unwrap_or_default();
+        let [a] = &actions[..] else {
+            panic!("{actions:?}")
+        };
+        assert_eq!(a["kind"], "quickfix");
+        assert_eq!(a["title"], d["data"]["edit"]["title"]);
+        let edit = &a["edit"]["changes"][&uri][0];
+        assert_eq!(edit["range"]["start"], json!({ "line": 6, "character": 0 }));
+        let line = fixed.lines().nth(6).unwrap();
+        assert_eq!(
+            edit["range"]["end"],
+            json!({ "line": 6, "character": line.encode_utf16().count() })
+        );
+        let new = edit["newText"].as_str().unwrap();
+        if !want.is_empty() {
+            assert_eq!(new, want);
+        }
+        // Applied: the file checks, and the hint is gone with the edit.
+        let after = fixed.replace(line, new);
+        let left = lsp.change(&path, &after);
+        assert!(left.is_empty(), "{code}: {left:?}\n{after}");
+    }
     lsp.stop();
 }

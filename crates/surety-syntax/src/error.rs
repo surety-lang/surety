@@ -67,6 +67,18 @@ pub struct Fix {
     pub replace: String,
 }
 
+/// An edit built on the tree and verified (`mend.rs`): lines `from..=to`
+/// of the file replaced by `text`, one line or several, indentation
+/// included. Offered only when `text` parses to the tree it was printed
+/// from.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Edit {
+    pub title: String,
+    pub from: usize,
+    pub to: usize,
+    pub text: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Error {
     pub kind: ErrorKind,
@@ -78,6 +90,8 @@ pub struct Error {
     pub span: Option<(usize, usize)>,
     /// The edit that mends it, when there is one beyond doubt.
     pub fix: Option<Box<Fix>>,
+    /// The whole-line edit that mends it, verified on the tree.
+    pub edit: Option<Box<Edit>>,
 }
 
 impl Error {
@@ -88,6 +102,7 @@ impl Error {
             message: message.into(),
             span: None,
             fix: None,
+            edit: None,
         }
     }
 

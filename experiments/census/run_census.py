@@ -12,20 +12,30 @@ it is run as a subprocess with the prebuilt checker passed by `--surety`. Each
 stage's stdout and stderr go to logs/<id>.<stage>.txt. One JSON record per
 function is appended to results.jsonl:
 
-    id, qualname, source, complete, error,
+    id, qualname, source, complete, error, prompt_sha256,
     stage1: exit, rounds, tokens_in, tokens_out, parse_ok, sentences,
             examples_wanted, notes, round_errors, last_error, run_dir, seconds
     stage2: exit, rounds, tokens_in, tokens_out, parse_ok, lines, reach,
             sentences [{text, line, reach}], refused, mutants (verbatim),
-            mutants_summary {applicable, of, slipped, caught,
-            underdetermined, gaps, accepted}, round_errors, round_reach,
-            last_error, run_dir, seconds
+            mutants_summary {applicable, of, slipped, caught, not_judged,
+            no_passing, underdetermined, gaps, accepted}, round_errors,
+            round_hints, mended, round_reach, last_error, run_dir, seconds
+
+prompt_sha256 is the hash of the prompt material every problem shares: both
+stages' system prompts (the notation block in each), the docs and the corpus
+draft.py hands over. Two records with one hash were drafted from one prompt.
 
 round_errors has one entry per round, the checker's report, or null for the
-round that parsed. round_reach is how many sentences each round's reply left as
-reach-fors: a retry regenerates every pair, so a line in one round can be a
-reach-for in the next. stage2.parse_ok is read from the last round's parse
-report, and stage2.lines is null when the file never parsed.
+round that parsed. For stage 2 it is read from the run's rounds.json, one
+error per sentence still failing, as draft.py records it since slice 6; a run
+directory from before has parse<k>.txt files instead, read as before.
+round_hints is each round's hints by sentence, and mended the lines the
+checker's verified edit mended before the model was asked again. round_reach
+is how many sentences stand as reach-fors after each round, from rounds.json:
+a retry asks again only for the failing sentences, so a line kept in one round
+stays. (Before slice 6 a retry regenerated every pair, and round_reach counted
+each reply's own reach-fors.) stage2.parse_ok is read from the last round, and
+stage2.lines is null when the file never parsed.
 
 Ctrl-C starts nothing new: queued functions are cancelled, a function in
 flight starts no further stage, and only complete records are appended, so a
@@ -39,6 +49,7 @@ from __future__ import annotations
 import argparse
 import concurrent.futures as cf
 import datetime as dt
+import hashlib
 import importlib.util
 import json
 import pathlib
@@ -83,6 +94,16 @@ def load_draft():
 
 
 draft = load_draft()
+
+
+def prompt_sha256() -> str:
+    """The prompt material every problem shares, hashed (see the module's
+    docstring)."""
+    parts = [draft.SYSTEM_SENTENCES, draft.SYSTEM_LINES, draft.docs_text(), draft.corpus_text([])]
+    return hashlib.sha256("\0".join(parts).encode("utf-8")).hexdigest()
+
+
+PROMPT = prompt_sha256()
 
 
 def load_results() -> dict[str, dict]:
@@ -138,7 +159,7 @@ def rounds_and_tokens(text: str) -> tuple[int, int, int]:
 
 
 def last_error(text: str) -> str | None:
-    errs = [m for m in re.finditer(r"^round (\d+): (?!tokens)(.+)$", text, re.M)]
+    errs = [m for m in re.finditer(r"^round (\d+): (?!tokens|mended by|hint: )(.+)$", text, re.M)]
     return errs[-1].group(2).strip() if errs else None
 
 
@@ -153,9 +174,27 @@ def round_errors(d: pathlib.Path) -> list[str | None]:
     return out
 
 
+def stage2_rounds(d: pathlib.Path) -> tuple[list[str | None], list[dict], list[dict]]:
+    """Stage 2's rounds from rounds.json: each round's errors (None for a
+    round with none left), its hints, and every mend. A run directory from
+    before slice 6 has parse<k>.txt files instead."""
+    f = d / "rounds.json"
+    if not f.exists():
+        return round_errors(d), [], []
+    rounds = json.loads(f.read_text(encoding="utf-8"))
+    errors = ["\n".join(r["errors"].values()) if r.get("errors") else None for r in rounds]
+    hints = [r.get("hints", {}) for r in rounds]
+    mended = [m for r in rounds for m in r.get("mended", [])]
+    return errors, hints, mended
+
+
 def round_reach(d: pathlib.Path) -> list[int | None]:
-    """How many of the asked sentences each round's reply left as reach-fors,
-    read as draft.py reads it; None for a reply with no block."""
+    """How many sentences stand as reach-fors after each round, from
+    rounds.json; for a run directory from before slice 6, how many each
+    round's reply left, read as draft.py reads it, None for a reply with no
+    block."""
+    if (d / "rounds.json").exists():
+        return [r.get("reach") for r in json.loads((d / "rounds.json").read_text(encoding="utf-8"))]
     before = d / "before.sur"
     if not before.exists():
         return []
@@ -167,7 +206,7 @@ def round_reach(d: pathlib.Path) -> list[int | None]:
         if block is None:
             out.append(None)
         else:
-            pairs, _ = draft.parse_pairs(block)
+            pairs = draft.parse_pairs(block)[0]
             out.append(sum(1 for s in todo if pairs.get(s, "reaching for:").strip().lower().startswith("reaching for:")))
         k += 1
     return out
@@ -215,7 +254,8 @@ def read_after(path: pathlib.Path) -> list[dict]:
     return out
 
 
-MUT = re.compile(r"inputs (\d+)\+(\d+)\s+mutants (\d+) of (\d+) apply\s+slipped (\d+)\s+caught (\d+)\s+underdetermined (\d+)(?: in (\d+) gaps?)?(?:\s+accepted (\d+))?")
+MUT = re.compile(r"inputs (\d+)\+(\d+)\s+mutants (\d+) of (\d+) apply\s+slipped (\d+)\s+caught (\d+)(?:\s+not judged (\d+))?\s+underdetermined (\d+)(?: in (\d+) gaps?)?(?:\s+accepted (\d+))?")
+NO_PASSING = re.compile(r"no passing output on (\d+) of (\d+) inputs with a catch")
 
 
 def mutants_summary(text: str) -> dict | None:
@@ -223,9 +263,11 @@ def mutants_summary(text: str) -> dict | None:
     if not m:
         return None
     g = m.groups()
+    np = NO_PASSING.search(text.split("\n", 1)[0])
     return {"example_inputs": int(g[0]), "generated_inputs": int(g[1]), "applicable": int(g[2]), "of": int(g[3]),
-            "slipped": int(g[4]), "caught": int(g[5]), "underdetermined": int(g[6]),
-            "gaps": int(g[7]) if g[7] else 0, "accepted": int(g[8]) if g[8] else 0,
+            "slipped": int(g[4]), "caught": int(g[5]), "not_judged": int(g[6]) if g[6] else 0,
+            "no_passing": int(np.group(1)) if np else 0, "underdetermined": int(g[7]),
+            "gaps": int(g[8]) if g[8] else 0, "accepted": int(g[9]) if g[9] else 0,
             "input_only": text.count("  input only  "), "unneeded": text.count("  unneeded  ")}
 
 
@@ -234,7 +276,8 @@ def census_one(fn: dict, args: argparse.Namespace) -> dict:
     problem = PROBLEMS / f"{fid}.md"
     out = OUT / f"{fid}.sur"
     rec = {"id": fid, "qualname": fn["qualname"], "source": fn["source"], "complete": False, "error": None,
-           "started": dt.datetime.now().isoformat(timespec="seconds"), "stage1": None, "stage2": None}
+           "started": dt.datetime.now().isoformat(timespec="seconds"), "prompt_sha256": PROMPT,
+           "stage1": None, "stage2": None}
     common = ["--surety", str(SURETY), "--model", args.model, "--effort", args.effort]
     cmd1 = [sys.executable, str(DRAFT), "sentences", str(problem), "--out", str(out), *common]
     if args.reply1:
@@ -270,12 +313,12 @@ def census_one(fn: dict, args: argparse.Namespace) -> dict:
     rounds, tin, tout = rounds_and_tokens(text)
     m_d = RUN_DIR.search(text)
     run_dir = pathlib.Path(m_d.group(1).strip()) if m_d else None
-    errors = round_errors(run_dir) if run_dir else []
+    errors, hints, mended = stage2_rounds(run_dir) if run_dir else ([], [], [])
     # draft.py's exit is `surety mutants`' exit, so whether the file parsed is read from its last round.
     s2 = {"exit": code, "rounds": rounds, "tokens_in": tin, "tokens_out": tout,
           "parse_ok": bool(errors) and errors[-1] is None,
           "lines": None, "reach": [], "sentences": [], "refused": [l.strip() for l in text.splitlines() if l.startswith("refused a line")],
-          "mutants": None, "mutants_summary": None, "round_errors": errors,
+          "mutants": None, "mutants_summary": None, "round_errors": errors, "round_hints": hints, "mended": mended,
           "round_reach": round_reach(run_dir) if run_dir else [], "last_error": last_error(text),
           "run_dir": str(run_dir) if run_dir else None, "seconds": round(secs)}
     rec["stage2"] = s2

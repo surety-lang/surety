@@ -1,0 +1,22 @@
+// draft
+// drafted
+type Entry = { id: Id, amount: Int }
+// drafted
+type BalancedEntry = { ...Entry, balance: Int }
+
+running_balance(entries: Entry[unique id]) -> BalancedEntry[]
+	note "pair each ledger entry, amounts in cents, with the running balance after it, in ledger order, starting from 0"
+	# Every output entry carries the id of exactly one input entry.
+
+	# Every input entry's id is carried by exactly one output entry.
+
+	# Every output entry has the amount of the input entry with its id.
+
+	# The output keeps the input's order.
+
+	# Every output entry's balance is the sum of the amounts of the input entries up to and including it.
+	// example wanted: an empty ledger: decided by the two exactly-one sentences, with no balance to compute
+	// example wanted: a ledger of one entry: its balance comes from the running-sum sentence with nothing before it
+	// example wanted: a debit, a negative amount, larger than the balance before it: decides whether a balance below 0 is allowed, which no sentence above rules on
+	// example wanted: an entry with amount 0 between two others: the running-sum sentence carries the balance across it
+	// example wanted: two entries with different ids and the same amount: the sum counts both occurrences, so the second balance includes both

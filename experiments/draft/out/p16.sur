@@ -1,0 +1,21 @@
+// draft
+// drafted
+type LooseAddress = { city: Option<Text> }
+// drafted
+type LooseUser = { address: Option<LooseAddress> }
+// drafted
+type LooseDoc = { user: Option<LooseUser> }
+
+city_or_default(doc: LooseDoc, default: Text) -> Text
+	note "pull user.address.city from a loose JSON value, falling back to the default when any step of the path is missing"
+	# If the doc has a user, the user has an address, and the address has a city, the output is that city.
+
+	# If the doc has no user, the output is the default.
+
+	# If the doc has a user and the user has no address, the output is the default.
+
+	# If the doc has a user with an address and the address has no city, the output is the default.
+
+	# If the address has a city that is empty text, the output is that empty city, not the default.
+
+	# The output is either the city found at user.address.city or the default, and nothing else.

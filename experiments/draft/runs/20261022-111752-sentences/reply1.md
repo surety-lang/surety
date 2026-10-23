@@ -1,0 +1,15 @@
+```surety
+// draft
+// drafted
+type Order = { amount: Int, customer_email: Text }
+
+filter_large_orders(orders: Order[]) -> Order[]
+	note "drop every order whose amount is greater than 100 and keep the rest"
+	# Every output order has an amount of at most 100.
+	# Every input order left out of the output has an amount greater than 100.
+	# The output is drawn from the input orders and keeps their order.
+	// example wanted: an empty list of orders gives an empty output
+	// example wanted: an order with amount exactly 100 is kept, one with amount 101 is dropped
+	// example wanted: two identical orders with amount 50 both appear in the output, in input order
+	// example wanted: every order over 100 gives an empty output
+```

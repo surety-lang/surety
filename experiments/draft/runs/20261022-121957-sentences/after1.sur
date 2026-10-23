@@ -1,0 +1,14 @@
+// draft
+// drafted
+type Order = { amount: Int }
+
+filter_orders(orders: Order[]) -> Order[]
+	note "drop every order whose amount is greater than 100 and keep the rest"
+	# Every output order has an amount of at most 100.
+	# The output is drawn from the input orders and keeps their order.
+	# Every input order left out of the output has an amount greater than 100.
+	// example wanted: an empty list of orders: nothing to keep or drop
+	// example wanted: one order at amount 100 and one at 101: the threshold, crossed from both sides; "greater than 100" decides which is dropped
+	// example wanted: two identical orders at amount 50: both copies are kept, since the left-out rule pins how many times each appears
+	// example wanted: every order over 100: everything is dropped
+	// example wanted: amounts mixed above and below 100 in an interleaved order: the kept ones stay in input order

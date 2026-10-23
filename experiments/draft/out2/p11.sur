@@ -1,0 +1,29 @@
+// draft
+// drafted
+type LineItem = { amount_cents: Int }
+
+invoice_total(items: LineItem[], tax_rate_bp: Int) -> Int
+	note "sum the line items' amounts in cents, apply the tax rate in basis points, and round the total half-even to a whole cent"
+	# The total depends on the line items only through their sum: it equals the total of a single
+	# line item carrying the sum of the amounts, at the same rate. If the tax rate is at least 0 and
+	# the sum of the amounts is at least 0, the total is at least the sum of the amounts.
+	tax_rate_bp == 0 -> out == sum(items.amount_cents)
+	# If the tax rate is at least 0 and the sum of the amounts is at most 0, the total is at most
+	# the sum of the amounts.
+	tax_rate_bp >= 0 and sum(items.amount_cents) <= 0 -> out == sum(items.amount_cents)
+	out >= 0
+	// example wanted: an empty list of items at a nonzero rate: the sum of no amounts is 0
+	// example wanted: several items at a rate of 0 basis points: no tax applies, so the total is
+	// the plain sum
+	// example wanted: amounts [125] at 1000 basis points: the exact total is 137.5, a half-even tie
+	// example wanted: amounts [135] at 1000 basis points: the exact total is 148.5, a half-even tie
+	// that goes the other way from 137.5
+	// example wanted: amounts [101] at 1000 basis points: the exact total is 111.1, not a tie, so
+	// it rounds to the nearest cent
+	// example wanted: amounts [5, 5] at 1000 basis points: the tax on each item alone would be a
+	// half-cent tie, so this decides that the rounding is on the total and not per item
+	// example wanted: amounts [-125] at 1000 basis points, if a credit line is allowed: the exact
+	// total is -137.5, a half-even tie below zero
+	// example wanted: a negative tax rate: decides whether it is a discount the obligation accepts,
+	// or an input to rule out with an error case
+	// drafted: two outputs pass every clause on this input; keep the one you mean

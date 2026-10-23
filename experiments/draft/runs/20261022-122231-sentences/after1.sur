@@ -1,0 +1,31 @@
+// draft
+// drafted
+type Item = { id: Id }
+// drafted
+type Page = { items: Item[], total_pages: Int, has_next: Bool }
+// drafted
+type PageError = { code: Text, display: Text }
+// drafted
+size_err: PageError = { code: "e-page-size", display: "Page size must be at least 1" }
+// drafted
+page_range_err: PageError = { code: "e-page-range", display: "Page is before the start or past the end of the list" }
+
+paginate(items: Item[], page: Int, size: Int) -> Result<Page, PageError>
+	note "return one page of the list, pages counted from 0, with the total page count and whether a later page holds items"
+	# The output is the size error exactly when size is less than 1.
+	# The output is the range error exactly when size is at least 1 and page is negative or page × size is more than the item count.
+	# The page's items are drawn from the input items and keep the input order.
+	# No input item left out of the page comes between two of the page's items.
+	# The page holds the lesser of size and (item count − page × size) items.
+	# For a page after the first, every item of page − 1 comes before every item of this page, and no input item left out of both comes between them.
+	# total_pages × size is at least the item count, and (total_pages − 1) × size is less than it.
+	# has_next is true exactly when (page + 1) × size is less than the item count.
+	// example wanted: empty list, page 0, size 3: page × size equals the item count, so the page is Ok and total_pages is decided by the ceiling sentence
+	// example wanted: 7 items, page 2, size 3: the last page is partial, and (page + 1) × size passes the item count
+	// example wanted: 6 items, page 1, size 3: (page + 1) × size equals the item count exactly, the has_next threshold
+	// example wanted: 6 items, page 2, size 3: page × size equals the item count, so the precondition admits an empty page past the last full one
+	// example wanted: 6 items, page 3, size 3: page × size passes the item count by one page, the range threshold
+	// example wanted: 3 items, page -1, size 3: a negative page with a valid size
+	// example wanted: 3 items, page 0, size 0: the size threshold, where page × size is 0 and would pass the range check
+	// example wanted: 3 items, page -1, size 0: both conditions fail, and the size sentence decides which error is reported
+	// example wanted: two equal items, one on each side of a page boundary, size 1: occurrences decide which copy each page holds

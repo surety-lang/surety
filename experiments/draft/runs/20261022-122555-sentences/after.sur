@@ -1,0 +1,27 @@
+// draft
+// drafted
+type Row = { month: Text, product: Id, amount: Int }
+// drafted
+type Cell = { product: Id, amount: Int }
+// drafted
+type WideRow = { month: Text, amounts: Cell[unique product] }
+// drafted
+type PivotError = { code: Text, display: Text }
+// drafted
+duplicate_cell_err: PivotError = { code: "e-duplicate-cell", display: "Two rows share the same month and product" }
+
+pivot(rows: Row[]) -> Result<WideRow[], PivotError>
+	note "turn long rows (month, product, amount in cents) into one wide row per month carrying each product's amount; a repeated month and product is an error rather than a sum"
+	# The output is Ok exactly when no two input rows share both a month and a product.
+	# Every error output is the duplicate-cell error.
+	# Every input row's month has exactly one wide row in the output.
+	# Every wide row's month is the month of some input row.
+	# Every input row appears as a cell in its month's wide row, with its product and amount.
+	# Every cell in a wide row is an input row with that wide row's month, product and amount.
+	# The wide rows are not claimed in any order, and neither are the cells within a wide row.
+	// example wanted: no rows at all: what an empty input pivots to
+	// example wanted: one month with two different products: one wide row carrying both cells
+	// example wanted: two months where a product sold in one month is missing from the other: the missing product has no cell, not a zero cell
+	// example wanted: a row with amount 0: whether it still appears as a cell
+	// example wanted: two rows with the same month and product, different amounts: the duplicate-cell error, not a summed cell
+	// example wanted: the same product in two different months: not a duplicate, one cell in each wide row

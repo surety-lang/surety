@@ -1,0 +1,1 @@
+p18.sur: ok normalize_phone props=0 accepts=0 examples=0 abbrevs=0 pins=20

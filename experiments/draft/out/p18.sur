@@ -1,0 +1,35 @@
+// draft
+// drafted
+type Country = { iso_code: Text, calling_code: Text }
+// drafted
+type PhoneError = { code: Text, display: Text }
+// drafted
+phone_error: PhoneError = { code: "e-phone-invalid", display: "Please provide a valid phone number" }
+
+normalize_phone(raw: Text, default_country: Country) -> Result<Text, PhoneError>
+	note "turn a free-text phone number into E.164, reading it against the default country when it carries no country code, or report that it is not a phone number"
+	# The output is Ok exactly when the raw text is a valid phone number for the default country, which a sibling obligation decides.
+
+	# The output is Err exactly when the raw text is not a valid phone number for the default country.
+
+	# Every Err output carries phone_error.
+
+	# Every Ok output is well-formed E.164, which a sibling obligation decides.
+
+	# Every Ok output contains "+".
+
+	# The length of every Ok output is at most 16.
+
+	# No Ok output contains " ".
+
+	# No Ok output contains "-".
+
+	# No Ok output contains "(".
+
+	# No Ok output contains ")".
+
+	# If the raw text is not in international form, which a sibling obligation decides, then every Ok output contains the default country's calling_code.
+
+	# Every Ok output denotes the same number as the raw text, which a sibling obligation decides.
+
+	# If the output is Ok, then normalizing the Ok output again with the same default country gives the same Ok output.

@@ -1,0 +1,32 @@
+// draft
+// drafted
+type Bucket = { low: Int, high: Int, count: Int }
+// drafted
+type HistogramError = { code: Text, display: Text }
+// drafted
+width_error: HistogramError = { code: "e-width-positive", display: "Bucket width must be at least 1" }
+
+histogram(values: Int[], width: Int) -> Result<Bucket[], HistogramError>
+	note "count the input values falling in each fixed-width bucket; a bucket runs from its low up to but not including its high, and only buckets that hold a value appear"
+	# The output is Ok exactly when the width is at least 1.
+
+	# An Err output carries width_error.
+
+	# Every input value falls in exactly one output bucket: at or above that bucket's low and below its high.
+
+	# Every output bucket holds some input value.
+
+	# No two output buckets overlap.
+
+	# The bucket counts add up to the number of input values.
+
+	# The output is sorted by low, ascending.
+	// no line for "each bucket's high is its low plus the width" (arithmetic beyond sum): the examples carry it
+	// no line for "each bucket's count is the number of values in it" (counting occurrences): the claims pin only the total, the examples carry the rest
+	// example wanted: values [] at width 10: no values, so what the bucket list is
+	// example wanted: values [0, 9, 10] at width 10: 10 sits exactly on a boundary, the high of one bucket and the low of the next
+	// example wanted: values [-1] at width 10: which bucket a negative value lands in, rounding toward minus infinity or toward zero
+	// example wanted: values [5, 5, 5] at width 10: duplicates each count toward the same bucket
+	// example wanted: values [1, 35] at width 10: the empty buckets between them do not appear
+	// example wanted: values [3] at width 1: the narrowest allowed width
+	// example wanted: values [3] at width 0: the width threshold, reported as the error

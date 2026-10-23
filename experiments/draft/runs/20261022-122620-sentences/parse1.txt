@@ -1,0 +1,1 @@
+p22.sur: ok serialize props=0 accepts=0 examples=0 abbrevs=0 pins=15

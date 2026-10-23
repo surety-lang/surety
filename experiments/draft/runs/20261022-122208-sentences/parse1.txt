@@ -1,0 +1,1 @@
+p12.sur: ok bucket_by_month props=0 accepts=0 examples=0 abbrevs=0 pins=15

@@ -1,0 +1,21 @@
+// draft
+// drafted
+type Address = { city: Option<Text> }
+// drafted
+type User = { address: Option<Address> }
+// drafted
+type Doc = { user: Option<User> }
+
+city_or_default(doc: Doc, fallback: Text) -> Text
+	note "pull user.address.city from a loose document, falling back to the given default when any step of the path is missing"
+	# If the document has a user, the user has an address, and the address has a city, the output is that city.
+	# If the document has no user, the output is the fallback.
+	# If the user has no address, the output is the fallback.
+	# If the address has no city, the output is the fallback.
+	// example wanted: every step present, city "Lisbon", fallback "Unknown": the full path decides it
+	// example wanted: no user at all: the first step of the path is missing
+	// example wanted: a user with no address: the middle step is missing
+	// example wanted: an address with no city: only the last step is missing
+	// example wanted: a city that is present but is the empty text: whether an empty city counts as present or falls back is the author's call
+	// example wanted: a present city equal to the fallback: the output alone cannot show which branch was taken, so this pins that the city branch still holds
+	// example wanted: the fallback is the empty text and the path is missing: the fallback is returned as given, with no substitution

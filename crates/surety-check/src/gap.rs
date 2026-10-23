@@ -353,7 +353,7 @@ pub fn gaps(r: &MutantReport) -> Vec<Gap> {
         let holds = |g: &Gap| {
             g.inputs.iter().any(|&i| {
                 let u = &r.search[i];
-                u.same_as == Some(m.mutant)
+                u.same_as.as_ref() == Some(&m.mutant)
                     || m.shown.as_ref().is_some_and(|sh| {
                         (constant || sh.inputs == u.inputs)
                             && (sh.output == u.a || sh.output == u.b)
@@ -361,7 +361,7 @@ pub fn gaps(r: &MutantReport) -> Vec<Gap> {
             })
         };
         if let Some(g) = out.iter_mut().find(|g| holds(g)) {
-            g.mutants.push(m.mutant);
+            g.mutants.push(m.mutant.clone());
         }
     }
     out

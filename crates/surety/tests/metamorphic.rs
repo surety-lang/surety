@@ -63,10 +63,21 @@ fn a_property_may_call_its_own_obligation() {
     let mut c = Checker::new(&graph, idx, &py, &dir, surety::TIMEOUT).unwrap();
     c.budget = Budget::default();
 
-    // In check, the call runs the performance under test.
+    // In check, the call runs the performance under test. The binding and
+    // generated tiers pass; the one finding is the scalar mutant that
+    // forgets the tax, `out = sum(items.amount_cents)`: the self-call
+    // clause is consistent with it and the two bounds admit it, so only
+    // the examples catch it. That hole is why the clause never stands
+    // alone; with the tolerance line beside it (`scalar.rs`) it is caught.
     let r = c.check();
     let text = surety::render(&r);
-    assert!(r.passed() && r.findings() == 0, "{text}");
+    assert!(r.passed(), "{text}");
+    assert_eq!(r.findings(), 1, "{text}");
+    assert!(
+        text.contains("1 mutant slipped (out = sum(items.amount_cents))"),
+        "{text}"
+    );
+    assert!(text.contains("caught by examples 3, 4 only"), "{text}");
     let self_call = &r.properties[0];
     assert!(self_call.text.contains("invoice_total("), "{text}");
     assert_eq!(self_call.runs, r.runs, "evaluated on every run:\n{text}");
@@ -85,9 +96,11 @@ fn a_property_may_call_its_own_obligation() {
     let m = c.mutants();
     let mtext = surety::render_mutants(&m, true);
     assert!(m.applicable() >= 2, "{mtext}");
-    assert!(
-        m.slipped().is_empty(),
-        "the companions catch every mutant:\n{mtext}"
+    let slipped: Vec<String> = m.slipped().iter().map(|s| s.mutant.name()).collect();
+    assert_eq!(
+        slipped,
+        ["out = sum(items.amount_cents)"],
+        "the companions catch every mutant but the tax forgotten:\n{mtext}"
     );
     for run in m.mutants.iter().filter(|r| r.inputs_tried > 0) {
         assert!(

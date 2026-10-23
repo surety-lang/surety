@@ -70,6 +70,7 @@ impl Printer {
             Expr::Float(f) => format!("{f:?}"),
             Expr::Text(s) => format!("\"{s}\""),
             Expr::None => "None".to_string(),
+            Expr::Bool(b) => b.to_string(),
             Expr::Name(n, _) => self.name(n),
             Expr::Field(base, f, _) => format!("{}.{f}", self.primary(base)),
             Expr::Call(n, args, _) => {

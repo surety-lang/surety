@@ -547,6 +547,7 @@ impl<'g> Scope<'g> {
             Expr::Float(_) => Ok(Type::Float),
             Expr::Text(_) => Ok(Type::Text),
             Expr::None => Ok(Type::Option(Box::new(Type::Unknown))),
+            Expr::Bool(_) => Ok(Type::Bool),
             Expr::Name(n, l) => self.lookup(n, *l),
             Expr::Field(base, f, l) => {
                 let t = self.infer(base, *l)?;
@@ -1021,6 +1022,7 @@ impl<'g> Scope<'g> {
                 }
             }
             (Expr::None, Type::Option(_)) => Ok(()),
+            (Expr::Bool(_), Type::Bool) => Ok(()),
             (_, Type::Option(inner)) => self.check_literal_type(e, inner, line),
             (Expr::Int(_), Type::Int | Type::Float) => Ok(()),
             (Expr::Float(_), Type::Float) => Ok(()),
@@ -1061,6 +1063,7 @@ impl<'g> Scope<'g> {
             (Expr::Float(_), _) => bad("a Float literal"),
             (Expr::Text(_), _) => bad("a Text literal"),
             (Expr::None, _) => bad("`None`"),
+            (Expr::Bool(_), _) => bad("a Bool literal"),
             (Expr::Ok(_), _) => bad("`Ok(...)`"),
             (Expr::Err(_), _) => bad("`Err(...)`"),
             (Expr::List(_), _) => bad("a list literal"),

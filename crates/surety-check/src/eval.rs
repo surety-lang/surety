@@ -287,6 +287,7 @@ impl<'g> Checker<'g> {
             Expr::Float(f) => Ok(Value::Float(*f)),
             Expr::Text(s) => Ok(Value::Text(s.clone())),
             Expr::None => Ok(Value::None),
+            Expr::Bool(b) => Ok(Value::Bool(*b)),
             Expr::Name(n, line) => self.eval_name(n, *line, env),
             Expr::Field(base, f, line) => {
                 let v = self.eval(base, env)?;
@@ -425,7 +426,7 @@ impl<'g> Checker<'g> {
             return Err(format!("`{name}` is a value, not a function"));
         }
         if name == self.fun.name {
-            if let Some(m) = self.mutant {
+            if let Some(m) = &self.mutant {
                 // The mutant is the performance, for its own recursion too.
                 if let Some(v) = crate::mutants::apply(m, &vals, &self.scope, &self.plan) {
                     return Ok(v);

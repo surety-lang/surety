@@ -321,6 +321,8 @@ pub enum Expr {
     Float(f64),
     Text(String),
     None,
+    /// `true` or `false`: a `Bool` value, in an example or a line.
+    Bool(bool),
     Name(String, usize),
     Field(Box<Expr>, String, usize),
     Call(String, Vec<Expr>, usize),
@@ -359,7 +361,12 @@ impl Expr {
     pub fn walk<'a>(&'a self, f: &mut dyn FnMut(&'a Expr)) {
         f(self);
         match self {
-            Expr::Int(_) | Expr::Float(_) | Expr::Text(_) | Expr::None | Expr::Name(..) => {}
+            Expr::Int(_)
+            | Expr::Float(_)
+            | Expr::Text(_)
+            | Expr::None
+            | Expr::Bool(_)
+            | Expr::Name(..) => {}
             Expr::Field(e, _, _) | Expr::Ok(e) | Expr::Err(e) | Expr::Not(e) => e.walk(f),
             Expr::Unordered(e) | Expr::Unique(e) | Expr::SortedBy(e, _) => e.walk(f),
             Expr::Call(_, args, _) | Expr::List(args) | Expr::Tuple(args) => {

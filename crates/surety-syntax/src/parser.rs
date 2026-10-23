@@ -39,6 +39,8 @@ pub const RESERVED: &[&str] = &[
     "Ok",
     "Err",
     "accept",
+    "true",
+    "false",
 ];
 
 pub fn is_reserved(name: &str) -> bool {
@@ -306,6 +308,7 @@ fn is_literal_shaped(e: &Expr) -> bool {
             | Expr::Float(_)
             | Expr::Text(_)
             | Expr::None
+            | Expr::Bool(_)
             | Expr::List(_)
             | Expr::Record(..)
             | Expr::Ok(_)
@@ -538,7 +541,12 @@ pub fn check_literal(
 ) -> Result<(), Error> {
     fn inner(e: &Expr, allow_rest: bool, top: bool) -> bool {
         match e {
-            Expr::Int(_) | Expr::Float(_) | Expr::Text(_) | Expr::None | Expr::Name(..) => true,
+            Expr::Int(_)
+            | Expr::Float(_)
+            | Expr::Text(_)
+            | Expr::None
+            | Expr::Bool(_)
+            | Expr::Name(..) => true,
             Expr::Ok(x) | Expr::Err(x) => inner(x, allow_rest, false),
             Expr::List(xs) => xs.iter().all(|x| inner(x, allow_rest, false)),
             Expr::Record(fields, rest) => {
@@ -1119,7 +1127,7 @@ impl<'a> ExprParser<'a> {
                 let from = self.parse_additive()?;
                 if !self.peek_sym("..") {
                     return Err(self.err(
-                        "expected `..` in a slice: `xs[a .. b]` is the elements from position a up to but not including b",
+                        "expected `..` in a slice: `xs[a .. b]` is the elements from position a up to but not including b, and an element at a position is the one-element slice `xs[i .. i + 1]`",
                     ));
                 }
                 self.bump();
@@ -1251,6 +1259,8 @@ impl<'a> ExprParser<'a> {
             )),
             Tok::Ident(name) => match name.as_str() {
                 "None" => Ok(Expr::None),
+                "true" => Ok(Expr::Bool(true)),
+                "false" => Ok(Expr::Bool(false)),
                 "Ok" | "Err" if self.peek_sym("(") => {
                     if self.ctx == Ctx::Property {
                         return Err(Error::new(

@@ -85,7 +85,13 @@ fn scratch(name: &str, py: &str) -> (PathBuf, PathBuf) {
     fs::create_dir_all(&dir).unwrap();
     let s = dir.join(format!("{name}.sur"));
     let p = dir.join(format!("{name}.py"));
-    fs::write(&s, WINDOW.replace("window(", &format!("{name}(")).replace("window", name)).unwrap();
+    fs::write(
+        &s,
+        WINDOW
+            .replace("window(", &format!("{name}("))
+            .replace("window", name),
+    )
+    .unwrap();
     fs::write(&p, py).unwrap();
     (s, p)
 }
@@ -102,7 +108,10 @@ fn the_slice_is_clamped_and_never_an_error() {
     let r = surety::check_file_with(&s, &p, Budget::default()).unwrap();
     let text = surety::render(&r);
     assert!(r.passed() && r.findings() == 0, "{text}");
-    assert_eq!(r.properties[0].runs, r.runs, "evaluated on every run:\n{text}");
+    assert_eq!(
+        r.properties[0].runs, r.runs,
+        "evaluated on every run:\n{text}"
+    );
 }
 
 /// Python's own slice counts a negative start from the end: that

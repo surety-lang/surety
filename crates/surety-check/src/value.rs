@@ -610,6 +610,7 @@ pub fn from_literal(
             lookup(n).ok_or_else(|| format!("named value `{n}` is not defined"))
         }
         (Expr::None, Type::Option(_)) => Ok(Value::None),
+        (Expr::Bool(b), Type::Bool) => Ok(Value::Bool(*b)),
         (_, Type::Option(inner)) => from_literal(e, inner, lookup, rest),
         (Expr::Int(i), Type::Int) => Ok(Value::Int(i128::from(*i))),
         (Expr::Int(i), Type::Float) => Ok(Value::Float(*i as f64)),
@@ -671,6 +672,7 @@ pub fn from_literal(
         (Expr::Float(_), _) => misfit("a Float literal"),
         (Expr::Text(_), _) => misfit("a Text literal"),
         (Expr::None, _) => misfit("`None`"),
+        (Expr::Bool(_), _) => misfit("a Bool literal"),
         (Expr::Ok(_), _) => misfit("`Ok(...)`"),
         (Expr::Err(_), _) => misfit("`Err(...)`"),
         (Expr::List(_), _) => misfit("a list literal"),

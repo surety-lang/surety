@@ -1423,7 +1423,7 @@ pub fn render_mutants(r: &MutantReport, full: bool) -> String {
         s.push_str(&format!(
             "  mutant {} does not apply: {}\n",
             m.mutant.name(),
-            not_applicable_reason(m.mutant)
+            not_applicable_reason(m.mutant.clone())
         ));
     }
     if !r.uncaught.is_empty() {
@@ -1485,7 +1485,7 @@ fn gap_json(r: &MutantReport, g: &Gap, index: usize) -> Json {
         "shown_by": g.inputs.len(),
         "mutants": g.mutants.iter().map(|m| {
             let mut j = json!({ "mutant": m.name(), "describes": m.describe() });
-            if let Some(sh) = r.run(*m).and_then(|run| run.shown.as_ref()) {
+            if let Some(sh) = r.run(m.clone()).and_then(|run| run.shown.as_ref()) {
                 j["returns"] = json!(sh.output.to_string());
             }
             j
@@ -1563,7 +1563,7 @@ pub fn mutants_json_lines(r: &MutantReport) -> Vec<Json> {
         if let Some(i) = u.accepted_by {
             f["accept"] = json!(i);
         }
-        if let Some(m) = u.same_as {
+        if let Some(m) = &u.same_as {
             f["same_as"] = json!(m.name());
         }
         if let Some(g) = gap_of(i) {

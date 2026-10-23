@@ -21,7 +21,7 @@ use crate::frame::{Correspondence, frame_pairs};
 use crate::generate::{Bucket, Domain, candidates};
 use crate::value::{Value, from_json, to_json};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Mutant {
     Empty,
     OkEmpty,
@@ -41,8 +41,138 @@ pub enum Mutant {
     SkeletonDuplicateOne,
     SkeletonAppendFabricated,
     SkeletonSwapAdjacent,
+    /// The scalar family: one `Int` or `Bool` of the output, not inside a
+    /// list, replaced by a formula over the inputs, the rest the skeleton
+    /// or the empty value. Built per signature by `scalar_family`; a mutant
+    /// is a name plus parameters, so the family's identity is its path and
+    /// formula and a later magnitude knob is a parameter, not a redesign.
+    Scalar(Scalar),
 }
 
+/// An `Int` or `Bool` of the output, by path from the root through `Ok`
+/// and record fields, and the formula that replaces it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Scalar {
+    pub path: Vec<Step>,
+    pub formula: Formula,
+}
+
+/// What a scalar mutant returns in the scalar's place.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Formula {
+    /// A constant, 1 or -1: 0 is the empty value, which `empty` and the
+    /// skeleton already give.
+    Const(i128),
+    /// The base itself: the field is an input, or the sum of one (the tax
+    /// forgotten). For a bare output that is an input, `identity` is this
+    /// and the family leaves it out.
+    Base(Base),
+    PlusOne(Base),
+    MinusOne(Base),
+    Negated(Base),
+    /// The base times 100: the unit-swap mutant, dollars where cents go.
+    Scaled100(Base),
+    /// The `Bool` flipped from the empty value's `false`.
+    True,
+}
+
+/// An `Int` the inputs afford: an `Int` input, an `Int` field of a record
+/// input, or the sum of an input list's `Int` elements or `Int` field.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Base {
+    Input(usize, String),
+    Field(usize, String, String),
+    Sum(usize, String, Option<String>),
+}
+
+impl Base {
+    fn text(&self) -> String {
+        match self {
+            Base::Input(_, n) => n.clone(),
+            Base::Field(_, n, f) => format!("{n}.{f}"),
+            Base::Sum(_, n, None) => format!("sum({n})"),
+            Base::Sum(_, n, Some(f)) => format!("sum({n}.{f})"),
+        }
+    }
+
+    fn value(&self, inputs: &[Value]) -> Option<i128> {
+        fn int(v: &Value) -> Option<i128> {
+            match v {
+                Value::Int(i) => Some(*i),
+                _ => None,
+            }
+        }
+        match self {
+            Base::Input(i, _) => int(inputs.get(*i)?),
+            Base::Field(i, _, f) => int(inputs.get(*i)?.field(f)?),
+            Base::Sum(i, _, f) => {
+                let Value::List(xs) = inputs.get(*i)? else {
+                    return None;
+                };
+                let mut total: i128 = 0;
+                for x in xs {
+                    let x = match f {
+                        Some(f) => x.field(f)?,
+                        None => x,
+                    };
+                    total = total.checked_add(int(x)?)?;
+                }
+                Some(total)
+            }
+        }
+    }
+}
+
+impl Formula {
+    /// The formula in the obligation's own spelling, as the mutant's name.
+    fn text(&self) -> String {
+        match self {
+            Formula::Const(c) => c.to_string(),
+            Formula::Base(b) => b.text(),
+            Formula::PlusOne(b) => format!("{} + 1", b.text()),
+            Formula::MinusOne(b) => format!("{} - 1", b.text()),
+            Formula::Negated(b) => format!("0 - {}", b.text()),
+            Formula::Scaled100(b) => format!("{} * 100", b.text()),
+            Formula::True => "true".into(),
+        }
+    }
+
+    /// The value on given inputs; none where the base overflows.
+    fn value(&self, inputs: &[Value]) -> Option<Value> {
+        Some(match self {
+            Formula::Const(c) => Value::Int(*c),
+            Formula::True => Value::Bool(true),
+            Formula::Base(b) => Value::Int(b.value(inputs)?),
+            Formula::PlusOne(b) => Value::Int(b.value(inputs)?.checked_add(1)?),
+            Formula::MinusOne(b) => Value::Int(b.value(inputs)?.checked_sub(1)?),
+            Formula::Negated(b) => Value::Int(b.value(inputs)?.checked_neg()?),
+            Formula::Scaled100(b) => Value::Int(b.value(inputs)?.checked_mul(100)?),
+        })
+    }
+}
+
+impl Scalar {
+    /// The scalar's place in the output: `out` for a bare scalar, else the
+    /// field path, `Ok` left unsaid.
+    pub fn path_text(&self) -> String {
+        let fields: Vec<&str> = self
+            .path
+            .iter()
+            .filter_map(|s| match s {
+                Step::Field(f) => Some(f.as_str()),
+                _ => None,
+            })
+            .collect();
+        if fields.is_empty() {
+            "out".into()
+        } else {
+            fields.join(".")
+        }
+    }
+}
+
+/// The structural library: the same thirteen for every signature. The
+/// scalar family joins them per signature in `library`.
 pub const LIBRARY: [Mutant; 13] = [
     Mutant::Empty,
     Mutant::OkEmpty,
@@ -60,7 +190,14 @@ pub const LIBRARY: [Mutant; 13] = [
 ];
 
 impl Mutant {
-    pub fn name(self) -> &'static str {
+    pub fn name(&self) -> String {
+        if let Mutant::Scalar(s) = self {
+            return format!("{} = {}", s.path_text(), s.formula.text());
+        }
+        self.structural_name().to_string()
+    }
+
+    fn structural_name(&self) -> &'static str {
         match self {
             Mutant::Empty => "empty",
             Mutant::OkEmpty => "ok_empty",
@@ -75,12 +212,13 @@ impl Mutant {
             Mutant::SkeletonDuplicateOne => "skeleton_duplicate_one",
             Mutant::SkeletonAppendFabricated => "skeleton_append_fabricated",
             Mutant::SkeletonSwapAdjacent => "skeleton_swap_adjacent",
+            Mutant::Scalar(_) => "scalar",
         }
     }
 
     /// The skeleton family: built from the frame pairs, not from an input
     /// that has the output's shape.
-    pub fn is_skeleton(self) -> bool {
+    pub fn is_skeleton(&self) -> bool {
         matches!(
             self,
             Mutant::Skeleton
@@ -92,8 +230,24 @@ impl Mutant {
         )
     }
 
-    pub fn describe(self) -> &'static str {
+    pub fn describe(&self) -> String {
+        if let Mutant::Scalar(s) = self {
+            return if s.path.iter().all(|step| matches!(step, Step::Ok)) {
+                format!("returns {}", s.formula.text())
+            } else {
+                format!(
+                    "returns the skeleton, or the empty value, with {} = {}",
+                    s.path_text(),
+                    s.formula.text()
+                )
+            };
+        }
+        self.structural_description().to_string()
+    }
+
+    fn structural_description(&self) -> &'static str {
         match self {
+            Mutant::Scalar(_) => "replaces one scalar of the output",
             Mutant::Empty => "returns the empty value of the output type",
             Mutant::OkEmpty => "returns Ok of the empty value",
             Mutant::Identity => "returns the input unchanged",
@@ -118,9 +272,170 @@ impl Mutant {
         }
     }
 
+    /// A structural mutant by name; the scalar family's names are per
+    /// signature and come from `library`.
     pub fn from_name(name: &str) -> Option<Mutant> {
-        LIBRARY.into_iter().find(|m| m.name() == name)
+        LIBRARY.into_iter().find(|m| m.structural_name() == name)
     }
+}
+
+/// Every mutant for a signature: the structural thirteen and the scalar
+/// family the output's scalars and the inputs afford.
+pub fn library(scope: &Scope<'_>) -> Vec<Mutant> {
+    LIBRARY
+        .iter()
+        .cloned()
+        .chain(scalar_family(scope))
+        .collect()
+}
+
+/// The `Int` and `Bool` places of the output outside any list, through
+/// `Ok` and record fields.
+fn scalar_paths(ty: &Type, path: &mut Vec<Step>, out: &mut Vec<(Vec<Step>, Type)>) {
+    match ty {
+        Type::Int | Type::Bool => out.push((path.clone(), ty.clone())),
+        Type::Record { fields, .. } => {
+            for (n, t) in fields {
+                path.push(Step::Field(n.clone()));
+                scalar_paths(t, path, out);
+                path.pop();
+            }
+        }
+        Type::Result(ok, _) => {
+            path.push(Step::Ok);
+            scalar_paths(ok, path, out);
+            path.pop();
+        }
+        _ => {}
+    }
+}
+
+/// The `Int`s the inputs afford as a base.
+fn bases(scope: &Scope<'_>) -> Vec<Base> {
+    let mut out = Vec::new();
+    for (i, (name, ty)) in scope.inputs.iter().enumerate() {
+        match ty {
+            Type::Int => out.push(Base::Input(i, name.clone())),
+            Type::Record { fields, .. } => {
+                for (f, t) in fields {
+                    if matches!(t, Type::Int) {
+                        out.push(Base::Field(i, name.clone(), f.clone()));
+                    }
+                }
+            }
+            Type::List(elem, _) => match elem.as_ref() {
+                Type::Int => out.push(Base::Sum(i, name.clone(), None)),
+                Type::Record { fields, .. } => {
+                    for (f, t) in fields {
+                        if matches!(t, Type::Int) {
+                            out.push(Base::Sum(i, name.clone(), Some(f.clone())));
+                        }
+                    }
+                }
+                _ => {}
+            },
+            _ => {}
+        }
+    }
+    out
+}
+
+/// The scalar family for a signature: for each `Int` of the output, the
+/// constants 1 and -1 and, for each base, the base, one more, one less,
+/// negated and times 100; for each `Bool`, `true`. A bare output that is
+/// an input is `identity`'s and is left out.
+pub fn scalar_family(scope: &Scope<'_>) -> Vec<Mutant> {
+    let Some(out) = scope.output.as_ref() else {
+        return Vec::new();
+    };
+    let mut paths = Vec::new();
+    scalar_paths(out, &mut Vec::new(), &mut paths);
+    let bases = bases(scope);
+    let identity = identity_source(scope);
+    let mut family = Vec::new();
+    for (path, ty) in paths {
+        let bare = path.iter().all(|s| matches!(s, Step::Ok));
+        let mut push = |formula: Formula| {
+            family.push(Mutant::Scalar(Scalar {
+                path: path.clone(),
+                formula,
+            }))
+        };
+        match ty {
+            Type::Int => {
+                push(Formula::Const(1));
+                push(Formula::Const(-1));
+                for b in &bases {
+                    let is_identity = bare
+                        && matches!(b, Base::Input(i, _) if identity.is_some_and(|(j, _)| *i == j));
+                    if !is_identity {
+                        push(Formula::Base(b.clone()));
+                    }
+                    push(Formula::PlusOne(b.clone()));
+                    push(Formula::MinusOne(b.clone()));
+                    push(Formula::Negated(b.clone()));
+                    push(Formula::Scaled100(b.clone()));
+                }
+            }
+            Type::Bool => push(Formula::True),
+            _ => {}
+        }
+    }
+    family
+}
+
+/// Replace the value at a path, through record fields and the `Ok` side
+/// of a `Result`, which is taken even where the base value is an `Err`.
+fn set_at(v: &mut Value, ty: &Type, path: &[Step], new: Value) -> bool {
+    match path.split_first() {
+        None => {
+            *v = new;
+            true
+        }
+        Some((Step::Field(f), rest)) => {
+            let (Value::Record(fields), Type::Record { fields: tys, .. }) = (v, ty) else {
+                return false;
+            };
+            let Some((_, inner)) = fields.iter_mut().find(|(n, _)| n == f) else {
+                return false;
+            };
+            let Some((_, inner_ty)) = tys.iter().find(|(n, _)| n == f) else {
+                return false;
+            };
+            set_at(inner, inner_ty, rest, new)
+        }
+        Some((Step::Ok, rest)) => {
+            let Type::Result(ok, _) = ty else {
+                return false;
+            };
+            if !matches!(v, Value::Ok(_)) {
+                *v = Value::Ok(Box::new(empty_value(ok)));
+            }
+            let Value::Ok(inner) = v else {
+                return false;
+            };
+            set_at(inner, ok, rest, new)
+        }
+        _ => false,
+    }
+}
+
+/// A scalar mutant's output: the skeleton where there is a plan, else the
+/// empty value, with the scalar replaced.
+fn scalar_output(
+    s: &Scalar,
+    inputs: &[Value],
+    scope: &Scope<'_>,
+    plan: &[Correspondence],
+) -> Option<Value> {
+    let out = scope.output.as_ref()?;
+    let value = s.formula.value(inputs)?;
+    let mut v = if plan.is_empty() {
+        empty_value(out)
+    } else {
+        skeleton_value(out, &mut Vec::new(), inputs, plan, false)
+    };
+    set_at(&mut v, out, &s.path, value).then_some(v)
 }
 
 const EPOCH: &str = "1970-01-01T00:00:00Z";
@@ -384,11 +699,12 @@ fn edit_at(v: &mut Value, path: &[Step], edit: &dyn Fn(&mut Vec<Value>) -> bool)
 }
 
 /// Whether a mutant can be built for this signature at all.
-pub fn applies(m: Mutant, scope: &Scope<'_>, plan: &[Correspondence]) -> bool {
+pub fn applies(m: &Mutant, scope: &Scope<'_>, plan: &[Correspondence]) -> bool {
     let Some(out) = scope.output.as_ref() else {
         return false;
     };
     match m {
+        Mutant::Scalar(_) => true,
         Mutant::Empty => true,
         Mutant::OkEmpty => matches!(out, Type::Result(..)),
         Mutant::Identity => identity_source(scope).is_some(),
@@ -405,13 +721,14 @@ pub fn applies(m: Mutant, scope: &Scope<'_>, plan: &[Correspondence]) -> bool {
 /// The mutant's output for given inputs, or `None` where it has none on
 /// those inputs (nothing to drop from an empty list).
 pub fn apply(
-    m: Mutant,
+    m: &Mutant,
     inputs: &[Value],
     scope: &Scope<'_>,
     plan: &[Correspondence],
 ) -> Option<Value> {
     let out = scope.output.as_ref()?;
     match m {
+        Mutant::Scalar(s) => scalar_output(s, inputs, scope, plan),
         Mutant::Empty => Some(empty_value(out)),
         Mutant::OkEmpty => match out {
             Type::Result(ok, _) => Some(Value::Ok(Box::new(empty_value(ok)))),
@@ -421,7 +738,7 @@ pub fn apply(
             if !applies(m, scope, plan) {
                 return None;
             }
-            let per_key = m == Mutant::SkeletonPerKey;
+            let per_key = *m == Mutant::SkeletonPerKey;
             let mut v = skeleton_value(out, &mut Vec::new(), inputs, plan, per_key);
             if matches!(m, Mutant::Skeleton | Mutant::SkeletonPerKey) {
                 return Some(v);
@@ -466,7 +783,7 @@ pub fn apply(
             let (idx, wrap) = identity_source(scope)?;
             let base = inputs.get(idx)?.clone();
             let wrapped = |v: Value| if wrap { Value::Ok(Box::new(v)) } else { v };
-            if m == Mutant::Identity {
+            if *m == Mutant::Identity {
                 return Some(wrapped(base));
             }
             let list_ty = identity_list(scope)?;
@@ -1029,9 +1346,9 @@ impl<'g> Checker<'g> {
         let unordered: Vec<Vec<Step>> = self.unordered().to_vec();
         let mut unchecked: Vec<(Clause, String)> = Vec::new();
         let mut mutants = Vec::new();
-        for m in LIBRARY {
+        for m in library(&self.scope) {
             let mut run = MutantRun {
-                mutant: m,
+                mutant: m.clone(),
                 verdict: MutantVerdict::NotApplicable,
                 inputs_tried: 0,
                 caught_inputs: 0,
@@ -1040,13 +1357,13 @@ impl<'g> Checker<'g> {
                 example_catches: Vec::new(),
                 shown: None,
             };
-            if !applies(m, &self.scope, &self.plan) {
+            if !applies(&m, &self.scope, &self.plan) {
                 mutants.push(run);
                 continue;
             }
-            self.mutant = Some(m);
+            self.mutant = Some(m.clone());
             for case in &cases {
-                let Some(out) = apply(m, &case.inputs, &self.scope, &self.plan) else {
+                let Some(out) = apply(&m, &case.inputs, &self.scope, &self.plan) else {
                     continue;
                 };
                 run.inputs_tried += 1;
@@ -1129,15 +1446,15 @@ impl<'g> Checker<'g> {
         let slipped: Vec<Mutant> = mutants
             .iter()
             .filter(|m| m.verdict == MutantVerdict::Slipped)
-            .map(|m| m.mutant)
+            .map(|m| m.mutant.clone())
             .collect();
         for u in &mut search {
-            for &m in &slipped {
+            for m in &slipped {
                 if let Some(v) = apply(m, &u.inputs, &self.scope, &self.plan) {
                     if compare(&v, &u.a, &unordered).is_ok()
                         || compare(&v, &u.b, &unordered).is_ok()
                     {
-                        u.same_as = Some(m);
+                        u.same_as = Some(m.clone());
                         break;
                     }
                 }

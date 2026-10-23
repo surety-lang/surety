@@ -122,7 +122,7 @@ fn an_obligation_with_no_clauses_is_one_gap() {
             .all(|u| size(&u.inputs) >= size(&smallest.inputs)),
         "the witness is the smallest input"
     );
-    let mut names: Vec<&str> = g.mutants.iter().map(|m| m.name()).collect();
+    let mut names: Vec<String> = g.mutants.iter().map(|m| m.name()).collect();
     names.sort();
     assert_eq!(
         names,
@@ -246,14 +246,17 @@ fn an_input_dependent_mutant_joins_a_gap_only_on_its_own_input() {
     let text = surety::render_mutants(&r, false);
     let gaps = surety_check::gaps(&r);
     assert_eq!(gaps.len(), 1, "{text}");
-    let names: Vec<&str> = gaps[0].mutants.iter().map(|m| m.name()).collect();
-    assert!(names.contains(&"ok_empty"), "{text}");
+    let names: Vec<String> = gaps[0].mutants.iter().map(|m| m.name()).collect();
+    assert!(names.iter().any(|n| n == "ok_empty"), "{text}");
     for m in ["identity", "drop_one"] {
         assert!(
             r.slipped().iter().any(|s| s.mutant.name() == m),
             "{m} slips here:\n{text}"
         );
-        assert!(!names.contains(&m), "{m} is not this gap:\n{text}");
+        assert!(
+            !names.iter().any(|n| n == m),
+            "{m} is not this gap:\n{text}"
+        );
     }
 }
 

@@ -523,7 +523,12 @@ fn calls_to(scope: &Scope<'_>, e: &Expr, name: &str, truth: bool, out: &mut Vec<
                 calls_to(scope, x, name, false, out);
             }
         }
-        Expr::Int(_) | Expr::Float(_) | Expr::Text(_) | Expr::None | Expr::Name(..) => {}
+        Expr::Int(_)
+        | Expr::Float(_)
+        | Expr::Text(_)
+        | Expr::None
+        | Expr::Bool(_)
+        | Expr::Name(..) => {}
     }
 }
 
@@ -675,7 +680,8 @@ pub fn hover(
         let chars: Vec<char> = l.chars().collect();
         let at = |i: usize| chars.get(i).copied();
         matches!(at(character), Some('[' | ']'))
-            || (at(character) == Some('.') && (at(character + 1) == Some('.') || at(character.wrapping_sub(1)) == Some('.')))
+            || (at(character) == Some('.')
+                && (at(character + 1) == Some('.') || at(character.wrapping_sub(1)) == Some('.')))
     });
     for f in graph.functions_in(idx) {
         let first_example = f

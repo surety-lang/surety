@@ -276,6 +276,7 @@ impl<'s, 'g> Env<'s, 'g> {
             Expr::Float(f) => format!("(float {f:?})"),
             Expr::Text(s) => format!("(text {s:?})"),
             Expr::None => "none".into(),
+            Expr::Bool(b) => format!("(bool {b})"),
             Expr::Name(n, l) => self.name(n, *l)?,
             Expr::Field(b, f, _) => format!("(. {} {f})", self.print(b)?),
             Expr::Call(n, args, l) => {

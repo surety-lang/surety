@@ -41,7 +41,7 @@ fn uncaught_by(r: &MutantReport, names: &[&str]) -> usize {
         .filter(|c| {
             !r.mutants
                 .iter()
-                .filter(|m| names.contains(&m.mutant.name()))
+                .filter(|m| names.contains(&m.mutant.name().as_str()))
                 .any(|m| m.kills.iter().any(|k| k.clause == **c))
         })
         .count()
@@ -81,7 +81,8 @@ fn the_blind_five_see_more_and_every_skeleton_dies_on_a_named_clause() {
             );
         }
         let before = uncaught_by(&r, &["empty"]);
-        let after = uncaught_by(&r, &LIBRARY.iter().map(|m| m.name()).collect::<Vec<_>>());
+        let library: Vec<String> = LIBRARY.iter().map(|m| m.name()).collect();
+        let after = uncaught_by(&r, &library.iter().map(String::as_str).collect::<Vec<_>>());
         eprintln!(
             "{name}: clauses catching nothing: {before} with `empty` alone, {after} with the library"
         );

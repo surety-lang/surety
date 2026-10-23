@@ -42,13 +42,24 @@ fn a_computed_threshold_is_crossed_without_an_example() {
             under += 1;
         }
     }
-    assert!(over > 0 && under > 0, "past the threshold {over}, within it {under}");
-    let r = surety::check_file_with(&dir.join("paginate.sur"), &perf, surety_check::Budget::default())
-        .or_else(|_| {
-            std::fs::write(dir.join("paginate.sur"), text).unwrap();
-            surety::check_file_with(&dir.join("paginate.sur"), &perf, surety_check::Budget::default())
-        })
-        .unwrap();
+    assert!(
+        over > 0 && under > 0,
+        "past the threshold {over}, within it {under}"
+    );
+    let r = surety::check_file_with(
+        &dir.join("paginate.sur"),
+        &perf,
+        surety_check::Budget::default(),
+    )
+    .or_else(|_| {
+        std::fs::write(dir.join("paginate.sur"), text).unwrap();
+        surety::check_file_with(
+            &dir.join("paginate.sur"),
+            &perf,
+            surety_check::Budget::default(),
+        )
+    })
+    .unwrap();
     let report = surety::render(&r);
     // With no examples the binding tier is skipped, so the verdict line,
     // not `passed`, says the generated tier was clean.

@@ -79,8 +79,8 @@ fn applicability_matches_the_table() {
         let c = checker(&graph, name);
         for m in LIBRARY {
             assert_eq!(
-                applies(m, &c.scope, &c.plan),
-                expected.contains(&m.name()),
+                applies(&m, &c.scope, &c.plan),
+                expected.contains(&m.name().as_str()),
                 "{name}: {} applicability",
                 m.name()
             );
@@ -150,7 +150,7 @@ fn library_entries_are_caught_where_the_hand_mutants_were() {
             .any(|t| t.contains("sk in old.sku or sk in diff.added.sku"))
     );
     for m in LIBRARY {
-        if let Some(run) = ad.run(m) {
+        if let Some(run) = ad.run(m.clone()) {
             assert_ne!(
                 run.verdict,
                 MutantVerdict::Slipped,

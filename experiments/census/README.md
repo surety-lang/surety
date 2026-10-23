@@ -1,6 +1,6 @@
 # Reach-for census (2026-10-23)
 
-The census measures which forms a model reaches for that the property fragment lacks, over real pure Python functions. `select.py` picks the functions and writes one problem file each; `run_census.py` runs the draft, both stages, per problem and checkpoints to `results.jsonl`. `draft.py` is not changed.
+The census measures which forms a model reaches for that the property fragment lacks, over real pure Python functions. `pick_functions.py` picks the functions and writes one problem file each; `run_census.py` runs the draft, both stages, per problem and checkpoints to `results.jsonl`. `draft.py` is not changed.
 
 ## Running it locally
 
@@ -10,7 +10,7 @@ The census measures which forms a model reaches for that the property fragment l
 4. `python3 experiments/census/run_census.py --jobs 3` from the repository root. It writes `out/<id>.sur`, `logs/<id>.<stage>.txt`, one record per function to `results.jsonl`, and the usual draft run directories under `experiments/draft/runs/`. A stopped run resumes: functions with a complete record are skipped; `--retry-failed` re-runs incomplete ones; `--limit N` and `--only <id> ...` narrow a run. `--jobs` is the number of problems in flight; 3 is gentle on rate limits.
 5. Each stage uses the draft's defaults (`claude-opus-5-5`, effort high); `--model` and `--effort` pass through.
 
-`select.py` regenerates `functions.jsonl`, `skipped.jsonl` and `problems/` from the installed libraries (333 selected, 177 skipped with a reason). The problems committed here came from more-itertools 11.2.1, toolz 1.2.0, boltons 26.2.0, Django 6.1.2, requests 2.34.2 and humanize 4.16.0.
+`pick_functions.py` regenerates `functions.jsonl`, `skipped.jsonl` and `problems/` from the installed libraries (333 selected, 177 skipped with a reason). The problems committed here came from more-itertools 11.2.1, toolz 1.2.0, boltons 26.2.0, Django 6.1.2, requests 2.34.2 and humanize 4.16.0.
 
 ## What to push back for the review
 

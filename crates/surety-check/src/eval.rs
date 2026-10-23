@@ -74,12 +74,12 @@ impl<'a> Env<'a> {
         e
     }
 
-    fn binding(&self, name: &str) -> Option<&Binding> {
+    pub(crate) fn binding(&self, name: &str) -> Option<&Binding> {
         self.binders.iter().rev().find(|b| b.name == name)
     }
 
     /// The scope of an abbreviation body: inputs and `out`, no binders.
-    fn for_abbrev(&self, params: Vec<(String, Value)>) -> Env<'a> {
+    pub(crate) fn for_abbrev(&self, params: Vec<(String, Value)>) -> Env<'a> {
         Env {
             inputs: self.inputs,
             out: self.out,

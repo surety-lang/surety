@@ -217,3 +217,14 @@ fn the_reach_counts_are_in_the_json_of_both_commands() {
     assert_eq!(reach(surety::json_lines(&r))["clauses"], want);
     assert_eq!(reach(surety::json_lines(&r))["examples"], 2);
 }
+
+#[test]
+fn an_abbreviation_is_opened_so_a_quantifier_over_out_inside_it_can_be_vacuous() {
+    // A local abbreviation and a top-level one called with `out`, each a
+    // quantifier over the Ok side: an error example (1) leaves it vacuous,
+    // an Ok one (2) reaches it, as if it were written in the line.
+    let src = "nonneg(r: Result<Int, Text>) = all Ok(p) in r: p >= 0\n\npage_at(page: Int) -> Result<Int, Text>\n\tpositive = all Ok(p) in out: p >= 0\n\tpositive\n\tnonneg(out)\n\te:\n\t\tin: -1\n\t\tout: Err(\"negative\")\n\te:\n\t\tin: 2\n\t\tout: Ok(2)\n";
+    let a = against_src("abbreviation", src);
+    assert_eq!(reached(&a, "positive"), vec![2]);
+    assert_eq!(reached(&a, "nonneg(out)"), vec![2]);
+}

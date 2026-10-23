@@ -17,7 +17,11 @@
 //! value when its evaluation failed, which only a part the evaluator would
 //! have skipped can do. The same part under two bindings is two leaves. A
 //! bodiless quantifier is one leaf; a bodied one's pattern count is not
-//! flippable, its body's evaluations are. The second pass gives each node
+//! flippable, its body's evaluations are. An abbreviation, by name or by
+//! call, is opened as `eval` opens it, its body traced in the scope of the
+//! inputs and `out` with its parameters bound, a parameter reading the
+//! output when its argument does; so a quantifier over `out` inside one is
+//! vacuous where it would be written in the line. The second pass gives each node
 //! whether it can be true and whether it can be false, from its children,
 //! by the connectives' truth tables and the quantifiers' count ranges; the
 //! example reaches the clause when the root can be false.
@@ -32,6 +36,7 @@
 //! only widen what a node can be: a clause is never called unreached that
 //! a consistent flip would reach.
 
+use surety_syntax::parser::BUILTINS;
 use surety_syntax::{BinOp, Expr, QKind, Quantifier};
 
 use crate::checker::Checker;
@@ -157,8 +162,51 @@ impl<'g> Checker<'g> {
                 }
             }
             Expr::Quantifier(q) if q.body.is_some() => self.trace_quantifier(q, env, outs),
+            // Resolved in `eval_name`'s order: a parameter, a binder, an
+            // input or `out` shadows an abbreviation of the same name.
+            Expr::Name(n, _)
+                if !env.params.iter().any(|(p, _)| p == n)
+                    && env.binding(n).is_none()
+                    && !env.inputs.iter().any(|(i, _)| i == n)
+                    && n != "out"
+                    && self.scope.abbrev(n).is_some_and(|a| a.params.is_empty()) =>
+            {
+                self.trace_abbrev(n, &[], env, outs)
+            }
+            Expr::Call(n, args, _)
+                if !BUILTINS.contains(&n.as_str())
+                    && self
+                        .scope
+                        .abbrev(n)
+                        .is_some_and(|a| a.params.len() == args.len()) =>
+            {
+                self.trace_abbrev(n, args, env, outs)
+            }
             _ => self.leaf(e, env, outs),
         }
+    }
+
+    /// An abbreviation's body in its own scope: the inputs and `out`, its
+    /// parameters bound to the arguments' values, a parameter in `outs`
+    /// when its argument reads the output.
+    fn trace_abbrev(&mut self, name: &str, args: &[Expr], env: &Env<'_>, outs: &[String]) -> Node {
+        let a = self.scope.abbrev(name).expect("an abbreviation");
+        let mut params = Vec::with_capacity(args.len());
+        let mut inner_outs = Vec::new();
+        for ((p, _), arg) in a.params.iter().zip(args) {
+            let Ok(v) = self.eval(arg, env) else {
+                return Node::Leaf {
+                    value: None,
+                    free: false,
+                };
+            };
+            if self.reads_output(arg) || outs.iter().any(|n| arg.mentions(n)) {
+                inner_outs.push(p.clone());
+            }
+            params.push((p.clone(), v));
+        }
+        let inner = env.for_abbrev(params);
+        self.trace(&a.body, &inner, &inner_outs)
     }
 
     fn leaf(&mut self, e: &Expr, env: &Env<'_>, outs: &[String]) -> Node {

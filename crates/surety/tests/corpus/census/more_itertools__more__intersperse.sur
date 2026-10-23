@@ -44,3 +44,4 @@ intersperse(e: Int, iterable: Int[], n: Int) -> Result<Int[], IntersperseError>
 	// example wanted: n 0 with [1, 2]: the boundary of the error
 	// example wanted: n -1 with an empty iterable: the error is decided by n alone, even when there
 	// is nothing to intersperse
+// census: drafted from the docstring of more_itertools.more.intersperse, more-itertools 11.2.1, MIT License, Copyright (c) 2012 Erik Rose

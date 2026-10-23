@@ -48,3 +48,4 @@ zip_broadcast(objects: Arg[], strict: Bool) -> Result<Row[], ZipError>
 	// example wanted: iterables of 2 and 2 items with a scalar, strict: equal lengths, so no error
 	// example wanted: an empty iterable beside a non-empty one and a scalar, not strict: the empty
 	// one decides the row count
+// census: drafted from the docstring of more_itertools.more.zip_broadcast, more-itertools 11.2.1, MIT License, Copyright (c) 2012 Erik Rose

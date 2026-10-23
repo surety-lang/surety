@@ -273,6 +273,9 @@ fn a_quantifier_mid_line_is_split_or_rewritten_with_the_quantifier_last() {
     );
 }
 
+/// A census draft, copied verbatim with one comment line added last naming
+/// the library, version and license its docstring came from, so the lines
+/// the brief cites keep their numbers.
 fn census(name: &str) -> String {
     fs::read_to_string(
         common::corpus_dir()

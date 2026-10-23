@@ -41,6 +41,10 @@
           "passed": 8,
           "total": 8
         },
+        "examples_against": {
+          "contradictions": 0,
+          "evaluated": 8
+        },
         "findings": 0,
         "generated": [
           {
@@ -135,10 +139,15 @@
           "accepted": 0,
           "applicable": 13,
           "caught": 13,
-          "causes": 0,
+          "gaps": 0,
+          "not_judged": [],
           "open": 0,
+          "passing_search": {
+            "inputs": 508,
+            "no_passing_output": 0
+          },
           "slipped": 0,
-          "total": 24,
+          "total": 25,
           "underdetermined_inputs": 0
         },
         "verdict": "ACCEPTED"
@@ -656,15 +665,15 @@
     ],
     "target": "python",
     "timeout_secs": 10,
-    "verdict": "invoice_total  ACCEPTED  examples 8/8; 2 clauses clean over 508 runs; 13 of 24 mutants apply, none slipped"
+    "verdict": "invoice_total  ACCEPTED  examples 8/8; 2 clauses clean over 508 runs; 13 of 25 mutants apply, none slipped"
   },
   "provenance": {
     "checker": "0.1.0",
-    "format": 2,
-    "performance_source": "experiments/closed-loop/runs/20261023-150343-claude-opus-5-5/p11.py",
+    "format": 3,
+    "performance_source": "crates/surety/tests/corpus/p11/p11.py",
     "presentation": "fd94925a243f9bdd3c1aa6e2f15b058afd09bf330002ea9da80819499430e711",
     "python": "3.14.0",
     "siblings": {},
-    "source": "experiments/draft/out3/p11/p11.sur"
+    "source": "crates/surety/tests/corpus/p11/p11.sur"
   }
 }

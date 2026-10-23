@@ -106,7 +106,7 @@ fn check_copy(name: &str, from: &str, to: &str, siblings: &[&str]) -> Report {
 /// P7 before the author's first fix: the refinement the report suggests
 /// is the one the author applied.
 #[test]
-fn p7_without_its_refinement_is_unsatisfiable_on_shared_ids() {
+fn p7_without_its_refinement_has_no_passing_output_on_shared_ids() {
     let r = check_copy("p7", "users: User[unique id]", "users: User[]", &[]);
     let text = surety::render(&r);
     assert!(r.passed(), "examples still pass:\n{text}");
@@ -127,7 +127,7 @@ fn p7_without_its_refinement_is_unsatisfiable_on_shared_ids() {
     );
     assert!(text.contains("closed by users: User[unique id]"), "{text}");
     assert!(
-        text.starts_with("enrich_orders  NOT ACCEPTED  obligation: unsatisfiable on"),
+        text.starts_with("enrich_orders  NOT ACCEPTED  obligation: no passing output on"),
         "{text}"
     );
     assert!(
@@ -138,7 +138,9 @@ fn p7_without_its_refinement_is_unsatisfiable_on_shared_ids() {
         "{text}"
     );
     let json = surety::render_json(&r);
-    assert!(json.contains("\"unsatisfiable_on\""), "{json}");
+    // Found by a bounded search, not proved: the type is `no_passing_output`.
+    assert!(json.contains("\"kind\":\"no_passing_output\""), "{json}");
+    assert!(!json.contains("\"unsatisfiable_on\""), "{json}");
     assert!(
         json.contains("\"suggest\":\"users: User[unique id]\""),
         "{json}"
@@ -149,7 +151,7 @@ fn p7_without_its_refinement_is_unsatisfiable_on_shared_ids() {
 /// `exactly_one` properties and both frame pairs; the report names the
 /// refinement on `orders`.
 #[test]
-fn p7_without_its_orders_refinement_is_unsatisfiable_on_shared_order_ids() {
+fn p7_without_its_orders_refinement_has_no_passing_output_on_shared_order_ids() {
     let r = check_copy("p7", "orders: Order[unique id]", "orders: Order[]", &[]);
     let text = surety::render(&r);
     assert!(r.passed() && !r.strict_passed(), "{text}");
@@ -199,7 +201,7 @@ fn p7_without_its_orders_refinement_is_unsatisfiable_on_shared_order_ids() {
 /// P6 before the author's fix: two items sharing an id break both
 /// `exactly_one` properties; the refinement is on a field of a named type.
 #[test]
-fn p6_without_its_refinement_is_unsatisfiable_on_shared_item_ids() {
+fn p6_without_its_refinement_has_no_passing_output_on_shared_item_ids() {
     let r = check_copy(
         "p6",
         "items: OrderItemRow[unique id]",
@@ -259,7 +261,7 @@ fn apply_diff_without_its_added_refinement_forces_a_non_unique_output() {
         "{text}"
     );
     assert!(
-        text.contains("  UNSATISFIABLE ON  the output type:"),
+        text.contains("  FORCED OUTSIDE  the output type:"),
         "{text}"
     );
     let json = surety::render_json(&r);
@@ -449,7 +451,7 @@ fn check_carries_the_mutant_verdict() {
     let text = surety::render(&r);
     assert!(
         text.contains(
-            "    underdetermination: 6 of 13 mutants apply; 0 slipped; 0 underdetermined inputs"
+            "    underdetermination: 6 of 14 mutants apply; 0 slipped; 0 underdetermined inputs"
         ),
         "{text}"
     );

@@ -22,5 +22,7 @@ pub use diff::{Class, DiffReport, Difference};
 pub use eval::{OBLIGATION_FAULT, is_obligation_fault};
 pub use gap::{Change, Divergence, Gap, Step, diverge, gaps, pretty, pretty_inputs};
 pub use generate::{Bucket, Budget, Domain, Generated};
-pub use mutants::{Clause, Mutant, MutantReport, MutantRun, MutantVerdict, Underdetermined};
+pub use mutants::{
+    Clause, Mutant, MutantReport, MutantRun, MutantVerdict, NoPassing, Underdetermined,
+};
 pub use value::{BoundaryError, Value};

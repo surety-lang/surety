@@ -202,7 +202,10 @@ fn an_edited_example_is_the_obligations_finding_even_when_the_performance_reprod
         "p2-edited-reproduced",
         &[("p2.sur", &edited_p2()), ("p2.py", P2_REPRODUCES)],
     );
-    let r = check(&dir.join("p2.sur"));
+    // The default budget: the passing search reaches the filtered list on
+    // the example's own input, so nothing there is left unconfirmed.
+    let path = dir.join("p2.sur");
+    let r = surety::check_file(&path, &path.with_extension("py")).unwrap();
     assert_eq!(contradicted_lines(&surety::json_lines(&r)), vec![(1, 5)]);
     let verdict = surety::verdict_line(&r);
     assert_eq!(

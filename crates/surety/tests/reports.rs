@@ -14,6 +14,8 @@ const FINDING_KINDS: &[&str] = &[
     "example_unevaluable",
     "reach",
     "ran",
+    "no_passing_output",
+    "mutant_not_judged",
     "look_here",
     "example_mismatch",
     "boundary",

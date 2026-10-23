@@ -11,34 +11,6 @@
     "report": [
       {
         "clause": {
-          "canonical": "(all err($) out (body (drawn_from $0 (list (rec (code (text \"e-page-size\")) (display (text \"Page size must be at least 1\"))) (rec (code (text \"e-page-negative\")) (display (text \"Page number must be at least 0\"))) (rec (code (text \"e-page-past-end\")) (display (text \"Page is past the end of the list\")))))))",
-          "clause": 4
-        },
-        "inputs": [
-          {
-            "json": [
-              [],
-              0,
-              3
-            ],
-            "sur": "in: ([], 0, 3)"
-          }
-        ],
-        "kind": "look_here",
-        "obligation": "paginate",
-        "obligation_hash": "560ae402450d52721b12db04dce00c1ccd2d87cefdd0dfa2d2e222943de502e5",
-        "output": {
-          "ok": {
-            "has_next": false,
-            "items": [],
-            "total_pages": 0
-          }
-        },
-        "performance_hash": "4cea90be0c03abd6e1c00d0e82cff598bcdf155ced4bbff2efc1f9c5427ce6f6",
-        "why": "no mutant can violate it"
-      },
-      {
-        "clause": {
           "canonical": "(all err($) out (body (unordered $0)))",
           "clause": 5
         },
@@ -75,6 +47,10 @@
         "examples": {
           "passed": 9,
           "total": 9
+        },
+        "examples_against": {
+          "contradictions": 0,
+          "evaluated": 9
         },
         "findings": 0,
         "generated": [
@@ -216,12 +192,17 @@
         },
         "underdetermination": {
           "accepted": 0,
-          "applicable": 15,
-          "caught": 15,
-          "causes": 0,
+          "applicable": 16,
+          "caught": 16,
+          "gaps": 0,
+          "not_judged": [],
           "open": 0,
+          "passing_search": {
+            "inputs": 509,
+            "no_passing_output": 0
+          },
           "slipped": 0,
-          "total": 26,
+          "total": 27,
           "underdetermined_inputs": 0
         },
         "verdict": "ACCEPTED"
@@ -740,15 +721,15 @@
     ],
     "target": "python",
     "timeout_secs": 10,
-    "verdict": "paginate  ACCEPTED  examples 9/9; 10 clauses clean over 509 runs; 15 of 26 mutants apply, none slipped"
+    "verdict": "paginate  ACCEPTED  examples 9/9; 10 clauses clean over 509 runs; 16 of 27 mutants apply, none slipped"
   },
   "provenance": {
     "checker": "0.1.0",
-    "format": 2,
-    "performance_source": "experiments/closed-loop/runs/20261023-134717-claude-opus-5-5/p13.py",
+    "format": 3,
+    "performance_source": "crates/surety/tests/corpus/p13/p13.py",
     "presentation": "73a6eba891d2113cd5bc7dafa051f34a401caec6c09fb606ff4bdbfe06682c44",
     "python": "3.14.0",
     "siblings": {},
-    "source": "experiments/draft/out3/p13.sur"
+    "source": "crates/surety/tests/corpus/p13/p13.sur"
   }
 }

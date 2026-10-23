@@ -193,13 +193,24 @@ const HALF_EVEN: &str = "def invoice_total(items, tax_rate_bps):
 ";
 
 /// Problem 11's "tax applied once" as one line: the half-even performance
-/// passes it, and the mutant that returns 0 does not.
+/// passes it, and the mutant that returns 0 does not. The line alone does not
+/// decide a tie.
 #[test]
 fn a_tolerance_is_one_abs_line() {
     let (sur, py) = scratch("invoice_total", INVOICE, HALF_EVEN);
     let r = surety::check_file_with(&sur, &py, Budget::default()).unwrap();
     let text = surety::render(&r);
-    assert!(r.passed() && r.findings() == 0, "{text}");
+    assert!(r.passed(), "{text}");
+    // Since slice 6 the gap search tries the outputs in hand and their
+    // neighbours either side for an Int output: the abs line alone admits
+    // both sides of the half-even tie, 138 and 137, one gap, the example's
+    // input the smallest. The binding tier passes.
+    assert!(
+        text.contains("UNDERDETERMINED  out can be 138 or 137"),
+        "{text}"
+    );
+    // Two underdetermined inputs, both in that one gap.
+    assert_eq!(r.findings(), 2, "{text}");
     let m = r.mutants.as_ref().unwrap();
     let empty = m
         .mutants

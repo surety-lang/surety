@@ -185,6 +185,10 @@ pub struct Cause {
     /// For the performance's: an output that passes every clause there.
     pub passing: Option<Value>,
     pub candidates_tried: usize,
+    /// Every clause of the group is about the inputs alone: false there
+    /// whatever the output, so no output passes, by evaluation, not by a
+    /// search. The one case the word "unsatisfiable" is kept for.
+    pub proved: bool,
 }
 
 impl Cause {
@@ -281,6 +285,11 @@ pub struct LookHere {
 
 #[derive(Debug, Clone)]
 pub enum LookKind {
+    /// An input with a catch on which no output among the candidates
+    /// passes every clause (piece 5): listed first.
+    NoPassing {
+        candidates: usize,
+    },
     Uncaught(crate::mutants::Clause),
     Accept {
         /// The accept's index in source order.
@@ -858,6 +867,19 @@ impl<'g> Checker<'g> {
         }));
         let mut out = Vec::new();
         if let Some(m) = mutants {
+            for np in &m.no_passing {
+                let output = runs
+                    .iter()
+                    .find(|(inputs, _)| *inputs == np.inputs)
+                    .map(|(_, o)| o.clone());
+                out.push(LookHere {
+                    kind: LookKind::NoPassing {
+                        candidates: np.candidates_tried,
+                    },
+                    inputs: np.inputs.clone(),
+                    output,
+                });
+            }
             for c in &m.uncaught {
                 if let Some((inputs, output)) = runs.first() {
                     out.push(LookHere {
@@ -905,18 +927,22 @@ impl<'g> Checker<'g> {
             line: usize,
             label: String,
             text: String,
+            /// The clause reads the output; a frame clause always does.
+            reads: bool,
             binding_pass: bool,
             cex: Vec<Counterexample>,
             suggest: Option<String>,
             note: Option<String>,
         }
         let mut items: Vec<Item> = Vec::new();
-        for p in properties {
+        let fun = self.fun;
+        for (p, fp) in properties.iter().zip(&fun.properties) {
             if !p.counterexamples.is_empty() {
                 items.push(Item {
                     line: p.line,
                     label: format!("property (line {})", p.line),
                     text: p.text.clone(),
+                    reads: self.reads_output(&fp.expr),
                     binding_pass: !p.verdict.contradicted(),
                     cex: p.counterexamples.clone(),
                     suggest: p.suggest.clone(),
@@ -934,6 +960,7 @@ impl<'g> Checker<'g> {
                         f.description,
                         f.preserved.join(", ")
                     ),
+                    reads: true,
                     binding_pass: !f.verdict.contradicted(),
                     cex: f.counterexamples.clone(),
                     suggest: f.suggest.clone(),
@@ -1000,6 +1027,7 @@ impl<'g> Checker<'g> {
                 witness,
                 passing,
                 candidates_tried: tried,
+                proved: members.iter().all(|&m| !items[m].reads),
             });
         }
         causes

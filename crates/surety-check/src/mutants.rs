@@ -26,6 +26,10 @@ use crate::value::{Value, from_json, to_json};
 pub enum Mutant {
     Empty,
     OkEmpty,
+    /// `Err` holding a fabricated value, for a `Result` whose error side is
+    /// a record or a list of records: what only a claim that every error is
+    /// one of the declared ones (`errs drawn_from valid_errors`) catches.
+    ErrFabricated,
     Identity,
     DropOne,
     DuplicateOne,
@@ -172,11 +176,12 @@ impl Scalar {
     }
 }
 
-/// The structural library: the same thirteen for every signature. The
+/// The structural library: the same fourteen for every signature. The
 /// scalar family joins them per signature in `library`.
-pub const LIBRARY: [Mutant; 13] = [
+pub const LIBRARY: [Mutant; 14] = [
     Mutant::Empty,
     Mutant::OkEmpty,
+    Mutant::ErrFabricated,
     Mutant::Identity,
     Mutant::DropOne,
     Mutant::DuplicateOne,
@@ -202,6 +207,7 @@ impl Mutant {
         match self {
             Mutant::Empty => "empty",
             Mutant::OkEmpty => "ok_empty",
+            Mutant::ErrFabricated => "err_fabricated",
             Mutant::Identity => "identity",
             Mutant::DropOne => "drop_one",
             Mutant::DuplicateOne => "duplicate_one",
@@ -251,6 +257,9 @@ impl Mutant {
             Mutant::Scalar(_) => "replaces one scalar of the output",
             Mutant::Empty => "returns the empty value of the output type",
             Mutant::OkEmpty => "returns Ok of the empty value",
+            Mutant::ErrFabricated => {
+                "returns Err holding a fabricated error, one of no declared value"
+            }
             Mutant::Identity => "returns the input unchanged",
             Mutant::DropOne => "returns the input without its first element",
             Mutant::AppendFabricated => "returns the input with a fabricated element appended",
@@ -464,6 +473,22 @@ fn scalar(ty: &Type, text: &str) -> Value {
         Type::Result(_, err) => Value::Err(Box::new(scalar(err, text))),
         Type::Named(_) | Type::Unknown => Value::None,
     }
+}
+
+/// `Err` of a fabricated record (`{code: "fab", display: "fab"}`), or of a
+/// list of one, when the output is a `Result` whose error side is either.
+fn fabricated_error(out: &Type) -> Option<Value> {
+    let Type::Result(_, err) = out else {
+        return None;
+    };
+    let v = match err.as_ref() {
+        Type::Record { .. } => fabricated(err),
+        Type::List(elem, _) if matches!(elem.as_ref(), Type::Record { .. }) => {
+            Value::List(vec![fabricated(elem)])
+        }
+        _ => return None,
+    };
+    Some(Value::Err(Box::new(v)))
 }
 
 /// The empty value of a type: `[]`, `""`, 0, the epoch, `None`, a record of
@@ -708,6 +733,7 @@ pub fn applies(m: &Mutant, scope: &Scope<'_>, plan: &[Correspondence]) -> bool {
         Mutant::Scalar(_) => true,
         Mutant::Empty => true,
         Mutant::OkEmpty => matches!(out, Type::Result(..)),
+        Mutant::ErrFabricated => fabricated_error(out).is_some(),
         Mutant::Identity => identity_source(scope).is_some(),
         Mutant::DropOne
         | Mutant::DuplicateOne
@@ -735,6 +761,7 @@ pub fn apply(
             Type::Result(ok, _) => Some(Value::Ok(Box::new(empty_value(ok)))),
             _ => None,
         },
+        Mutant::ErrFabricated => fabricated_error(out),
         m if m.is_skeleton() => {
             if !applies(m, scope, plan) {
                 return None;
@@ -878,6 +905,10 @@ pub enum MutantVerdict {
     Slipped,
     Caught,
     NotApplicable,
+    /// Caught only on inputs where no passing output was found: each catch
+    /// is kept, unconfirmed, and the mutant is judged neither way, since a
+    /// bounded search never withdraws a clause's credit (slice 6, piece 5).
+    NotJudged,
 }
 
 /// The input a report shows for a mutant: an example that caught it when
@@ -898,6 +929,9 @@ pub struct MutantRun {
     pub inputs_tried: usize,
     /// Inputs on which at least one clause caught it.
     pub caught_inputs: usize,
+    /// Those inputs, by index among the inputs the mutants ran on: the
+    /// examples, then the generated.
+    pub caught_on: Vec<usize>,
     pub kills: Vec<Kill>,
     /// Clauses never false for it.
     pub slipped: Vec<Clause>,
@@ -953,6 +987,21 @@ pub struct MutantReport {
     pub against: Against,
     /// What ran; `mutants` never runs the performance, so `runs` is zero.
     pub ran: crate::checker::Ran,
+    /// Inputs with a catch on which the passing search, seeded with every
+    /// output in hand, found no output that passes every clause: the
+    /// catches there are unconfirmed.
+    pub no_passing: Vec<NoPassing>,
+    /// Inputs with a catch that the passing search looked at, once each.
+    pub passing_searched: usize,
+}
+
+/// An input with a catch and no passing output found.
+#[derive(Debug, Clone)]
+pub struct NoPassing {
+    pub inputs: Vec<Value>,
+    /// 1-based example number, when the input is an example's.
+    pub example: Option<usize>,
+    pub candidates_tried: usize,
 }
 
 impl MutantReport {
@@ -975,6 +1024,13 @@ impl MutantReport {
             .iter()
             .filter(|m| m.verdict == MutantVerdict::Caught)
             .count()
+    }
+
+    pub fn not_judged(&self) -> Vec<&MutantRun> {
+        self.mutants
+            .iter()
+            .filter(|m| m.verdict == MutantVerdict::NotJudged)
+            .collect()
     }
 
     /// Underdetermined inputs no `accept` covers.
@@ -1151,6 +1207,23 @@ fn drawn_list(
     out
 }
 
+/// For a scalar `Int` output, the values one either side of each output
+/// given: where a tie or a rounding leaves two answers, the other one is
+/// tried even when the pool's values miss it.
+fn neighbours(out_ty: &Type, outputs: &[Value]) -> Vec<Value> {
+    if !matches!(out_ty, Type::Int) {
+        return Vec::new();
+    }
+    outputs
+        .iter()
+        .filter_map(|v| match v {
+            Value::Int(n) => Some([Value::Int(n - 1), Value::Int(n + 1)]),
+            _ => None,
+        })
+        .flatten()
+        .collect()
+}
+
 fn kill(run: &mut MutantRun, clause: Clause, message: Option<String>, case: &Case, out: &Value) {
     if let Some(k) = run.kills.iter_mut().find(|k| k.clause == clause) {
         k.count += 1;
@@ -1258,6 +1331,30 @@ impl<'g> Checker<'g> {
         clauses
     }
 
+    /// The outputs already decided on these inputs: an example's expected
+    /// output, and the performance's where `check` ran it.
+    pub(crate) fn outputs_in_hand(&self, inputs: &[Value]) -> Vec<Value> {
+        let mut out = Vec::new();
+        for ex in &self.fun.examples {
+            if self.example_inputs(ex).is_ok_and(|i| i == inputs) {
+                if let Ok(e) = self.expected_output(ex, inputs) {
+                    out.push(e);
+                }
+            }
+        }
+        out.extend(
+            self.runs
+                .iter()
+                .filter(|r| r.inputs == inputs)
+                .map(|r| r.output.clone()),
+        );
+        out.extend(self.generated.iter().filter_map(|g| match &g.outcome {
+            Outcome::Output(v) if g.inputs == inputs => Some(v.clone()),
+            _ => None,
+        }));
+        out
+    }
+
     /// An output that passes every clause on these inputs, if the
     /// candidate search finds one, and how many candidates it tried. This
     /// is how a generated-input failure is attributed: a passing output
@@ -1283,26 +1380,11 @@ impl<'g> Checker<'g> {
         let domain = Domain::seeded(&typed);
         let drawn = drawn_candidates(&out_ty, inputs, &self.scope, &named);
         // The outputs in hand, in order: an example's on its own input (a
-        // contradicted one fails the clauses below like any candidate), the
-        // performance's where it ran on the input, then the mutants'.
-        let mut seeds: Vec<Value> = Vec::new();
-        for ex in &self.fun.examples {
-            if self.example_inputs(ex).is_ok_and(|i| i == inputs) {
-                if let Ok(e) = self.expected_output(ex, inputs) {
-                    seeds.push(e);
-                }
-            }
-        }
-        seeds.extend(
-            self.runs
-                .iter()
-                .filter(|r| r.inputs == inputs)
-                .map(|r| r.output.clone()),
-        );
-        seeds.extend(self.generated.iter().filter_map(|g| match &g.outcome {
-            Outcome::Output(v) if g.inputs == inputs => Some(v.clone()),
-            _ => None,
-        }));
+        // contradicted one fails the clauses below like any candidate) and
+        // the performance's where it ran on the input, a scalar's neighbours
+        // either side of them, then the mutants'.
+        let mut seeds = self.outputs_in_hand(inputs);
+        seeds.extend(neighbours(&out_ty, &seeds));
         seeds.extend(
             library(&self.scope)
                 .iter()
@@ -1377,6 +1459,9 @@ impl<'g> Checker<'g> {
             .map(|((_, e), _)| e.clone())
             .collect();
         let mut input_only_false = vec![0; only.len()];
+        // Per input: whether a clause about the inputs alone is false there,
+        // which proves no output passes (reading 113).
+        let mut excluded: Vec<bool> = Vec::with_capacity(cases.len());
         let mut excluded_inputs = 0;
         for case in &cases {
             let mut any = false;
@@ -1389,6 +1474,7 @@ impl<'g> Checker<'g> {
             if any {
                 excluded_inputs += 1;
             }
+            excluded.push(any);
         }
         let unordered: Vec<Vec<Step>> = self.unordered().to_vec();
         let mut unchecked: Vec<(Clause, String)> = Vec::new();
@@ -1399,6 +1485,7 @@ impl<'g> Checker<'g> {
                 verdict: MutantVerdict::NotApplicable,
                 inputs_tried: 0,
                 caught_inputs: 0,
+                caught_on: Vec::new(),
                 kills: Vec::new(),
                 slipped: Vec::new(),
                 example_catches: Vec::new(),
@@ -1409,7 +1496,7 @@ impl<'g> Checker<'g> {
                 continue;
             }
             self.mutant = Some(m.clone());
-            for case in &cases {
+            for (ci, case) in cases.iter().enumerate() {
                 let Some(out) = apply(&m, &case.inputs, &self.scope, &self.plan) else {
                     continue;
                 };
@@ -1436,6 +1523,7 @@ impl<'g> Checker<'g> {
                 }
                 if run.kills.iter().map(|k| k.count).sum::<usize>() > before {
                     run.caught_inputs += 1;
+                    run.caught_on.push(ci);
                 }
                 let example_caught = case
                     .expected
@@ -1481,6 +1569,48 @@ impl<'g> Checker<'g> {
                     .any(|r| r.kills.iter().any(|k| k.clause == *c))
             })
             .collect();
+        // The credit rule: every input with a catch gets one passing search,
+        // shared by the mutants, since the answer is the input's. A catch on
+        // an input where none is found stays a catch, unconfirmed; a mutant
+        // whose every catch is unconfirmed is not judged. With no search
+        // budget nothing is searched and the verdicts stand.
+        let mut no_passing = Vec::new();
+        let mut passing_searched = 0;
+        if self.budget.search_candidates > 0 {
+            let mut caught: Vec<usize> = mutants
+                .iter()
+                .flat_map(|m: &MutantRun| m.caught_on.iter().copied())
+                .collect();
+            caught.sort_unstable();
+            caught.dedup();
+            let mut unconfirmed = Vec::new();
+            for i in caught {
+                // Proved unsatisfiable by a clause about the inputs alone:
+                // no output passes, so none is searched for, and the input is
+                // the input-only clause's to report, not a bounded search's.
+                if excluded[i] {
+                    unconfirmed.push(i);
+                    continue;
+                }
+                passing_searched += 1;
+                let (found, tried) = self.find_passing(&cases[i].inputs);
+                if found.is_none() {
+                    unconfirmed.push(i);
+                    no_passing.push(NoPassing {
+                        inputs: cases[i].inputs.clone(),
+                        example: cases[i].example,
+                        candidates_tried: tried,
+                    });
+                }
+            }
+            for run in &mut mutants {
+                if run.verdict == MutantVerdict::Caught
+                    && run.caught_on.iter().all(|i| unconfirmed.contains(i))
+                {
+                    run.verdict = MutantVerdict::NotJudged;
+                }
+            }
+        }
         let (mut search, search_inputs, mut unevaluable) =
             self.search(&cases, &clauses, &unordered);
         for (c, e) in unchecked {
@@ -1539,6 +1669,8 @@ impl<'g> Checker<'g> {
             excluded_inputs,
             ran,
             against,
+            no_passing,
+            passing_searched,
         }
     }
 
@@ -1601,18 +1733,35 @@ impl<'g> Checker<'g> {
             // An example's output counts as the first passing output only
             // once it passes every clause: a contradicted example is the
             // obligation's finding, never one side of a gap.
+            // A clause calling a performance that cannot start is unchecked
+            // here as in the passing search (reading 134): it neither passes
+            // nor fails an output.
             let mut passing: Vec<Value> = Vec::new();
             if let Some(e) = &case.expected {
                 if clauses
                     .iter()
-                    .all(|(_, x)| matches!(self.holds(x, &case.inputs, e), Ok(true)))
+                    .all(|(_, x)| match self.holds(x, &case.inputs, e) {
+                        Ok(b) => b,
+                        Err(m) => self.unstartable(&m),
+                    })
                 {
                     passing.push(e.clone());
                 }
             }
             let seeded = !passing.is_empty();
-            for (tried, cand) in candidates(&out_ty, &domain, cap, drawn)
+            // For a scalar output the outputs in hand and their neighbours
+            // either side lead: where a tie leaves two answers, the other
+            // one is tried even when the pool's values miss it.
+            let leading: Vec<Value> = if matches!(out_ty, Type::Int) {
+                let in_hand = self.outputs_in_hand(&case.inputs);
+                let near = neighbours(&out_ty, &in_hand);
+                in_hand.into_iter().chain(near).collect()
+            } else {
+                Vec::new()
+            };
+            for (tried, cand) in leading
                 .into_iter()
+                .chain(candidates(&out_ty, &domain, cap, drawn))
                 .enumerate()
             {
                 let tried = tried + 1;
@@ -1631,6 +1780,7 @@ impl<'g> Checker<'g> {
                             ok = false;
                             break;
                         }
+                        Err(e) if self.unstartable(&e) => {}
                         Err(e) => {
                             errors[i].0 += 1;
                             if errors[i].1.is_none() {

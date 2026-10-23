@@ -295,12 +295,19 @@ export function mutantLens(lines: any[]): { title: string; tooltip: string } {
         + `The search looked at ${plural(searched, 'input', 'inputs')}, up to ${cap} candidate outputs each, for two different outputs that both pass every clause`;
     const excluded: number = report.excluded_inputs ?? 0;
     const contradicted = lines.filter(isContradiction).length;
-    if (gaps || slipped || excluded || contradicted) {
+    const noPassing: number = report.no_passing_output ?? 0;
+    if (gaps || slipped || excluded || contradicted || noPassing) {
         const problems = [];
         // An example its own lines reject comes before anything the
         // mutants say: one of the author's two statements is wrong.
         if (contradicted) {
             problems.push(`Contradicted: ${plural(contradicted, 'line is', 'lines are')} false on the examples written for them`);
+        }
+        // Inputs with a catch and no passing output found: the catches there
+        // are unconfirmed, and a mutant caught only there is not judged.
+        if (noPassing) {
+            const notJudged: number = m.not_judged ?? 0;
+            problems.push(`No passing output on ${noPassing} of ${report.passing_searched ?? noPassing} inputs with a catch${notJudged ? `; ${plural(notJudged, 'mutant', 'mutants')} not judged` : ''}`);
         }
         // No output at all on some inputs comes first: there the question of
         // which output does not arise, which is why a gap can vanish.

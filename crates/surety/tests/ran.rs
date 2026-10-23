@@ -63,13 +63,16 @@ fn no_example_and_no_performance_lead_both_lines_and_neither_is_a_pass() {
     }
     let header = surety::render_mutants(&m, false);
     assert!(
-        header.starts_with("paginate  no example, no performance  inputs 0+40  mutants "),
+        header.starts_with("paginate  no example, no performance  no passing output on 40 of 40 inputs with a catch  inputs 0+40  mutants "),
         "{header}"
     );
-    assert_eq!(
-        surety::verdict_line(&r),
-        "paginate  NOT ACCEPTED  no example, no performance  obligation: nothing found"
+    // Piece 5's count leads the obligation's part, then the mutants not judged.
+    let line = surety::verdict_line(&r);
+    assert!(
+        line.starts_with("paginate  NOT ACCEPTED  no example, no performance  obligation: no passing output on 40 of 40 inputs with a catch; 16 mutants not judged ("),
+        "{line}"
     );
+    assert!(!line.contains("performance: "), "{line}");
     let evidence = surety::json_lines(&r)
         .into_iter()
         .find(|j| j["kind"] == "evidence")
@@ -93,13 +96,15 @@ fn one_example_is_counted_and_its_contradictions_are_on_the_line() {
     let path = dir.join("p13.sur");
     let r = surety::check_file_with(&path, &path.with_extension("py"), small()).unwrap();
     assert_eq!(ran(&surety::json_lines(&r))["examples"], 1);
-    assert_eq!(
-        surety::verdict_line(&r),
-        "paginate  NOT ACCEPTED  no performance  obligation: example 1 contradicts lines 30, 33, 35, 37, 39"
+    let line = surety::verdict_line(&r);
+    assert!(
+        line.starts_with("paginate  NOT ACCEPTED  no performance  obligation: example 1 contradicts lines 30, 33, 35, 37, 39; no passing output on 41 of 41 inputs with a catch; "),
+        "{line}"
     );
     let m = surety::mutants_file(&path, None, small()).unwrap();
     assert!(
-        surety::render_mutants(&m, false).starts_with("paginate  no performance  inputs 1+40  "),
+        surety::render_mutants(&m, false)
+            .starts_with("paginate  no performance  no passing output on 41 of 41 inputs with a catch  inputs 1+40  "),
         "{}",
         surety::render_mutants(&m, false)
     );

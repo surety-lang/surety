@@ -131,9 +131,11 @@ fn an_obligation_with_no_clauses_is_one_gap() {
     );
 
     // The text: one gap line and a line per slipped mutant, none per input.
+    // `err_fabricated` slips too, no clause catching it, and is not one of
+    // the gap's two outputs.
     let text = surety::render_mutants(&r, false);
-    assert_eq!(text.lines().count(), 4, "{text}");
-    assert_eq!(text.matches("\n  slipped  ").count(), 2, "{text}");
+    assert_eq!(text.lines().count(), 5, "{text}");
+    assert_eq!(text.matches("\n  slipped  ").count(), 3, "{text}");
     assert!(
         text.contains(&format!("underdetermined {} in 1 gap", r.open().len())),
         "{text}"
@@ -170,7 +172,12 @@ fn an_obligation_with_no_clauses_is_one_gap() {
         .iter()
         .filter(|j| j["kind"] == "underdetermined" || j["kind"] == "mutant_slipped")
     {
-        assert_eq!(j["gap"], 0, "{j}");
+        // `err_fabricated` slips but returns neither of the gap's outputs.
+        if j["candidate"]["mutant"] == "err_fabricated" {
+            assert_eq!(j["gap"], Json::Null, "{j}");
+        } else {
+            assert_eq!(j["gap"], 0, "{j}");
+        }
     }
     let report = lines.iter().find(|j| j["kind"] == "mutant_report").unwrap();
     assert_eq!(report["gaps"], 1);

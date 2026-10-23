@@ -338,11 +338,57 @@ fn nothing_ran(name: &str) -> String {
     format!("{name}  nothing ran: no example, no performance")
 }
 
+/// The lead for inputs with a catch and no passing output found.
+fn no_passing_lead(m: &MutantReport) -> String {
+    format!(
+        "no passing output on {} of {} inputs with a catch",
+        m.no_passing.len(),
+        m.passing_searched
+    )
+}
+
+/// The inputs with no passing output and the mutants not judged, in the
+/// body of either report: the first three inputs, then how many more.
+fn no_passing_text(m: &MutantReport) -> String {
+    let mut s = String::new();
+    for np in m.no_passing.iter().take(3) {
+        s.push_str(&format!(
+            "  NO PASSING OUTPUT  among {} candidates on in: {}\n",
+            np.candidates_tried,
+            sur_inputs(&np.inputs)
+        ));
+    }
+    if m.no_passing.len() > 3 {
+        s.push_str(&format!(
+            "  NO PASSING OUTPUT  and on {} more inputs\n",
+            m.no_passing.len() - 3
+        ));
+    }
+    let not_judged = m.not_judged();
+    if !not_judged.is_empty() {
+        s.push_str(&format!(
+            "  NOT JUDGED  {}: caught only on inputs with no passing output found\n",
+            not_judged
+                .iter()
+                .map(|r| r.mutant.name())
+                .collect::<Vec<_>>()
+                .join(", ")
+        ));
+    }
+    s
+}
+
 /// What the report says about each party, as short phrases. With no
 /// performance beside the obligation, nothing is said about one: every
 /// call to it failed for want of it, and the line leads with that.
 fn party_summaries(r: &Report) -> (Vec<String>, Vec<String>) {
     let mut obligation = against_summaries(&r.against);
+    // The count of inputs with no passing output found leads.
+    if let Some(m) = &r.mutants {
+        if !m.no_passing.is_empty() {
+            obligation.push(no_passing_lead(m));
+        }
+    }
     let mut performance = Vec::new();
     let failing: Vec<String> = r
         .examples
@@ -390,7 +436,15 @@ fn party_summaries(r: &Report) -> (Vec<String>, Vec<String>) {
         let where_ = format!("{} of {} generated inputs", c.inputs, c.generated);
         match c.party {
             Party::Obligation => obligation.push(format!(
-                "unsatisfiable on {where_}{}",
+                "{}{where_}{}",
+                if c.proved {
+                    "unsatisfiable on ".to_string()
+                } else {
+                    format!(
+                        "no passing output among {} candidates on ",
+                        c.candidates_tried
+                    )
+                },
                 match (&c.suggest, &c.note) {
                     (Some(sg), _) => format!(", closed by {sg}"),
                     (None, Some(_)) => ", no refinement closes it".to_string(),
@@ -440,6 +494,18 @@ fn party_summaries(r: &Report) -> (Vec<String>, Vec<String>) {
                 "{} slipped ({})",
                 plural(slipped.len(), "mutant", "mutants"),
                 slipped
+                    .iter()
+                    .map(|s| s.mutant.name())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ));
+        }
+        let not_judged = m.not_judged();
+        if !not_judged.is_empty() {
+            obligation.push(format!(
+                "{} not judged ({})",
+                plural(not_judged.len(), "mutant", "mutants"),
+                not_judged
                     .iter()
                     .map(|s| s.mutant.name())
                     .collect::<Vec<_>>()
@@ -608,7 +674,12 @@ fn cause_block(s: &mut String, index: usize, c: &Cause) {
                 String::new()
             };
             s.push_str(&format!(
-                "  UNSATISFIABLE ON  cause {}: {where_}; {closed}{searched}; {}: {clauses}\n",
+                "  {}  cause {}: {where_}; {closed}{searched}; {}: {clauses}\n",
+                if c.proved {
+                    "UNSATISFIABLE ON"
+                } else {
+                    "NO PASSING OUTPUT"
+                },
                 index + 1,
                 plural(c.clauses.len(), "clause", "clauses")
             ));
@@ -703,8 +774,19 @@ fn look_here_text(r: &Report) -> String {
         .iter()
         .filter(|l| matches!(l.kind, LookKind::Uncaught(_)))
         .count();
-    let accepts = r.look_here.len() - clauses;
+    let no_passing = r
+        .look_here
+        .iter()
+        .filter(|l| matches!(l.kind, LookKind::NoPassing { .. }))
+        .count();
+    let accepts = r.look_here.len() - clauses - no_passing;
     let mut parts = Vec::new();
+    if no_passing > 0 {
+        parts.push(format!(
+            "{} with no passing output",
+            plural(no_passing, "input", "inputs")
+        ));
+    }
     if clauses > 0 {
         parts.push(format!(
             "{} no mutant can violate",
@@ -724,6 +806,10 @@ fn look_here_text(r: &Report) -> String {
     );
     for l in &r.look_here {
         let (label, why) = match &l.kind {
+            LookKind::NoPassing { candidates } => (
+                "input with a catch".to_string(),
+                format!("no output among {candidates} candidates passes every clause"),
+            ),
             LookKind::Uncaught(c) => (
                 match c.line() {
                     Some(line) => format!("clause (line {line}): {}", c.text()),
@@ -766,6 +852,9 @@ pub fn render_with(report: &Report, full: bool) -> String {
             "  NO PERFORMANCE  nothing beside the obligation to run: the examples' outputs, the {} generated inputs, determinism and totality wait for one\n",
             report.generated_inputs
         ));
+    }
+    if let Some(m) = &report.mutants {
+        s.push_str(&no_passing_text(m));
     }
     for e in report
         .examples
@@ -817,7 +906,7 @@ pub fn render_with(report: &Report, full: bool) -> String {
         let n = report.generated_boundary.len();
         match &report.boundary_suggest {
             Some(sg) => s.push_str(&format!(
-                "  UNSATISFIABLE ON  the output type: {n} of {} generated inputs force an output outside it; closed by {sg}\n",
+                "  FORCED OUTSIDE  the output type: {n} of {} generated inputs force an output outside it; closed by {sg}\n",
                 report.generated_inputs
             )),
             None => s.push_str(&format!(
@@ -1199,7 +1288,8 @@ pub fn json_lines(r: &Report) -> Vec<Json> {
     }
     for (i, c) in r.causes.iter().enumerate() {
         let kind = match c.party {
-            Party::Obligation => "unsatisfiable_on",
+            Party::Obligation if c.proved => "unsatisfiable_on",
+            Party::Obligation => "no_passing_output",
             Party::Performance | Party::Undetermined => "property_failed",
         };
         let (line, _, text) = &c.clauses[0];
@@ -1295,10 +1385,13 @@ pub fn json_lines(r: &Report) -> Vec<Json> {
         "purity": "unverified",
         "findings": r.findings(),
         "underdetermination": match &r.mutants {
-            Some(m) => json!({ "applicable": m.applicable(), "total": m.mutants.len(), "slipped": m.slipped().len(), "caught": m.caught(), "underdetermined_inputs": m.search.len(), "accepted": m.accepted().len(), "open": m.open().len(), "causes": gaps(m).len() }),
+            Some(m) => json!({ "applicable": m.applicable(), "total": m.mutants.len(), "slipped": m.slipped().len(), "caught": m.caught(), "underdetermined_inputs": m.search.len(), "accepted": m.accepted().len(), "open": m.open().len(), "gaps": gaps(m).len(),
+                "not_judged": m.not_judged().iter().map(|r| r.mutant.name()).collect::<Vec<_>>(),
+                "passing_search": { "inputs": m.passing_searched, "no_passing_output": m.no_passing.len() } }),
             None => json!("not run"),
         },
         "accepts": r.accepts.iter().map(|a| json!({ "line": a.line, "text": a.text, "satisfied": a.satisfied, "dead": a.dead() })).collect::<Vec<_>>(),
+        "examples_against": { "evaluated": r.against.evaluated(), "contradictions": r.against.contradictions().len() },
         "generated": r.buckets.iter().map(|b| json!({ "lengths": b.lengths, "taken": b.taken, "space": b.space.to_string(), "exhaustive": b.exhaustive })).collect::<Vec<_>>(),
     });
     if let Some(i) = &r.inspection {
@@ -1312,6 +1405,8 @@ pub fn json_lines(r: &Report) -> Vec<Json> {
     if let Some(m) = &r.mutants {
         out.extend(mutants_json_lines(m).into_iter().filter(|j| {
             j["kind"] == "mutant_slipped"
+                || j["kind"] == "mutant_not_judged"
+                || j["kind"] == "no_passing_output"
                 || j["kind"] == "underdetermined"
                 || j["kind"] == "gap"
                 || j["kind"] == "accepted"
@@ -1343,6 +1438,10 @@ pub fn json_lines(r: &Report) -> Vec<Json> {
                         f["false_on"] = json!(m.input_only_false[k]);
                     }
                 }
+            }
+            LookKind::NoPassing { candidates } => {
+                f["why"] = json!(format!("no passing output among {candidates} candidates"));
+                f["no_passing_output"] = json!(true);
             }
             LookKind::Accept {
                 index, satisfied, ..
@@ -1442,6 +1541,9 @@ fn not_applicable_reason(m: surety_check::Mutant) -> &'static str {
     match m {
         surety_check::Mutant::Empty => "always applies",
         surety_check::Mutant::OkEmpty => "the output is not a Result",
+        surety_check::Mutant::ErrFabricated => {
+            "the output is not a Result whose error is a record or a list of records"
+        }
         surety_check::Mutant::Identity => "no single input has the output's shape",
         surety_check::Mutant::Skeleton => "no frame pair gives the output a source",
         surety_check::Mutant::SkeletonPerKey => "no frame pair matches on a field",
@@ -1495,16 +1597,27 @@ pub fn render_mutants(r: &MutantReport, full: bool) -> String {
         s.push('\n');
         return s;
     }
+    let not_judged = r.not_judged().len();
     s.push_str(&format!(
-        "{}{}  inputs {}+{}  mutants {} of {} apply  slipped {}  caught {}  underdetermined {}{}{}{}\n",
+        "{}{}{}  inputs {}+{}  mutants {} of {} apply  slipped {}  caught {}{}  underdetermined {}{}{}{}\n",
         r.obligation,
         missing_lead(&r.ran),
+        if r.no_passing.is_empty() {
+            String::new()
+        } else {
+            format!("  {}", no_passing_lead(r))
+        },
         r.example_inputs,
         r.generated_inputs,
         r.applicable(),
         r.mutants.len(),
         slipped.len(),
         r.caught(),
+        if not_judged == 0 {
+            String::new()
+        } else {
+            format!("  not judged {not_judged}")
+        },
         r.open().len(),
         if gaps.is_empty() {
             String::new()
@@ -1523,6 +1636,7 @@ pub fn render_mutants(r: &MutantReport, full: bool) -> String {
         }
     ));
     s.push_str(&against_text(&r.against));
+    s.push_str(&no_passing_text(r));
     for g in &gaps {
         s.push_str(&format!("  gap  {}\n", gap_line(r, g)));
     }
@@ -1743,6 +1857,7 @@ pub fn mutants_json_lines(r: &MutantReport) -> Vec<Json> {
             MutantVerdict::Slipped => "mutant_slipped",
             MutantVerdict::Caught => "mutant_caught",
             MutantVerdict::NotApplicable => "mutant_not_applicable",
+            MutantVerdict::NotJudged => "mutant_not_judged",
         };
         let mut f = json!({
             "kind": kind,
@@ -1776,6 +1891,20 @@ pub fn mutants_json_lines(r: &MutantReport) -> Vec<Json> {
             if let Some(n) = sh.example {
                 f["example"] = json!(n);
             }
+        }
+        out.push(f);
+    }
+    for np in &r.no_passing {
+        let mut f = json!({
+            "kind": "no_passing_output",
+            "obligation": r.obligation,
+            "obligation_hash": r.obligation_hash,
+            "party": "obligation",
+            "inputs": input_json(&np.inputs),
+            "candidates_tried": np.candidates_tried,
+        });
+        if let Some(n) = np.example {
+            f["example"] = json!(n);
         }
         out.push(f);
     }
@@ -1813,7 +1942,9 @@ pub fn mutants_json_lines(r: &MutantReport) -> Vec<Json> {
         "obligation_hash": r.obligation_hash,
         "example_inputs": r.example_inputs,
         "generated_inputs": r.generated_inputs,
-        "mutants": { "total": r.mutants.len(), "applicable": r.applicable(), "slipped": r.slipped().len(), "caught": r.caught() },
+        "mutants": { "total": r.mutants.len(), "applicable": r.applicable(), "slipped": r.slipped().len(), "caught": r.caught(), "not_judged": r.not_judged().len() },
+        "no_passing_output": r.no_passing.len(),
+        "passing_searched": r.passing_searched,
         "underdetermined_inputs": r.search.len(),
         "gaps": gaps.len(),
         "excluded_inputs": r.excluded_inputs,

@@ -723,8 +723,8 @@ fn field(v: &Value, f: &str, line: usize) -> Result<Value, String> {
 }
 
 /// The prefix of an evaluation error that is the obligation's own: its
-/// arithmetic overflowing the checker's `i128`, or producing a value the
-/// boundary cannot carry. A performance's integers do not overflow, so the
+/// arithmetic overflowing the checker's `i128`, taking a remainder on 0, or
+/// producing a value the boundary cannot carry. A performance's integers do not overflow, so the
 /// report puts such an error under `obligation:`, not `performance:`.
 pub const OBLIGATION_FAULT: &str = "the obligation's arithmetic ";
 
@@ -740,7 +740,9 @@ fn int_of(v: &Value, what: &str) -> Result<i128, String> {
     }
 }
 
-/// `+ - *` over `Int`, checked in `i128`.
+/// `+ - * %` over `Int`, checked in `i128`. `%` is floored, the remainder
+/// taking the divisor's sign as Python's does; `% 0`, like an overflow, is
+/// the obligation's error.
 fn arith(op: ArithOp, a: &Value, b: &Value) -> Result<Value, String> {
     let (Value::Int(x), Value::Int(y)) = (a, b) else {
         return Err(format!(
@@ -754,6 +756,18 @@ fn arith(op: ArithOp, a: &Value, b: &Value) -> Result<Value, String> {
         ArithOp::Add => x.checked_add(*y),
         ArithOp::Sub => x.checked_sub(*y),
         ArithOp::Mul => x.checked_mul(*y),
+        ArithOp::Mod if *y == 0 => {
+            return Err(format!(
+                "{OBLIGATION_FAULT}divides by zero: {x} % 0 has no remainder"
+            ));
+        }
+        ArithOp::Mod => x.checked_rem(*y).map(|r| {
+            if r != 0 && (r < 0) != (*y < 0) {
+                r + y
+            } else {
+                r
+            }
+        }),
     };
     r.map(Value::Int).ok_or_else(|| {
         format!(

@@ -1216,28 +1216,29 @@ impl<'a> ExprParser<'a> {
         }
     }
 
-    /// `*`, left-associative, above `+` and `-`. `/` and `%` are refused
-    /// here with the reason: a quotient carries a rounding decision that is
-    /// an obligation's own, so it is a sibling obligation's claim and a
-    /// ratio is compared as products.
+    /// `*` and `%`, left-associative, above `+` and `-`. `%` is exact, the
+    /// remainder with the divisor's sign (decided 2026-10-23 evening, to name
+    /// a tie). `/` is refused here with the reason: a quotient carries a
+    /// rounding decision that is an obligation's own, so it is a sibling
+    /// obligation's claim and a ratio is compared as products.
     fn parse_multiplicative(&mut self) -> Result<Expr, Error> {
         let mut left = self.parse_postfix()?;
         loop {
             match self.peek().map(|t| &t.tok) {
-                Some(Tok::Sym("*")) => {
+                Some(Tok::Sym(s @ ("*" | "%"))) => {
+                    let op = if *s == "*" {
+                        ArithOp::Mul
+                    } else {
+                        ArithOp::Mod
+                    };
                     self.operator_ok()?;
                     self.bump();
                     let right = self.parse_postfix()?;
-                    left = Expr::Arith(ArithOp::Mul, Box::new(left), Box::new(right));
+                    left = Expr::Arith(op, Box::new(left), Box::new(right));
                 }
                 Some(Tok::Sym("/")) => {
                     return Err(self.err(
                         "`/` is not in the language: every division carries a rounding decision that is an obligation's own, so a quotient is a sibling obligation's claim; compare a ratio as products, `a * d <= c * b` for `a / b <= c / d`",
-                    ));
-                }
-                Some(Tok::Sym("%")) => {
-                    return Err(self.err(
-                        "`%` is not in the language: a remainder is a claim, `n == q * m + r` with `0 <= r` and `r < m`",
                     ));
                 }
                 _ => return Ok(left),

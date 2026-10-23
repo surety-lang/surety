@@ -11,7 +11,7 @@ import * as textmate from 'vscode-textmate';
 
 const here = path.resolve(__dirname, '..', '..');
 const corpus = path.resolve(here, '..', '..', 'crates', 'surety', 'tests', 'corpus');
-const fixtures = ['p1', 'p2', 'p3', 'p4', 'p5a', 'p5b', 'p6', 'p7', 'p8', 'p14', 'apply_diff'];
+const fixtures = ['p1', 'p2', 'p3', 'p4', 'p5a', 'p5b', 'p6', 'p7', 'p8', 'p14', 'apply_diff', 'p13/p13', 'p11/p11'];
 
 async function registry(): Promise<textmate.Registry> {
     const wasm = fs.readFileSync(require.resolve('vscode-oniguruma/release/onig.wasm')).buffer;

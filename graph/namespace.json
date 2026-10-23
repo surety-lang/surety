@@ -32,7 +32,7 @@
     "source": "crates/surety/tests/corpus/p3.sur"
   },
   "invoice_total": {
-    "obligation": "c44ee4c7611fe0e7399344ee3593b6c720d9a6b0b80175b92bc70fe782e8ef90",
+    "obligation": "493a1e6aa046e853b45ab3b16f9f20224d50e082971c1c7e0a81f7879b348464",
     "source": "crates/surety/tests/corpus/p11/p11.sur"
   },
   "paginate": {

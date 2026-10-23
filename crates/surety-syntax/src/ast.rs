@@ -209,13 +209,15 @@ pub enum BinOp {
     NotIn,
 }
 
-/// Integer arithmetic: `*` binds tighter than `+` and `-`, all three
-/// left-associative and above every comparison.
+/// Integer arithmetic: `*` and `%` bind tighter than `+` and `-`, all four
+/// left-associative and above every comparison. `%` is the remainder with
+/// the divisor's sign, as Python has it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ArithOp {
     Add,
     Sub,
     Mul,
+    Mod,
 }
 
 impl ArithOp {
@@ -224,6 +226,7 @@ impl ArithOp {
             ArithOp::Add => "+",
             ArithOp::Sub => "-",
             ArithOp::Mul => "*",
+            ArithOp::Mod => "%",
         }
     }
 }

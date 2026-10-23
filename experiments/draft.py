@@ -26,7 +26,10 @@ output, so the file is parsed and an error goes back to the model for up to
 three rounds, as in stage 2. The author then edits the sentences in the editor.
 
 `lines` refuses a file that does not parse (exit 2, with the error: it only
-adds lines under sentences, and the types are stage 1's). Otherwise it asks,
+adds lines under sentences, and the types are stage 1's), and a file with no
+`e:` block (exit 2: a line is asked for only against an example that can run
+it). `--census`, passed by the census runner alone, skips the second refusal
+and says so in the run directory's census.json. Otherwise it asks,
 for every sentence with no property line beneath it, for one line in the
 notation; inserts it; runs `surety parse`; feeds errors back for
 up to three rounds; then runs `surety mutants` and prints its report. A
@@ -74,7 +77,7 @@ NOTATION = """The notation, by the forms the corpus uses:
 - Membership and comparison: `x in L`, `x not in L`, `==`, `!=`, `<`, `<=`, `>`, `>=`, `and`, `or`, `not`, `->` (implies), `<->` (iff). Field access `x.f`; `L.f` is the list of every element's f.
 - Whole-list claims: `unique out.f`, `out unordered` (order is not claimed), `out same_order_as L`, `out same_elements_as L`, `out drawn_from L`, `out sorted_by (f desc, g asc)`, `a before b in L`.
 - Built-ins: `sum(L)`, `len(L)`, `min(a, b)`, `max(a, b)`, `count(L)`, `flatten(L)`, `abs(n)`. `None`, `Ok(x)`, `Err(x)`, `true`, `false` as values.
-- Arithmetic on Int: `a + b`, `a - b`, `a * b`, with `*` binding tighter and parentheses as usual, over Int fields, `len`, `sum`, `count` and literals, so `page * size > len(items)` and `out * 10000 <= sum(items.amount_cents) * (10000 + rate_bps) + 5000` are lines. No `/` and no `%`: a quotient carries a rounding decision that is a sibling obligation's claim, and a ratio is compared as products. No arithmetic on Float, Time or Text. A difference within a bound is one line: `abs(a - b) <= k`.
+- Arithmetic on Int: `a + b`, `a - b`, `a * b`, `a % b`, with `*` and `%` binding tighter and parentheses as usual, over Int fields, `len`, `sum`, `count` and literals, so `page * size > len(items)` and `out * 10000 <= sum(items.amount_cents) * (10000 + rate_bps) + 5000` are lines. `%` is the exact remainder with the divisor's sign, as Python's, so `n % 2 == 0` says n is even and a half-even tie is `x % 10000 == 5000`. No `/`: a quotient carries a rounding decision that is a sibling obligation's claim, and a ratio is compared as products. No arithmetic on Float, Time or Text. A difference within a bound is one line: `abs(a - b) <= k`.
 - The slice: `xs[a .. b]` is the elements of `xs` from position `a` up to but not including `b`, positions counted from 0, both clamped to the list: a negative `a` clamps to 0 and never counts from the end (Python's `xs[-1:]` means something else), a `b` past the end stops at the end, a `b` below `a` is empty. So `items[page * size .. (page + 1) * size]` is the page, the partial last page and the empty page past the end alike. In a type, `Item[0..3]` is a length bound, a different thing.
 - "The output is the error exactly when the condition holds" is `C <-> (exactly_one Err(e) in out: e == x)`, the quantifier last and in parentheses, or, for a list of errors, the named list and `C <-> (exactly_one Err(errs) in out: x in errs)`; never `out == Err(x)`, since `Err(x)` is a pattern, not a value.
 - A bodied `any` or `exactly_one` over `out` standing alone claims that side on every input: `exactly_one Ok(p) in out: p.total >= 0` says every output is an `Ok`. A claim about one side alone is `all Ok(p) in out: …`, true where the output is the other side.
@@ -111,7 +114,7 @@ An instance you want pinned goes under the sentences as one line, `// example wa
 
 A sentence implied by another is left out, so that every sentence carries a claim of its own. Two cases. A boundary case of a claim is an example, not a second sentence: "if the list is empty, the total is 0" follows from "the total is the sum of the amounts", so it goes out as an example wanted. A bound implied by a stronger bound is dropped: "the total is at least 0" follows from "the total is at least the sum of the amounts" when every amount is at least 0, so only the stronger one stays. Three to six sentences is the usual size; a problem with error cases has one more per error.
 
-Shapes that have no line, so no sentence takes them: counting occurrences, division and rounding (a quotient is a sibling obligation's claim; state a ratio as a comparison of products), text operations beyond its length and whether it contains something. For a text's shape (an email, a phone number) say that a sibling obligation decides it ("the email is well-formed"): a graph reference, never a claim of the fragment. Shapes that have a line and take a sentence each: a threshold or a total as arithmetic over integer fields and lengths ("the page is past the end when page times size is more than the item count"), the sub-list from one position to another ("the page's items are the items from position page times size up to but not including the next page's start"), a difference within a bound ("the total is within half a cent of the subtotal with the tax applied"). Say what must be in the output, what must not be, what is preserved, and what the order means or that it does not matter.
+Shapes that have no line, so no sentence takes them: counting occurrences, division (a quotient is a sibling obligation's claim; state a ratio as a comparison of products), text operations beyond its length and whether it contains something. For a text's shape (an email, a phone number) say that a sibling obligation decides it ("the email is well-formed"): a graph reference, never a claim of the fragment. Shapes that have a line and take a sentence each: a threshold or a total as arithmetic over integer fields and lengths ("the page is past the end when page times size is more than the item count"), the sub-list from one position to another ("the page's items are the items from position page times size up to but not including the next page's start"), a difference within a bound ("the total is within half a cent of the subtotal with the tax applied"), and a rounding's tie rule as a remainder ("when the exact total is a half cent, the total is even"). Say what must be in the output, what must not be, what is preserved, and what the order means or that it does not matter.
 
 Use the vocabulary of the problem. Prefer several short claims to one long one. If the problem has an error case, say what each error means and when exactly one of them is reported.
 
@@ -576,14 +579,21 @@ def cmd_lines(args: argparse.Namespace) -> int:
     if code != 0:
         print(f"{path} does not parse, so stage 2 does not start: it only adds lines under the sentences, and the types are stage 1's. The checker reports:\n{errors.strip()}", file=sys.stderr)
         return 2
-    # A line is asked for only against an example that can run it.
-    if not any(line.strip() == "e:" for line in original.split("\n")):
+    # A line is asked for only against an example that can run it. The
+    # census runner alone passes --census, which skips this so the census's
+    # second half runs on the terms of its first, drafted before the gate.
+    has_example = any(line.strip() == "e:" for line in original.split("\n"))
+    if not has_example and not args.census:
         print(f"{path} has no example, so stage 2 does not start: a line is asked for only against an example that can run it, and a line with none to run it says nothing yet. Each `// example wanted:` line is a case to turn into one: the editor's code action writes the block with the input filled in, and the output is yours to type.", file=sys.stderr)
         for case, lit in wanted_left(original):
             print(f"  example wanted: {case}" + (f"\n    in: {lit}" if lit else ""), file=sys.stderr)
         return 2
     d = run_dir("lines")
     (d / "before.sur").write_text(original, encoding="utf-8")
+    if args.census:
+        gate = "passed" if has_example else "skipped"
+        (d / "census.json").write_text(json.dumps({"census": True, "example_gate": gate}) + "\n", encoding="utf-8")
+        print(f"census run (--census): the example gate is {gate}; the author's flow never passes this flag")
     todo = sentences_without_lines(original)
     if not todo:
         print("every sentence already has a line beneath it")
@@ -730,6 +740,9 @@ def main() -> int:
             p.add_argument("--out", required=True, help="the .sur file to write")
         else:
             p.add_argument("file", help="the .sur file whose sentences want lines")
+            p.add_argument("--census", action="store_true",
+                           help="for the census runner alone: ask for lines on a file with no example, which the author's flow refuses, "
+                                "so the census's second half runs on the terms of its first; recorded as census.json in the run directory")
     args = ap.parse_args()
     return cmd_sentences(args) if args.stage == "sentences" else cmd_lines(args)
 

@@ -33,7 +33,7 @@ fn strength(e: &Expr) -> u8 {
         Expr::Relation(..) | Expr::Before { .. } | Expr::Unordered(_) | Expr::Unique(_) => 6,
         Expr::SortedBy(..) => 6,
         Expr::Arith(ArithOp::Add | ArithOp::Sub, ..) => 7,
-        Expr::Arith(ArithOp::Mul, ..) => 8,
+        Expr::Arith(ArithOp::Mul | ArithOp::Mod, ..) => 8,
         _ => 9,
     }
 }

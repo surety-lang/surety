@@ -1,6 +1,7 @@
 //! Slice 5, acceptance tests 2, 10 and 11: integer `+ - *` and `abs` parse
-//! and print with precedence and round-trip through the renderer; `/` and
-//! `%` are refused with the sheet's reason; Float, Time, Text and list
+//! and print with precedence and round-trip through the renderer; `/` is
+//! refused with the sheet's reason (`%` is allowed since 2026-10-23
+//! evening, `remainder.rs`); Float, Time, Text and list
 //! operands are type errors naming what each waits on; a tolerance claim
 //! is one `abs` line and catches the zero mutant; and an overflow of the
 //! obligation's own arithmetic is the obligation's error in the verdict
@@ -109,7 +110,7 @@ fn arithmetic_parses_and_prints_with_precedence() {
 }
 
 #[test]
-fn division_and_modulo_are_refused_with_the_reason() {
+fn division_is_refused_with_the_reason() {
     let e = parse(&with_property("out == a / b")).unwrap_err();
     assert!(
         e.message.starts_with(
@@ -118,8 +119,6 @@ fn division_and_modulo_are_refused_with_the_reason() {
         "{e}"
     );
     assert_eq!(e.line, 2);
-    let e = parse(&with_property("out == a % b")).unwrap_err();
-    assert!(e.message.starts_with("`%` is not in the language"), "{e}");
     // Two terms side by side are still named as that, with the product spelled out.
     let e = parse(&with_property("a b > 0")).unwrap_err();
     assert_eq!(

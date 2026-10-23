@@ -376,3 +376,46 @@ fn a_reply_with_any_of_the_three_goes_back_for_a_round() {
         "{written}"
     );
 }
+
+/// The census runner alone passes `--census`: the lines stage then asks for
+/// lines on a file with no example, as the census's first half did before
+/// the gate, and says so on its output and in the run directory.
+#[test]
+fn the_census_flag_skips_the_example_gate_and_says_so() {
+    let dir = scratch("census");
+    let reply = "```surety\n# Every output order is an input order at or under the limit.\n\tall o in out: o in orders and o.amount <= limit\n# The output keeps the input's order.\n\tout same_order_as orders\n# No two output orders share an id.\n\tunique out.id\n# The output holds at most half the orders.\n\treaching for: a ratio of lengths\n```\n";
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    fs::write(dir.join("keep_small.sur"), SENTENCES).unwrap();
+    fs::write(dir.join("reply1.md"), reply).unwrap();
+    let out = Command::new(std::env::var("SURETY_PYTHON").unwrap_or_else(|_| "python3".into()))
+        .arg(root.join("experiments/draft.py"))
+        .arg("lines")
+        .arg(dir.join("keep_small.sur"))
+        .arg("--census")
+        .arg("--surety")
+        .arg(env!("CARGO_BIN_EXE_surety"))
+        .arg("--reply")
+        .arg(dir.join("reply1.md"))
+        .env("SURETY_DRAFT_RUNS", dir.join("runs"))
+        .output()
+        .unwrap();
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        out.status.success(),
+        "{stdout}{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert!(
+        stdout.contains("census run (--census): the example gate is skipped; the author's flow never passes this flag"),
+        "{stdout}"
+    );
+    let census: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(the_run(&dir).join("census.json")).unwrap())
+            .unwrap();
+    assert_eq!(
+        census,
+        serde_json::json!({"census": true, "example_gate": "skipped"})
+    );
+    let file = fs::read_to_string(dir.join("keep_small.sur")).unwrap();
+    assert!(file.contains("\tout same_order_as orders\n"), "{file}");
+}

@@ -216,17 +216,33 @@ fn every_committed_record_is_at_format_3_and_says_14() {
             records += 1;
         }
     }
-    assert_eq!(records, 13);
+    // The thirteen names' records and 11's before its half-even line.
+    assert_eq!(records, 14);
 }
 
 /// A self-call clause is set aside in both searches, performance or none:
 /// a performance judging candidates for its own obligation breaks the
 /// referee rule. 11's metamorphic line used to pin every tie to the
 /// performance's own answer; set aside, its half-cent ties are gaps, the
-/// three the author wrote examples for (reading 143).
+/// three the author wrote examples for (reading 143). Shown on 11 as it
+/// stood before its half-even line, which settles them (reading 147).
 #[test]
 fn a_self_call_does_not_judge_candidates_for_its_own_obligation() {
-    let path = common::corpus_dir().join("p11/p11.sur");
+    let corpus = common::corpus_dir().join("p11");
+    let half_even = "\t# When the taxed subtotal is exactly halfway between two whole cents, the total is the even one.\n\t(sum(items.amount_cents) * (10000 + rate_bps)) % 10000 == 5000 -> out % 2 == 0\n";
+    let now = fs::read_to_string(corpus.join("p11.sur")).unwrap();
+    assert!(now.contains(half_even));
+    let dir = scratch(
+        "self-call",
+        &[
+            ("p11.sur", &now.replace(half_even, "")),
+            (
+                "p11.py",
+                &fs::read_to_string(corpus.join("p11.py")).unwrap(),
+            ),
+        ],
+    );
+    let path = dir.join("p11.sur");
     let r = surety::check_file(&path, &path.with_extension("py")).unwrap();
     let ties = |m: &surety_check::MutantReport| {
         let mut t: Vec<(Option<usize>, String, String)> = m
@@ -253,4 +269,13 @@ fn a_self_call_does_not_judge_candidates_for_its_own_obligation() {
     );
     // The self-call is still the performance's test over its runs.
     assert!(r.passed(), "{line}");
+    // With the half-even line, the corpus 11: no gap, accepted.
+    let path = corpus.join("p11.sur");
+    let r = surety::check_file(&path, &path.with_extension("py")).unwrap();
+    assert!(r.mutants.as_ref().unwrap().search.is_empty());
+    assert!(
+        surety::verdict_line(&r).starts_with("invoice_total  ACCEPTED  "),
+        "{}",
+        surety::verdict_line(&r)
+    );
 }

@@ -14,11 +14,22 @@ function is appended to results.jsonl:
 
     id, qualname, source, complete, error,
     stage1: exit, rounds, tokens_in, tokens_out, parse_ok, sentences,
-            examples_wanted, notes, last_error, run_dir, seconds
+            examples_wanted, notes, round_errors, last_error, run_dir, seconds
     stage2: exit, rounds, tokens_in, tokens_out, parse_ok, lines, reach,
             sentences [{text, line, reach}], refused, mutants (verbatim),
             mutants_summary {applicable, of, slipped, caught,
-            underdetermined, gaps, accepted}, last_error, run_dir, seconds
+            underdetermined, gaps, accepted}, round_errors, round_reach,
+            last_error, run_dir, seconds
+
+round_errors has one entry per round, the checker's report, or null for the
+round that parsed. round_reach is how many sentences each round's reply left as
+reach-fors: a retry regenerates every pair, so a line in one round can be a
+reach-for in the next. stage2.parse_ok is read from the last round's parse
+report, and stage2.lines is null when the file never parsed.
+
+Ctrl-C starts nothing new: queued functions are cancelled, a function in
+flight starts no further stage, and only complete records are appended, so a
+resume runs the interrupted ones again.
 
 `--reply1`/`--reply2` pass saved replies to draft.py (its own `--reply`), for
 testing the mechanics on one problem without a model.
@@ -28,9 +39,11 @@ from __future__ import annotations
 import argparse
 import concurrent.futures as cf
 import datetime as dt
+import importlib.util
 import json
 import pathlib
 import re
+import signal
 import subprocess
 import sys
 import threading
@@ -52,6 +65,24 @@ STAGE_TIMEOUT = 45 * 60
 ROUND = re.compile(r"^round (\d+): tokens (\d+)/(\d+)", re.M)
 ROUND_ANY = re.compile(r"^round (\d+):", re.M)
 RUN_DIR = re.compile(r"^run written to (.+)$", re.M)
+PARSE_OK = re.compile(r": ok \S+ props=")
+
+STOP = threading.Event()
+
+
+class Stopped(Exception):
+    """An interrupt reached this function before its record was complete."""
+
+
+def load_draft():
+    """draft.py as a module, for its own reading of a stage-2 reply."""
+    spec = importlib.util.spec_from_file_location("draft", DRAFT)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+draft = load_draft()
 
 
 def load_results() -> dict[str, dict]:
@@ -77,12 +108,14 @@ LAST_LAUNCH = [0.0]
 def run(cmd: list[str], log: pathlib.Path) -> tuple[int, str, float]:
     """Start draft.py, no two starts within the same second: its run
     directory is named by a one-second stamp, and two starts in one second
-    race on it (draft.py is not changed here)."""
+    race on it (draft.py is not changed here). After an interrupt nothing starts."""
     t0 = time.time()
     with LAUNCH_LOCK:
         wait = LAST_LAUNCH[0] + 1.2 - time.time()
         if wait > 0:
             time.sleep(wait)
+        if STOP.is_set():
+            raise Stopped
         LAST_LAUNCH[0] = time.time()
         p = subprocess.Popen(cmd, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     try:
@@ -107,6 +140,37 @@ def rounds_and_tokens(text: str) -> tuple[int, int, int]:
 def last_error(text: str) -> str | None:
     errs = [m for m in re.finditer(r"^round (\d+): (?!tokens)(.+)$", text, re.M)]
     return errs[-1].group(2).strip() if errs else None
+
+
+def round_errors(d: pathlib.Path) -> list[str | None]:
+    """Each round's parse report from the run directory, None for one that parsed."""
+    out: list[str | None] = []
+    k = 1
+    while (d / f"parse{k}.txt").exists():
+        report = (d / f"parse{k}.txt").read_text(encoding="utf-8").strip()
+        out.append(None if PARSE_OK.search(report) else report)
+        k += 1
+    return out
+
+
+def round_reach(d: pathlib.Path) -> list[int | None]:
+    """How many of the asked sentences each round's reply left as reach-fors,
+    read as draft.py reads it; None for a reply with no block."""
+    before = d / "before.sur"
+    if not before.exists():
+        return []
+    todo = draft.sentences_without_lines(before.read_text(encoding="utf-8"))
+    out: list[int | None] = []
+    k = 1
+    while (d / f"reply{k}.md").exists():
+        block = draft.code_block((d / f"reply{k}.md").read_text(encoding="utf-8"))
+        if block is None:
+            out.append(None)
+        else:
+            pairs, _ = draft.parse_pairs(block)
+            out.append(sum(1 for s in todo if pairs.get(s, "reaching for:").strip().lower().startswith("reaching for:")))
+        k += 1
+    return out
 
 
 def sentence_groups(lines: list[str]) -> list[tuple[int, int, str]]:
@@ -176,6 +240,8 @@ def census_one(fn: dict, args: argparse.Namespace) -> dict:
     if args.reply1:
         cmd1 += ["--reply", args.reply1]
     code, text, secs = run(cmd1, LOGS / f"{fid}.sentences.txt")
+    if code == -signal.SIGINT:
+        raise Stopped
     rounds, tin, tout = rounds_and_tokens(text)
     m_s = re.search(r"sentences: (\d+)", text)
     m_w = re.search(r"examples wanted: (\d+)", text)
@@ -185,6 +251,7 @@ def census_one(fn: dict, args: argparse.Namespace) -> dict:
           "sentences": int(m_s.group(1)) if m_s else None,
           "examples_wanted": int(m_w.group(1)) if m_w else None,
           "notes": [l.strip() for l in text.splitlines() if l.startswith(("stripped ", "dropped a property line"))],
+          "round_errors": round_errors(pathlib.Path(m_d.group(1).strip())) if m_d else [],
           "last_error": last_error(text), "run_dir": m_d.group(1).strip() if m_d else None, "seconds": round(secs)}
     rec["stage1"] = s1
     if code == -9 or "Traceback" in text or (code != 0 and not s1["parse_ok"] and rounds == 0):
@@ -198,12 +265,18 @@ def census_one(fn: dict, args: argparse.Namespace) -> dict:
     if args.reply2:
         cmd2 += ["--reply", args.reply2]
     code, text, secs = run(cmd2, LOGS / f"{fid}.lines.txt")
+    if code == -signal.SIGINT:
+        raise Stopped
     rounds, tin, tout = rounds_and_tokens(text)
     m_d = RUN_DIR.search(text)
     run_dir = pathlib.Path(m_d.group(1).strip()) if m_d else None
-    s2 = {"exit": code, "rounds": rounds, "tokens_in": tin, "tokens_out": tout, "parse_ok": code == 0,
+    errors = round_errors(run_dir) if run_dir else []
+    # draft.py's exit is `surety mutants`' exit, so whether the file parsed is read from its last round.
+    s2 = {"exit": code, "rounds": rounds, "tokens_in": tin, "tokens_out": tout,
+          "parse_ok": bool(errors) and errors[-1] is None,
           "lines": None, "reach": [], "sentences": [], "refused": [l.strip() for l in text.splitlines() if l.startswith("refused a line")],
-          "mutants": None, "mutants_summary": None, "last_error": last_error(text),
+          "mutants": None, "mutants_summary": None, "round_errors": errors,
+          "round_reach": round_reach(run_dir) if run_dir else [], "last_error": last_error(text),
           "run_dir": str(run_dir) if run_dir else None, "seconds": round(secs)}
     rec["stage2"] = s2
     if code == -9 or "Traceback" in text or run_dir is None:
@@ -213,7 +286,8 @@ def census_one(fn: dict, args: argparse.Namespace) -> dict:
     if after.exists():
         sents = read_after(after)
         s2["sentences"] = sents
-        s2["lines"] = sum(1 for s in sents if s["line"])
+        # A file that never parsed has lines the checker refused; they are not counted as lines.
+        s2["lines"] = sum(1 for s in sents if s["line"]) if s2["parse_ok"] else None
         s2["reach"] = [s["reach"] for s in sents if s["reach"]]
     mut = run_dir / "mutants.txt"
     if mut.exists():
@@ -254,22 +328,44 @@ def main() -> int:
     print(f"{len(fns)} functions, {len(done)} with a record, {len(todo)} to run, {args.jobs} jobs", flush=True)
     t0 = time.time()
     n = 0
-    with cf.ThreadPoolExecutor(max_workers=args.jobs) as ex:
-        futs = {ex.submit(census_one, fn, args): fn for fn in todo}
+
+    def settle(fut: cf.Future) -> None:
+        nonlocal n
+        fn = futs[fut]
+        try:
+            rec = fut.result()
+        except Stopped:
+            print(f"[stopped] {fn['id']}: interrupted, not recorded; a resume runs it again", flush=True)
+            return
+        except Exception as e:  # never lose a slot to a bug
+            rec = {"id": fn["id"], "qualname": fn["qualname"], "source": fn["source"], "complete": False,
+                   "error": f"runner exception: {type(e).__name__}: {e}", "stage1": None, "stage2": None}
+        append_result(rec)
+        n += 1
+        s1, s2 = rec.get("stage1") or {}, rec.get("stage2") or {}
+        print(f"[{n}/{len(todo)} {time.time()-t0:5.0f}s] {rec['id']}: "
+              f"s1 parse={s1.get('parse_ok')} rounds={s1.get('rounds')} sents={s1.get('sentences')}; "
+              f"s2 parse={s2.get('parse_ok')} rounds={s2.get('rounds')} lines={s2.get('lines')} reach={len(s2.get('reach') or [])}"
+              + (f"; ERROR {rec['error']}" if rec.get("error") else ""), flush=True)
+
+    ex = cf.ThreadPoolExecutor(max_workers=args.jobs)
+    futs = {ex.submit(census_one, fn, args): fn for fn in todo}
+    left = set(futs)
+    try:
         for fut in cf.as_completed(futs):
-            fn = futs[fut]
-            try:
-                rec = fut.result()
-            except Exception as e:  # never lose a slot to a bug
-                rec = {"id": fn["id"], "qualname": fn["qualname"], "source": fn["source"], "complete": False,
-                       "error": f"runner exception: {type(e).__name__}: {e}", "stage1": None, "stage2": None}
-            append_result(rec)
-            n += 1
-            s1, s2 = rec.get("stage1") or {}, rec.get("stage2") or {}
-            print(f"[{n}/{len(todo)} {time.time()-t0:5.0f}s] {rec['id']}: "
-                  f"s1 parse={s1.get('parse_ok')} rounds={s1.get('rounds')} sents={s1.get('sentences')}; "
-                  f"s2 parse={s2.get('parse_ok')} rounds={s2.get('rounds')} lines={s2.get('lines')} reach={len(s2.get('reach') or [])}"
-                  + (f"; ERROR {rec['error']}" if rec.get("error") else ""), flush=True)
+            left.discard(fut)
+            settle(fut)
+    except KeyboardInterrupt:
+        # Leaving the pool's own shutdown to run would start every queued function.
+        STOP.set()
+        ex.shutdown(wait=False, cancel_futures=True)
+        running = [f for f in left if not f.cancelled()]
+        print(f"\ninterrupted: {len(left) - len(running)} queued cancelled; waiting for {len(running)} in flight, "
+              "which start no further stage (Ctrl-C again to stop waiting)", flush=True)
+        for fut in cf.as_completed(running):
+            settle(fut)
+        return 130
+    ex.shutdown()
     return 0
 
 

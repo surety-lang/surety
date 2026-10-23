@@ -70,13 +70,28 @@ def append_result(rec: dict) -> None:
             f.write(json.dumps(rec) + "\n")
 
 
+LAUNCH_LOCK = threading.Lock()
+LAST_LAUNCH = [0.0]
+
+
 def run(cmd: list[str], log: pathlib.Path) -> tuple[int, str, float]:
+    """Start draft.py, no two starts within the same second: its run
+    directory is named by a one-second stamp, and two starts in one second
+    race on it (draft.py is not changed here)."""
     t0 = time.time()
+    with LAUNCH_LOCK:
+        wait = LAST_LAUNCH[0] + 1.2 - time.time()
+        if wait > 0:
+            time.sleep(wait)
+        LAST_LAUNCH[0] = time.time()
+        p = subprocess.Popen(cmd, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     try:
-        p = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=STAGE_TIMEOUT)
-        code, text = p.returncode, p.stdout + ("\n--- stderr ---\n" + p.stderr if p.stderr.strip() else "")
-    except subprocess.TimeoutExpired as e:
-        code, text = -9, f"TIMEOUT after {STAGE_TIMEOUT}s\n" + (e.stdout or "") + "\n" + (e.stderr or "")
+        out, err = p.communicate(timeout=STAGE_TIMEOUT)
+        code, text = p.returncode, out + ("\n--- stderr ---\n" + err if err.strip() else "")
+    except subprocess.TimeoutExpired:
+        p.kill()
+        out, err = p.communicate()
+        code, text = -9, f"TIMEOUT after {STAGE_TIMEOUT}s\n" + (out or "") + "\n" + (err or "")
     secs = time.time() - t0
     log.write_text(f"$ {' '.join(cmd)}\nexit {code} in {secs:.0f}s\n\n{text}", encoding="utf-8")
     return code, text, secs

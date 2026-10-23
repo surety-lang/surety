@@ -1,0 +1,53 @@
+// draft
+// drafted
+type Item = { id: Id }
+// drafted
+type Page = { items: Item[], total_pages: Int, has_next: Bool }
+// drafted
+type PageError = { code: Text, display: Text }
+
+// drafted
+size_error: PageError = {code: "e-page-size", display: "Page size must be at least 1"}
+// drafted
+page_error: PageError = {code: "e-page-negative", display: "Page number must be at least 0"}
+// drafted
+past_end_error: PageError = {code: "e-page-past-end", display: "Page is past the end of the list"}
+
+paginate(items: Item[], page: Int, size: Int) -> Result<Page, PageError[]>
+	note "return the zero-based page of the items at the given page size, with the total number of pages and whether a later page exists"
+	# The output is Ok exactly when the size is at least 1, the page is at least 0, and page times
+	# size is at most the item count.
+	checks = size >= 1 and page >= 0 and page * size <= len(items)
+	checks <-> (exactly_one Ok(_) in out)
+	# The size error is reported exactly when the size is less than 1.
+	size < 1 <-> (exactly_one Err(err) in out: err == size_error)
+	# The page error is reported exactly when the page is less than 0.
+	page < 0 <-> (exactly_one Err(err) in out: err == page_error)
+	# The past-end error is reported exactly when the size is at least 1, the page is at least 0,
+	# and page times size is more than the item count.
+	size >= 1 and page >= 0 and page * size > len(items) <-> (exactly_one Err(err) in out: err == past_end_error)
+	# Every reported error is one of the size error, the page error and the past-end error.
+	any Err(err) in out: err in [size_error, page_error, past_end_error]
+	# The page's items are the items from position page times size up to but not including position
+	# page plus one, times size.
+	exactly_one Ok(p) in out: p.items same_elements_as items[page * size .. (page + 1) * size]
+	# Total pages times size is at least the item count.
+	exactly_one Ok(p) in out: p.total_pages * size >= len(items)
+	# Total pages minus one, times size, is less than the item count.
+	exactly_one Ok(p) in out: (p.total_pages - 1) * size < len(items)
+	# has_next is true exactly when page plus one, times size, is less than the item count.
+	exactly_one Ok(p) in out: (page + 1) * size < len(items) -> p.has_next == true
+	// example wanted: an empty list, page 0, size 3: page times size equals the item count of 0,
+	// and total pages is the smallest count whose product with size reaches 0
+	// example wanted: five items, size 2, page 2: the partial last page, cut short by the end of
+	// the list
+	// example wanted: four items, size 2, page 1: page plus one, times size, equals the item count,
+	// the has_next boundary
+	// example wanted: four items, size 2, page 2: page times size equals the item count exactly, so
+	// the first sentence decides between an empty page and the past-end error
+	// example wanted: four items, size 2, page 3: page times size is one size past the item count
+	// example wanted: three items, size 0, page 0: the size threshold, crossed from below
+	// example wanted: three items, size 1, page 0: the size threshold, met exactly
+	// example wanted: three items, size 2, page -1: the page threshold, crossed from below
+	// example wanted: three items, size 0, page -1: both the size and the page conditions hold, so
+	// both errors are reported

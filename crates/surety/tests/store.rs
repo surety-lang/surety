@@ -397,8 +397,16 @@ fn verify_reproduces_the_committed_graph() {
     assert!(store.exists(), "graph/ is committed at the repository root");
     let rows = status(&store).unwrap();
     assert_eq!(rows.len(), 13);
+    // 11 is pinned with findings: its half-cent ties are one gap once its
+    // self-call is set aside in the search (reading 143), the author's to
+    // decide. Every other record is verified.
     assert!(
-        rows.iter().all(|r| r.state == State::Verified),
+        rows.iter().all(|r| r.state
+            == if r.name == "invoice_total" {
+                State::Findings
+            } else {
+                State::Verified
+            }),
         "re-pin the corpus (surety pin) after changing an obligation or a performance:\n{}",
         surety::render_status(&rows)
     );

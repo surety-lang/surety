@@ -10,6 +10,127 @@
     "performance": "ee2270787baea4d0d2b9b449a6771025670997d1b21fc446d00d0c08030d5410",
     "report": [
       {
+        "a_is_expected": true,
+        "candidates_tried": 3,
+        "example": 5,
+        "gap": 0,
+        "inputs": [
+          {
+            "json": [
+              [
+                {
+                  "amount_cents": 125
+                }
+              ],
+              1000
+            ],
+            "sur": "in: ([{amount_cents: 125}], 1000)"
+          }
+        ],
+        "kind": "underdetermined",
+        "obligation": "invoice_total",
+        "obligation_hash": "c44ee4c7611fe0e7399344ee3593b6c720d9a6b0b80175b92bc70fe782e8ef90",
+        "outputs": {
+          "a": 138,
+          "b": 137
+        }
+      },
+      {
+        "a_is_expected": true,
+        "candidates_tried": 4,
+        "example": 6,
+        "gap": 0,
+        "inputs": [
+          {
+            "json": [
+              [
+                {
+                  "amount_cents": 15
+                }
+              ],
+              1000
+            ],
+            "sur": "in: ([{amount_cents: 15}], 1000)"
+          }
+        ],
+        "kind": "underdetermined",
+        "obligation": "invoice_total",
+        "obligation_hash": "c44ee4c7611fe0e7399344ee3593b6c720d9a6b0b80175b92bc70fe782e8ef90",
+        "outputs": {
+          "a": 16,
+          "b": 17
+        }
+      },
+      {
+        "a_is_expected": true,
+        "candidates_tried": 3,
+        "example": 1,
+        "gap": 0,
+        "inputs": [
+          {
+            "json": [
+              [
+                {
+                  "amount_cents": -15
+                }
+              ],
+              1000
+            ],
+            "sur": "in: ([{amount_cents: -15}], 1000)"
+          }
+        ],
+        "kind": "underdetermined",
+        "obligation": "invoice_total",
+        "obligation_hash": "c44ee4c7611fe0e7399344ee3593b6c720d9a6b0b80175b92bc70fe782e8ef90",
+        "outputs": {
+          "a": -16,
+          "b": -17
+        }
+      },
+      {
+        "a_is_expected": true,
+        "at": {
+          "a": "138",
+          "b": "137"
+        },
+        "change": "values",
+        "example": 5,
+        "gap": 0,
+        "inputs": [
+          {
+            "json": [
+              [
+                {
+                  "amount_cents": 125
+                }
+              ],
+              1000
+            ],
+            "sur": "in: ([{amount_cents: 125}], 1000)"
+          }
+        ],
+        "kind": "gap",
+        "mutants": [],
+        "obligation": "invoice_total",
+        "obligation_hash": "c44ee4c7611fe0e7399344ee3593b6c720d9a6b0b80175b92bc70fe782e8ef90",
+        "outputs": {
+          "a": 138,
+          "b": 137
+        },
+        "place": "out",
+        "pretty": {
+          "a": "138",
+          "b": "137",
+          "in": "([{amount_cents: 125}], 1000)"
+        },
+        "says": "out can be 138 or 137",
+        "shown_by": 3,
+        "sur": {
+          "a": "138",
+          "b": "137"
+        }
+      },
+      {
         "clause": {
           "canonical": "(== out (call invoice_total (list (rec (amount_cents (call sum (. items amount_cents))))) rate_bps))",
           "clause": 1
@@ -45,7 +166,7 @@
           "contradictions": 0,
           "evaluated": 8
         },
-        "findings": 0,
+        "findings": 3,
         "generated": [
           {
             "exhaustive": true,
@@ -91,7 +212,9 @@
         "imports": [],
         "kind": "evidence",
         "obligation": "invoice_total",
-        "obligation_findings": [],
+        "obligation_findings": [
+          "3 underdetermined inputs, 1 gap"
+        ],
         "obligation_hash": "c44ee4c7611fe0e7399344ee3593b6c720d9a6b0b80175b92bc70fe782e8ef90",
         "passed": true,
         "performance_findings": [],
@@ -122,7 +245,7 @@
           "functions": 2,
           "lines": 17
         },
-        "strict_passed": true,
+        "strict_passed": false,
         "totality": {
           "answered": 508,
           "raised": 0,
@@ -139,18 +262,18 @@
           "accepted": 0,
           "applicable": 13,
           "caught": 13,
-          "gaps": 0,
+          "gaps": 1,
           "not_judged": [],
-          "open": 0,
+          "open": 3,
           "passing_search": {
             "inputs": 508,
             "no_passing_output": 0
           },
           "slipped": 0,
           "total": 25,
-          "underdetermined_inputs": 0
+          "underdetermined_inputs": 3
         },
-        "verdict": "ACCEPTED"
+        "verdict": "NOT ACCEPTED"
       }
     ],
     "runs": [
@@ -665,7 +788,7 @@
     ],
     "target": "python",
     "timeout_secs": 10,
-    "verdict": "invoice_total  ACCEPTED  examples 8/8; 2 clauses clean over 508 runs; 13 of 25 mutants apply, none slipped"
+    "verdict": "invoice_total  NOT ACCEPTED  obligation: 3 underdetermined inputs, 1 gap  performance: passes"
   },
   "provenance": {
     "checker": "0.1.0",

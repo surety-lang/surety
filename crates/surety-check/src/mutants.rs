@@ -1272,6 +1272,35 @@ impl<'g> Checker<'g> {
         walk(&self.scope, e, 0)
     }
 
+    /// Whether a clause calls its own obligation, directly or through an
+    /// abbreviation: the metamorphic form. Both searches set such a clause
+    /// aside, performance or none, since a performance judging candidates
+    /// for its own obligation breaks the referee rule; it stays the test of
+    /// the performance over its runs in `check`, and of each mutant here.
+    pub fn calls_self(&self, e: &Expr) -> bool {
+        fn walk(scope: &Scope<'_>, own: &str, e: &Expr, depth: usize) -> bool {
+            let mut found = false;
+            e.walk(&mut |sub| {
+                if found {
+                    return;
+                }
+                match sub {
+                    Expr::Call(n, _, _) if n == own => found = true,
+                    Expr::Name(n, _) | Expr::Call(n, _, _) => {
+                        if let Some(a) = scope.abbrev(n) {
+                            if depth < 8 && walk(scope, own, &a.body, depth + 1) {
+                                found = true;
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            });
+            found
+        }
+        walk(&self.scope, &self.fun.name, e, 0)
+    }
+
     /// Whether a clause's truth can depend on the output: it names `out`,
     /// ranges over leftovers, or calls the obligation itself, directly or
     /// through an abbreviation.
@@ -1391,6 +1420,11 @@ impl<'g> Checker<'g> {
                 .filter(|m| applies(m, &self.scope, &self.plan))
                 .filter_map(|m| apply(m, inputs, &self.scope, &self.plan)),
         );
+        let judged: Vec<Expr> = clauses
+            .iter()
+            .filter(|(_, e)| !self.calls_self(e))
+            .map(|(_, e)| e.clone())
+            .collect();
         let mut tried = 0;
         for cand in seeds
             .into_iter()
@@ -1403,13 +1437,12 @@ impl<'g> Checker<'g> {
             // A clause calling a performance that cannot start is unchecked,
             // as it is for the mutants' catches: it neither passes nor fails
             // a candidate, or one graph reference with no performance yet
-            // would leave every input without a passing output.
-            let all = clauses
-                .iter()
-                .all(|(_, e)| match self.holds(e, inputs, &cand) {
-                    Ok(b) => b,
-                    Err(m) => self.unstartable(&m),
-                });
+            // would leave every input without a passing output. A self-call
+            // is set aside always (`calls_self`).
+            let all = judged.iter().all(|e| match self.holds(e, inputs, &cand) {
+                Ok(b) => b,
+                Err(m) => self.unstartable(&m),
+            });
             if all {
                 return (Some(cand), tried);
             }
@@ -1713,6 +1746,7 @@ impl<'g> Checker<'g> {
             .map(|(_, e)| self.has_graph_call(e))
             .collect();
         let mut order: Vec<usize> = (0..clauses.len()).collect();
+        let self_calls: Vec<bool> = clauses.iter().map(|(_, e)| self.calls_self(e)).collect();
         order.sort_by_key(|i| expensive[*i]);
         let named = self.named_values_typed();
         let mut evaluated = vec![0usize; clauses.len()];
@@ -1740,7 +1774,9 @@ impl<'g> Checker<'g> {
             if let Some(e) = &case.expected {
                 if clauses
                     .iter()
-                    .all(|(_, x)| match self.holds(x, &case.inputs, e) {
+                    .zip(&self_calls)
+                    .filter(|(_, own)| !**own)
+                    .all(|((_, x), _)| match self.holds(x, &case.inputs, e) {
                         Ok(b) => b,
                         Err(m) => self.unstartable(&m),
                     })
@@ -1773,6 +1809,10 @@ impl<'g> Checker<'g> {
                 }
                 let mut ok = true;
                 for &i in &order {
+                    // A self-call is set aside here, performance or none.
+                    if self_calls[i] {
+                        continue;
+                    }
                     evaluated[i] += 1;
                     match self.holds(&clauses[i].1, &case.inputs, &cand) {
                         Ok(true) => {}

@@ -35,20 +35,30 @@ fn a_property_may_call_its_own_obligation() {
     c.budget = Budget::default();
 
     // In check, the call runs the performance under test. The binding and
-    // generated tiers pass; the one finding is the scalar mutant that
-    // forgets the tax, `out = sum(items.amount_cents)`: the self-call
-    // clause is consistent with it and the two bounds admit it, so only
-    // the examples catch it. That hole is why the clause never stands
-    // alone; with the tolerance line beside it (`scalar.rs`) it is caught.
+    // generated tiers pass; the findings are the obligation's. The scalar
+    // mutant that forgets the tax, `out = sum(items.amount_cents)`: the
+    // self-call clause is consistent with it and the two bounds admit it,
+    // so only the examples catch it. And the gap search sets the self-call
+    // aside, performance or none (reading 143): a performance does not
+    // judge candidates for its own obligation, and the two bounds alone do
+    // not fix the output. Those holes are why the clause never stands
+    // alone; with the tolerance line beside it (`scalar.rs`) the mutant is
+    // caught and only the half-cent ties are left.
     let r = c.check();
     let text = surety::render(&r);
     assert!(r.passed(), "{text}");
-    assert_eq!(r.findings(), 1, "{text}");
     assert!(
-        text.contains("1 mutant slipped (out = sum(items.amount_cents))"),
+        text.contains(
+            "obligation: 1 mutant slipped (out = sum(items.amount_cents)); 10 underdetermined inputs, 1 gap  performance: passes"
+        ),
         "{text}"
     );
+    assert_eq!(r.findings(), 11, "{text}");
     assert!(text.contains("caught by examples 3, 4 only"), "{text}");
+    assert!(
+        text.contains("UNDERDETERMINED  out can be 0 or 1; 10 inputs show it"),
+        "{text}"
+    );
     let self_call = &r.properties[0];
     assert!(self_call.text.contains("invoice_total("), "{text}");
     assert_eq!(self_call.runs, r.runs, "evaluated on every run:\n{text}");

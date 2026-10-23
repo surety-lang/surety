@@ -218,3 +218,39 @@ fn every_committed_record_is_at_format_3_and_says_14() {
     }
     assert_eq!(records, 13);
 }
+
+/// A self-call clause is set aside in both searches, performance or none:
+/// a performance judging candidates for its own obligation breaks the
+/// referee rule. 11's metamorphic line used to pin every tie to the
+/// performance's own answer; set aside, its half-cent ties are gaps, the
+/// three the author wrote examples for (reading 143).
+#[test]
+fn a_self_call_does_not_judge_candidates_for_its_own_obligation() {
+    let path = common::corpus_dir().join("p11/p11.sur");
+    let r = surety::check_file(&path, &path.with_extension("py")).unwrap();
+    let ties = |m: &surety_check::MutantReport| {
+        let mut t: Vec<(Option<usize>, String, String)> = m
+            .search
+            .iter()
+            .map(|u| (u.example, u.a.to_string(), u.b.to_string()))
+            .collect();
+        t.sort();
+        t
+    };
+    let want = vec![
+        (Some(3), "138".to_string(), "137".to_string()),
+        (Some(4), "16".to_string(), "17".to_string()),
+        (Some(8), "-16".to_string(), "-17".to_string()),
+    ];
+    assert_eq!(ties(r.mutants.as_ref().unwrap()), want);
+    // The same with no performance in hand.
+    let bare = surety::mutants_file(&path, None, Budget::default()).unwrap();
+    assert_eq!(ties(&bare), want);
+    let line = surety::verdict_line(&r);
+    assert_eq!(
+        line,
+        "invoice_total  NOT ACCEPTED  obligation: 3 underdetermined inputs, 1 gap  performance: passes"
+    );
+    // The self-call is still the performance's test over its runs.
+    assert!(r.passed(), "{line}");
+}

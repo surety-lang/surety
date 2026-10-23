@@ -6,7 +6,7 @@ Surety is an obligation language plus a checker plus a graph. Humans write oblig
 
 `surety-docs/` is local-only: it is gitignored as internal, so a clone does not have it. `docs/` is public and holds the spec, the reframe, the problem table, and the decision notes. Beyond those, the repository carries the extracted fixtures and the acceptance tests under `crates/surety/tests/`; the rules below stand on their own.
 
-1. `surety-docs/Implement 1-9 in surety.md` — the corpus: eleven obligations written by hand. The grammar is whatever parses these. When the brief and the corpus disagree, the corpus wins and the disagreement is a question (see below).
+1. The corpus, under `crates/surety/tests/corpus/`: the eleven obligations written by hand in `surety-docs/Implement 1-9 in surety.md` and extracted from it, and each obligation pinned after them, copied verbatim from the file that was pinned into a directory of its own with its performance (13 in `p13/`, since its types would collide with the eleven's in one graph). The document is not appended to. The grammar is whatever parses these. When the brief and the corpus disagree, the corpus wins and the disagreement is a question (see below).
 2. `surety-docs/Build brief — slice 4, author tooling.md` — scope, interfaces, acceptance tests for the current slice. The earlier briefs (slice 1; slice 2; slice 3, the store) say what was built and why, each with a header naming its deviations.
 3. `surety-docs/Catch-up — 2026-10-20, ...md` — every rule decided so far, one line each; the mutant list.
 4. `docs/Decision - *.md` — individual decisions with their reasoning.
@@ -16,7 +16,7 @@ Surety is an obligation language plus a checker plus a graph. Humans write oblig
 
 - Do not invent syntax. The language surface is the list in the build brief; the corpus is its test. A form that is in the brief but in no fixture (`any`, `none`, `count`, `max`, `->`, `<`, `[0..3, unique f]`) needs a unit test of its own, since no fixture will catch it. A form in neither place does not exist.
 - When the corpus is ambiguous, pick the reading that makes every corpus file parse, implement that, and write the question with the reading you chose in `surety-docs/Questions from the build.md`. Do not block on it.
-- The eleven obligations are fixtures. Copy them into the test tree verbatim; never edit a fixture to make a test pass.
+- The corpus obligations are fixtures: the eleven extracted from the document, the later ones copied from the pinned file. Copy them into the test tree verbatim; never edit a fixture to make a test pass.
 - A property is a claim about the relation between input and output, never about execution. The checker evaluates properties by brute force over example-sized inputs; cost on the checker side is not a concern.
 - `graph/` is committed and must reproduce: after changing a corpus obligation or performance, re-pin it with `surety pin` (callees and type providers first), or the store test fails. Nothing under `graph/nodes/` is edited by hand.
 - Keep crates small and few. Rust, edition 2024, workspace already set up.

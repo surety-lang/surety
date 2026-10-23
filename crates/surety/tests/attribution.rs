@@ -72,3 +72,22 @@ fn no_examples_and_a_passing_output_is_the_performances() {
         "{text}"
     );
 }
+
+/// The outputs already in hand come before the pool: a list of nine is
+/// past what the drawn candidates enumerate and what the pool builds, so
+/// before slice 6 no passing output was found for `out == xs` on it; the
+/// identity mutant's output is that list, and it passes.
+#[test]
+fn a_mutant_output_that_passes_is_a_passing_output() {
+    let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR"))
+        .join("attribution")
+        .join("seeded");
+    fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("same.sur");
+    fs::write(&path, "same(xs: Int[]) -> Int[]\n\tout == xs\n").unwrap();
+    let (graph, idx) = surety::load_with_siblings(&path).unwrap();
+    let mut c = surety::checker_for(&graph, idx, &path, &path.with_extension("py")).unwrap();
+    let nine = surety_check::Value::List((1..=9).map(surety_check::Value::Int).collect());
+    let (found, _) = c.find_passing(std::slice::from_ref(&nine));
+    assert_eq!(found, Some(nine));
+}

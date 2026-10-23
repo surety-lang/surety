@@ -1260,7 +1260,10 @@ impl<'g> Checker<'g> {
     /// candidate search finds one, and how many candidates it tried. This
     /// is how a generated-input failure is attributed: a passing output
     /// exists and the performance did not produce it, or none does and the
-    /// obligation is unsatisfiable there.
+    /// obligation is unsatisfiable there. The outputs already in hand on
+    /// the input come first, before the pool: the library's, the skeletons
+    /// among them, since a mutant that passes every clause on an input is a
+    /// passing output there, whatever it does elsewhere.
     pub fn find_passing(&mut self, inputs: &[Value]) -> (Option<Value>, usize) {
         let cap = self.budget.search_candidates;
         if cap == 0 {
@@ -1276,8 +1279,16 @@ impl<'g> Checker<'g> {
         typed.extend(named.iter().map(|(v, t)| (v, t)));
         let domain = Domain::seeded(&typed);
         let drawn = drawn_candidates(&out_ty, inputs, &self.scope, &named);
+        let seeds: Vec<Value> = library(&self.scope)
+            .iter()
+            .filter(|m| applies(m, &self.scope, &self.plan))
+            .filter_map(|m| apply(m, inputs, &self.scope, &self.plan))
+            .collect();
         let mut tried = 0;
-        for cand in candidates(&out_ty, &domain, cap, drawn) {
+        for cand in seeds
+            .into_iter()
+            .chain(candidates(&out_ty, &domain, cap, drawn))
+        {
             tried += 1;
             if from_json(&to_json(&cand), &out_ty).is_err() {
                 continue;

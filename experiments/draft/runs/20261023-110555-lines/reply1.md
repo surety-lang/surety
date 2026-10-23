@@ -1,0 +1,10 @@
+```surety
+# The output holds exactly the elements of all the iterables taken together, each occurrence once, nothing added and nothing lost.
+	out same_elements_as flatten(iterables.items)
+# Every iterable's elements appear in the output in that iterable's own order.
+	all it in iterables: it.items same_order_as out
+# An element at an earlier position in its iterable comes before an element at a later position in its iterable, whichever iterables the two come from.
+	reaching for: for any two iterables a and b (possibly the same) and positions i < j, the output occurrence that came from a.items at position i is before the output occurrence that came from b.items at position j. The notation cannot name an element's position within its iterable from the binder, and it cannot tie an output occurrence to the iterable and position it came from. When the same value appears in more than one iterable, `x before y in out` would resolve to the value's first occurrence in out, which may be the wrong one.
+# Of two elements at the same position in their iterables, the one from the earlier iterable comes first in the output.
+	reaching for: for iterables a before b in iterables and a position i that both a.items and b.items have, the output occurrence that came from a.items at position i is before the output occurrence that came from b.items at position i. This needs the same two things the previous line lacks: a binder that carries its index within its list, and the provenance of each output occurrence, so that equal values from different iterables are told apart.
+```

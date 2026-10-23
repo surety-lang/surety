@@ -1,0 +1,1 @@
+dotproduct  inputs 0+500  mutants 13 of 25 apply  slipped 0  caught 13  underdetermined 0

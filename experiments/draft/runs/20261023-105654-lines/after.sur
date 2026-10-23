@@ -1,0 +1,56 @@
+// draft
+// drafted
+type Pool = { values: Text[] }
+// drafted
+type Row = { values: Text[] }
+
+partial_product(iterables: Pool[], repeat: Int) -> Row[]
+	note "starting from every pool's first value, advance the pools (the iterables listed in order, the whole list taken repeat times) one at a time from first to last, emitting a tuple after each step, so every value of every pool is emitted without the full product"
+	# Every output tuple has exactly as many values as there are pools.
+	all t in out: len(t.values) == len(iterables) * max(repeat, 0)
+	# Each value in an output tuple is one of the values of the pool at that position.
+	// reaching for: for every tuple t and every position p in t.values, the value at position p is
+	// in the values of the pool at position p, where the pool list is iterables repeated
+	// max(repeat, 0) times, i.e. iterables[p mod len(iterables)]; the notation has no way to bind
+	// an element's position as an Int, no list repetition, and no %
+	# The output is empty exactly when some pool is empty.
+	len(out) == 0 <-> repeat > 0 and (any p in iterables: len(p.values) == 0)
+	# When no pool is empty, the first tuple holds the first value of every pool.
+	// reaching for: when no pool is empty, out[0].values equals the list of each pool's values[0],
+	// taken over iterables repeated max(repeat, 0) times; the notation has no list repetition and
+	// no way to build the list of first elements of a list of lists (no map over a slice per
+	// element)
+	# Each tuple after the first is the tuple before it with one position set to that pool's next
+	# value and every other position kept.
+	// reaching for: for every adjacent pair out[i], out[i+1] there is exactly one position p where
+	// they may differ, out[i+1].values[p] is the element after out[i].values[p] in the values of
+	// the pool at position p (iterables repeated max(repeat, 0) times), and every other position is
+	// equal; the notation cannot range over adjacent pairs, index a list at a bound Int position,
+	// or say "the next element after this occurrence"
+	# The position that advances never moves back to an earlier pool from one tuple to the next.
+	// reaching for: writing a(i) for the position advanced between out[i] and out[i+1], a(i) <=
+	// a(i+1) for every i; the notation cannot name the advancing position as an Int or range over
+	// consecutive pairs of tuples
+	# Every value of every pool appears at that pool's position in some output tuple.
+	// reaching for: for every pool position p (positions of iterables repeated max(repeat, 0)
+	// times) and every value v in that pool's values, some tuple t in out has t.values[p] == v; the
+	// notation cannot quantify over positions as Ints, index t.values at p, or repeat a list
+	// example wanted: the docstring case, iterables "AB", "C", "DEF" at repeat 1: the single-value
+	// middle pool never advances, so the advancing position goes straight from the first pool to
+	// the third
+	// example wanted: iterables "AB" at repeat 3: decided by the note's expansion into three pools
+	// "AB", "AB", "AB", each advanced in turn
+	// example wanted: no iterables at repeat 1: there are no pools, none of them is empty, so the
+	// first-tuple sentence applies to a tuple with no values
+	// example wanted: iterables "AB", "C" at repeat 0: repeating the list zero times leaves no
+	// pools, the same case as no iterables
+	// example wanted: iterables "AB" at repeat -1: a negative repeat leaves no pools, as Python's
+	// tuple times a negative number gives the empty tuple
+	// example wanted: iterables "AB", "", "C" at repeat 1: one empty pool, decided by the
+	// empty-output sentence
+	// example wanted: iterables "AB", "" at repeat 0: the empty iterable is never repeated into a
+	// pool, so no pool is empty
+	// example wanted: iterables "AA", "B" at repeat 1: advancing to the next value of the first
+	// pool sets the same value again, so two consecutive tuples are equal
+	// example wanted: iterables "ABC" at repeat 1: a single pool, so every tuple has one value and
+	// the pool advances through all three

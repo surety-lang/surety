@@ -1,0 +1,31 @@
+
+// draft
+always_reversible(iterable: Int[]) -> Int[]
+	note "yield the iterable's items in reverse order, whether or not the iterable supports reversed(); caching versus calling reversed() is execution, not part of the relation"
+	// Int stands in for any element type; the relation does not depend on what the items are
+	# The output has the same elements as the input, each occurring as many times as it does in the
+	# input.
+	out same_elements_as iterable
+	# Of two input elements with different values, the one that comes earlier in the input comes
+	# later in the output.
+	// reaching for: for two input occurrences a and b with different values, where a is before b in
+	// iterable, the output occurrence that stands for b is before the output occurrence that stands
+	// for a. The notation has no way to say which output occurrence stands for which input
+	// occurrence. Here `b before a in out` resolves an input element to the first occurrence of its
+	// value in out. On iterable [1, 2, 1] that makes the line false on the correct output [1, 2,
+	// 1]: the first 1 is before the 2 in the input, and the first 1 in out is before the 2 too. The
+	// pairing I wanted is the k-th occurrence of a value in the input with the k-th-from-last
+	// occurrence in the output.
+	# The output's first element is the input's last element.
+	len(iterable) > 0 -> out[0 .. 1] == iterable[len(iterable) - 1 .. len(iterable)]
+	# The output after its first element is the reversal of the input without its last element.
+	len(iterable) > 0 -> out[1 .. len(out)] == always_reversible(iterable[0 .. len(iterable) - 1])
+	// example wanted: an empty iterable: there is no last element to put first, and nothing is
+	// cached or yielded
+	// example wanted: a single item: its reversal is the same one-item sequence
+	// example wanted: the docstring's generator over range(3), items [0, 1, 2]: an iterable that is
+	// not Reversible, so the remaining items are cached and yielded back to front
+	// example wanted: items [1, 2, 1]: equal values at both ends, where the different-values order
+	// claim says nothing and the first-element and rest-of-output claims decide the positions
+	// example wanted: items [3, 3]: every value equal, so only the element-count claim
+	// distinguishes outputs

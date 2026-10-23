@@ -1,0 +1,42 @@
+```surety
+// draft
+// drafted
+type Window = { items: Option<Int>[] }
+// drafted
+type WindowedError = { message: Text }
+// drafted
+negative_n_error: WindowedError = { message: "n must be >= 0" }
+// drafted
+step_error: WindowedError = { message: "step must be >= 1" }
+
+windowed(seq: Int[], n: Int, fillvalue: Option<Int>, step: Int) -> Result<Window[], WindowedError>
+	note "return the windows of width n over seq, each starting step positions after the one before it, with fillvalue standing in for positions past the end of seq"
+	# The output is the negative n error exactly when n is less than 0.
+
+	# The output is the step error exactly when n is at least 1 and step is less than 1.
+
+	# The output is Ok exactly when neither error applies.
+
+	# Every window in an Ok output has exactly n items.
+
+	# When n is at least 1, an Ok output has a window exactly when seq is non-empty.
+
+	# The first window's items are the first n elements of seq, in order, followed by fillvalue in every position past the end of seq.
+
+	# When n is at least the length of seq, an Ok output has at most one window.
+
+	# When n is at least 1 and less than the length of seq, the windows after the first are, in order, the output of windowed over seq from position step onward, with the same n, fillvalue and step.
+
+	// example wanted: seq [1, 2, 3, 4, 5], n 3, step 1: the docstring's case, windows sliding by one with no fill
+	// example wanted: seq [1, 2, 3], n 4, fillvalue None: the window is wider than seq, so one window with its last position filled
+	// example wanted: seq [1, 2, 3, 4, 5, 6], n 3, fillvalue -1, step 2: the last window starts inside seq and runs past its end, so it is padded
+	// example wanted: seq [1, 2, 3, 4, 5], n 3, step 2: the second window ends exactly at the end of seq, so no padded window follows it
+	// example wanted: seq [1, 2, 3, 4, 5], n 2, step 3: step larger than n, so the element at position 2 is in no window
+	// example wanted: seq [1, 2, 3, 4], n 2, step 5: the next start would be past the end of seq, so there is only the first window
+	// example wanted: seq [1, 2, 3], n 3: n equals the length, one full window with no fill
+	// example wanted: seq [], n 2: empty seq with positive n
+	// example wanted: seq [1, 2], n 0, step 0: n is 0, which the source checks before step, so no step error; the output is one empty window
+	// example wanted: seq [], n 0: n is 0 on an empty seq, one empty window all the same
+	// example wanted: seq [1, 2], n -1, step 0: n is checked first, so the negative n error and not the step error
+	// example wanted: seq [1, 2], n 2, step 0: the step error
+```

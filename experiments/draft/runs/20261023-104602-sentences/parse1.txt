@@ -1,0 +1,1 @@
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__set_partitions.sur: ok set_partitions props=0 accepts=0 examples=0 abbrevs=0 pins=25

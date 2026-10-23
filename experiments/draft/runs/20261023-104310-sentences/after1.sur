@@ -1,0 +1,22 @@
+// draft
+// drafted
+type Item = { value: Text, position: Int }
+// drafted
+type Group = { items: Item[] }
+
+consecutive_groups(iterable: Item[]) -> Group[]
+	note "split the items, each carrying the position its ordering function returns, into maximal runs in input order where each item's position is one more than the item before it"
+	# The groups' items, taken together in the order of the groups, are exactly the input items in their input order.
+
+	# No group is empty.
+
+	# Within a group, every item after the first has a position one more than the position of the item before it in that group.
+
+	# For every two groups next to each other in the output, the first item of the later group does not have a position one more than the last item of the earlier group.
+
+	// example wanted: an empty iterable; decided by there being no items to group
+	// example wanted: the docstring's numbers [1, 10, 11, 12, 20, 30, 31, 32, 33, 40], each position equal to its value (the identity ordering); decided by where the step of one breaks
+	// example wanted: the docstring's letters "abcdfgilmnop", each position its ordinal (ord); decided by where the ordinals skip
+	// example wanted: a repeated item, positions [1, 1]; decided by a step of zero not being a step of one
+	// example wanted: a descending run, positions [3, 2, 1]; decided by a step of minus one not being a step of one
+	// example wanted: one item; decided by a lone item forming its own group

@@ -1,0 +1,24 @@
+```surety
+// draft
+// drafted
+type NthError = { code: Text, display: Text }
+// drafted
+negative_index_error: NthError = { code: "e-negative-index", display: "Indices for islice() must be None or an integer: 0 <= x <= sys.maxsize." }
+
+nth(iterable: Int[], n: Int, default: Option<Int>) -> Result<Option<Int>, NthError>
+	note "Return the item at position n of the iterable, counting from 0, or the default when the iterable has no item at that position."
+	# The output is the negative-index error exactly when n is less than 0.
+
+	# If n is at least 0 and less than the length of the iterable, the output is the item at position n.
+
+	# If n is at least the length of the iterable, the output is the default.
+
+	// example wanted: iterable [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] with n 3 and no default: n is inside the iterable, so the item at position 3 is returned
+	// example wanted: iterable [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] with n 20 and a default given: n is past the end, so the default is returned
+	// example wanted: n exactly equal to the iterable's length with a default given: the first position past the end, so the default and not the last item
+	// example wanted: n one less than the iterable's length: the last item, the threshold from the inside
+	// example wanted: n 0 on a non-empty iterable: positions count from 0, so the first item
+	// example wanted: an empty iterable with n 0 and no default: there is no position 0, so the default, which is None
+	// example wanted: n -1 on a non-empty iterable: a negative n is the error and never counts from the end
+	// example wanted: an iterable with repeated values, such as [7, 7, 8] with n 1: the position decides the item, not the value
+```

@@ -1,0 +1,27 @@
+```surety
+// draft
+// drafted
+type Item = { value: Int }
+
+exactly_n(items: Item[], n: Int) -> Bool
+	note "true exactly when n of the items satisfy the predicate, where whether an item satisfies it is a sibling obligation's claim (by default, that its value is truthy)"
+	# If no item satisfies the predicate, the result is true exactly when n is 0.
+
+	# If every item satisfies the predicate, the result is true exactly when n equals the number of items.
+
+	# If n is negative, the result is false.
+
+	# If n is more than the number of items, the result is false.
+
+	# If the last item satisfies the predicate, the result is the result on the items without the last one with n reduced by one.
+
+	# If the last item does not satisfy the predicate, the result is the result on the items without the last one with the same n.
+
+	// example wanted: no items and n of 0; nothing is counted, so it comes down to whether zero matches zero
+	// example wanted: no items and n of 1; nothing is counted, so it comes down to whether one matches zero
+	// example wanted: values [1, 1, 0] with n of 2 (the docstring's first case); two items satisfy the predicate and one does not
+	// example wanted: values [1, 1, 0] with n of 1 (the docstring's second case); the count passes n before the list ends
+	// example wanted: values [1, 1, 1] with n of 3; every item satisfies the predicate and n is exactly the length
+	// example wanted: values [1, 0] with n of -1; a negative n against a list with a satisfying item
+	// example wanted: values [0, 1] with n of 1; the only satisfying item is the last one, which the recursive claims peel off first
+```

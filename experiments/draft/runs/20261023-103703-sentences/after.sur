@@ -1,0 +1,31 @@
+
+// draft
+padded(items: Int[], fillvalue: Int, n: Int, next_multiple: Bool) -> Int[]
+	note "emit the items in order, then copies of fillvalue, until at least n elements are out, or, with next_multiple, until the count is a multiple of n"
+	# The output begins with the items, in their order and with nothing left out.
+
+	# Every output element after the items is the fillvalue.
+
+	# If next_multiple is false, the output's length is the larger of n and the number of items.
+
+	# If next_multiple is true and n is at least 1, the output has at least as many elements as the
+	# items and fewer than the number of items plus n.
+
+	# If next_multiple is true and n is at least 1, the output's length is a multiple of n (a
+	# sibling obligation decides what a multiple is).
+	// n of None (fillvalue emitted indefinitely) gives an infinite output and is not modelled; n is
+	// a plain Int here
+	// example wanted: items [1, 2, 3], fillvalue 0, n 5, next_multiple false: the docstring's first
+	// case, padding up to n
+	// example wanted: items [1, 2, 3, 4], fillvalue 0, n 3, next_multiple true: the docstring's
+	// second case, padding up to the next multiple
+	// example wanted: items [1, 2, 3, 4, 5, 6, 7, 8], n 5, next_multiple false: more items than n,
+	// so nothing is appended and nothing is cut
+	// example wanted: items of exactly n elements, next_multiple false: the threshold itself, so no
+	// fill
+	// example wanted: empty items, n 3, next_multiple false: the output is only fill, n copies
+	// example wanted: empty items, n 3, next_multiple true: zero is already a multiple of n
+	// example wanted: items whose length is already a multiple of n, next_multiple true: no fill is
+	// added
+	// example wanted: n of 0 (and a negative n), with next_multiple true and with it false: the
+	// library raises here, so the author decides whether this becomes an error case in a Result

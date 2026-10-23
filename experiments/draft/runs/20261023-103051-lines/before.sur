@@ -1,0 +1,39 @@
+// draft
+// drafted
+type IntersperseError = { code: Text, display: Text }
+
+// drafted
+n_error: IntersperseError = {code: "e-n-positive", display: "n must be > 0"}
+
+intersperse(e: Int, iterable: Int[], n: Int) -> Result<Int[], IntersperseError>
+	note "put the filler e among the elements of the iterable, leaving n elements between each filler"
+	# The output is Ok exactly when n is at least 1, and otherwise it is n_error.
+
+	# The Ok output's first n elements are the iterable's first n elements.
+
+	# If the iterable has more than n elements, the Ok output's element at position n is the filler
+	# e.
+
+	# If the iterable has more than n elements, the Ok output from position n plus 1 on is the
+	# interspersal of e among the iterable's elements from position n on, with the same n.
+
+	# The iterable's elements appear in the Ok output in the iterable's order.
+
+	# The number of fillers is the Ok output's length minus the iterable's length, and either n
+	# times the number of fillers is less than the iterable's length or there are no fillers.
+
+	# The iterable's length is at most n times one more than the number of fillers in the Ok output.
+	// example wanted: the docstring's first case, e 0 among [1, 2, 3, 4, 5] with n 1: a filler
+	// between every pair
+	// example wanted: the docstring's second case, e 0 among [1, 2, 3, 4, 5] with n 2: the last
+	// group is one element, and no filler follows it
+	// example wanted: an empty iterable with n 1: no element to put a filler between
+	// example wanted: an iterable of exactly n elements, [1, 2] with n 2: decided by "more than n",
+	// not "at least n"
+	// example wanted: an iterable whose length is a multiple of n, [1, 2, 3, 4] with n 2: whether a
+	// filler trails the last full group
+	// example wanted: e equal to one of the iterable's values, e 2 among [1, 2, 3] with n 1: the
+	// fillers are told apart by position, not by value
+	// example wanted: n 0 with [1, 2]: the boundary of the error
+	// example wanted: n -1 with an empty iterable: the error is decided by n alone, even when there
+	// is nothing to intersperse

@@ -1,0 +1,30 @@
+// draft
+// drafted
+type Node = { kind: Text, text: Text, children: Option<Node[]> }
+
+collapse(iterable: Node, base_type: Option<Text>, levels: Option<Int>) -> Node[]
+	note "flatten nested iterables into their atoms (strings and other non-iterables), leaving containers of base_type, and anything deeper than levels, whole"
+	// a Node with children None is an atom: a string, bytes, or any non-iterable value; text is its printed value
+	// a Node with children Some(...) is a container (list, tuple, ...); its text is not read
+	// kind equal to base_type stands in for Python's isinstance, so subclasses are not modelled
+	# If the iterable is an atom, the output is the iterable alone.
+
+	# If the iterable is a container whose kind is base_type, the output is the iterable alone.
+
+	# If levels is given and is below 0, the output is the iterable alone.
+
+	# If the iterable is a container whose kind is not base_type and levels is not given, the output is the collapse of each of its children, with the same base_type and no levels, joined in the children's order.
+
+	# If the iterable is a container whose kind is not base_type and levels is given and at least 0, the output is the collapse of each of its children, with the same base_type and levels one less, joined in the children's order.
+
+	# If levels is not given, every output element is an atom or a container whose kind is base_type.
+
+	// example wanted: the docstring's [(1, 2), ([3, 4], [[5], [6]])] with no base_type and no levels; every level is opened
+	// example wanted: the docstring's ['ab', ('cd', 'ef'), ['gh', 'ij']] with base_type "tuple"; the tuple stays whole and the strings are not split
+	// example wanted: the docstring's [('a', ['b']), ('c', ['d'])] with levels 1; the inner lists sit at depth 2, past the limit
+	// example wanted: the same input with levels 0; only the top-level list is opened
+	// example wanted: a top-level list with levels -1; nothing is opened, not even the top
+	// example wanted: a top-level string 'ab'; a string is an atom and is not split into characters
+	// example wanted: a top-level list with base_type "list"; the top itself is a base_type container
+	// example wanted: [1, [], 2] with no levels; an empty container contributes nothing
+	// example wanted: an empty top-level list; the join of no children

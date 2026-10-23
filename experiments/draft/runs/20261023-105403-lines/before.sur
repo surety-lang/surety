@@ -1,0 +1,43 @@
+// draft
+// drafted
+type Arg = { scalar: Bool, value: Text, items: Text[] }
+// drafted
+type Row = { values: Text[] }
+// drafted
+type ZipError = { kind: Text }
+
+// drafted
+length_error: ZipError = {kind: "ValueError"}
+
+zip_broadcast(objects: Arg[], strict: Bool) -> Result<Row[], ZipError>
+	note "zip the iterable arguments position by position, repeating each scalar argument's value in every row; which arguments count as scalar (scalar_types) is decided before the call and carried in each argument's scalar flag"
+	# The output is the length error exactly when strict is set and two iterable arguments have
+	# different numbers of items.
+
+	# Every row has as many values as there are arguments.
+
+	# In every row, the value at a scalar argument's position is that argument's value.
+
+	# In row k, the value at an iterable argument's position is that argument's item at position k.
+
+	# Every iterable argument has at least as many items as the output has rows.
+
+	# If some argument is iterable, some iterable argument has exactly as many items as the output
+	# has rows.
+
+	# If no argument is iterable, the output has one row when some argument is a scalar and no rows
+	# otherwise.
+	// example wanted: the docstring's first case, [1, 2, 3], ['a', 'b', 'c'] and the scalar '_',
+	// not strict: the scalar repeats in every row
+	// example wanted: the docstring's second case, 'abc' and 'xyz' as iterables with 0 as a scalar
+	// (scalar_types None): strings are zipped character by character
+	// example wanted: no arguments at all: no argument is iterable and none is a scalar
+	// example wanted: only scalar arguments, e.g. 'a' and 'b': the arguments themselves form the
+	// single row
+	// example wanted: iterables of 3 and 2 items, not strict: the shorter iterable decides the row
+	// count
+	// example wanted: iterables of 3 and 2 items, strict: the lengths differ, so the error is
+	// reported
+	// example wanted: iterables of 2 and 2 items with a scalar, strict: equal lengths, so no error
+	// example wanted: an empty iterable beside a non-empty one and a scalar, not strict: the empty
+	// one decides the row count

@@ -1,0 +1,32 @@
+// draft
+// drafted
+type DistributeError = { message: Text }
+// drafted
+n_error: DistributeError = { message: "n must be at least 1" }
+
+distribute(n: Int, items: Int[]) -> Result<Int[][], DistributeError>
+	note "deal the items round-robin into n groups: the first item to the first group, the second to the second, wrapping around after the nth"
+	# The output is an error exactly when n is less than 1, and that error is n_error.
+
+	# A successful output has exactly n groups.
+
+	# The groups taken together hold the same elements as the input, each occurrence once.
+
+	# Every group keeps the input's order.
+
+	# Every group has at least as many items as each group after it.
+
+	# The first group has at most one item more than the last group.
+
+	# The first items of the non-empty groups, taken in group order, are the input's first items in order.
+
+	# Distributing the input without its first n items gives each group without its first item.
+
+	// example wanted: n 2 over [1, 2, 3, 4, 5, 6]: the length divides evenly, so every group is the same length
+	// example wanted: n 3 over [1, 2, 3, 4, 5, 7]: the length does not divide evenly, so the earlier groups take the extra items
+	// example wanted: n 5 over [1, 2, 3]: n is more than the length, so the groups at the end are empty
+	// example wanted: n 3 over []: the input is empty, so every group is empty and there are still n groups
+	// example wanted: n 1 over [4, 2, 9]: a single group, which holds the whole input in order
+	// example wanted: n 2 over [7, 7, 7]: repeated values, so the groups are decided by position and not by value
+	// example wanted: n 0 over [1, 2]: the threshold for the error
+	// example wanted: n -1 over []: a negative n with an empty input is still the error

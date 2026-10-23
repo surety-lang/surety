@@ -1,0 +1,1 @@
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__substrings.sur: ok substrings props=2 accepts=0 examples=0 abbrevs=0 pins=16

@@ -1,0 +1,1 @@
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__windowed.sur: ok windowed props=8 accepts=0 examples=0 abbrevs=0 pins=34

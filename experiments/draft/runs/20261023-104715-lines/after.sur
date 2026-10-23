@@ -1,0 +1,37 @@
+// draft
+// drafted
+type Chunk = { items: Int[] }
+// drafted
+type ChunkError = { code: Text, display: Text }
+
+// drafted
+size_error: ChunkError = {code: "e-chunk-size", display: "n must be at least 1"}
+
+ichunked(iterable: Int[], n: Int) -> Result<Chunk[], ChunkError>
+	note "break the iterable into consecutive chunks of n elements each, the last one possibly shorter"
+	# The output is Ok exactly when n is at least 1.
+	n >= 1 <-> (exactly_one Ok(_) in out)
+	# An Err output carries size_error, meaning n is less than 1.
+	all Err(e) in out: e == size_error and n < 1
+	# The chunks' items, joined in the order of the chunks, are exactly the iterable's elements in
+	# the iterable's order.
+	all Ok(cs) in out: flatten(cs.items) == iterable
+	# Every chunk has at most n items.
+	all Ok(cs) in out: all c in cs: len(c.items) <= n
+	# Every chunk has at least one item.
+	all Ok(cs) in out: all c in cs: len(c.items) >= 1
+	# A chunk with fewer than n items comes after every other chunk.
+	all Ok(cs) in out: all c in cs where len(c.items) < n: none d in cs: c before d in cs
+	// example wanted: an empty iterable with n of 4: decided by the no-empty-chunk claim together
+	// with the join claim
+	// example wanted: twelve elements with n of 4: the length is an exact multiple of n, so no
+	// short chunk exists
+	// example wanted: ten elements with n of 4: the last chunk is the short one, and it holds the
+	// remainder
+	// example wanted: three elements with n of 5: n is larger than the whole iterable, so the
+	// single chunk is short
+	// example wanted: three elements with n of 1: every chunk holds exactly one item
+	// example wanted: repeated values such as [7, 7, 7] with n of 2: the join claim keeps both the
+	// copies and their order
+	// example wanted: n of 0: the threshold of the error case
+	// example wanted: a negative n such as -1: decided by the same error case

@@ -1,0 +1,37 @@
+
+// draft
+difference(iterable: Int[], initial: Option<Int>) -> Int[]
+	note "the inverse of a running total: the first element, then each element minus the one before it; with initial present the first element is skipped"
+	// func is fixed to subtraction: the fragment has no function-typed input, so a func other than
+	// sub would be a sibling obligation
+	// initial is read only for presence (the source tests `initial is not None`); its value never
+	// reaches the output
+	# If initial is absent, the output has as many elements as the iterable.
+
+	# If initial is absent, the output starts with the iterable's first element.
+
+	# If initial is absent, the output sums to the iterable's last element.
+
+	# If the iterable has at least two elements, the output's last element is the iterable's last
+	# element minus the element before it.
+
+	# The output for the iterable without its last element, with the same initial, is the output
+	# without its last element.
+
+	# If initial is present, the output is the output for the same iterable with initial absent,
+	# with its first element left out.
+	// example wanted: iterable [0, 1, 3, 6, 10] with initial absent, the docstring's accumulate
+	// case: first element kept, then successive differences
+	// example wanted: iterable [] with initial absent: no first element to keep, and the sum of
+	// nothing is 0
+	// example wanted: iterable [] with initial present: nothing to skip and nothing to difference
+	// example wanted: iterable [7] with initial present: the only element is the skipped first, and
+	// there is no pair to difference
+	// example wanted: iterable [10, 11, 13, 16] with initial 10, the docstring's case: first
+	// element skipped, the differences remain
+	// example wanted: iterable [10, 11, 13, 16] with initial 99: the value of initial is ignored,
+	// only its presence counts
+	// example wanted: iterable [0, 1, 3] with initial 0: a present zero still skips the first
+	// element, since presence decides, not truthiness
+	// example wanted: iterable [5, 2, 2, -4] with initial absent: differences that are negative and
+	// zero

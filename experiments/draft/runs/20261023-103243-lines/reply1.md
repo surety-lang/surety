@@ -1,0 +1,8 @@
+```surety
+# The output is the items of all the iterables taken together: every item of every iterable appears in it exactly once, and nothing else does.
+	out same_elements_as flatten(iterables.items)
+# An item at an earlier position in its iterable comes before every item at a later position in any iterable, its own included.
+	reaching for: for every iterable s, every iterable t, every occurrence a in s.items and every occurrence b in t.items, if a's position in s.items is less than b's position in t.items, then the output occurrence that came from a sits before the output occurrence that came from b. The notation has no way to name an occurrence's position as a number to compare across two different lists. `before` cannot compare across them either. It can only link an input occurrence to an output occurrence by value, which picks the wrong copy when the same value appears in two iterables, as in [1, 2] and [2, 1].
+# Of two items at the same position in their iterables, the one from the earlier iterable comes before the one from the later iterable.
+	reaching for: for every pair of iterables s before t in iterables, every occurrence a in s.items and every occurrence b in t.items at the same position, the output occurrence that came from a sits before the output occurrence that came from b. This needs the same two missing pieces: an occurrence's position as a number to compare across lists, and a link from an input occurrence to the output occurrence it became that does not go through value equality.
+```

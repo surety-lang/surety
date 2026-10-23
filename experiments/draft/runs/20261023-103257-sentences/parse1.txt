@@ -1,0 +1,1 @@
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__collapse.sur: line 3: type definition is circular (type_error)

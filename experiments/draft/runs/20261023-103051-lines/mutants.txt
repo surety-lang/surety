@@ -1,0 +1,1 @@
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__intersperse.sur: /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__intersperse.sur: line 11: a quantifier must be the last operand on its line (quantifier_mid_line)

@@ -1,0 +1,1 @@
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__product_index.sur: ok product_index props=0 accepts=0 examples=0 abbrevs=0 pins=21

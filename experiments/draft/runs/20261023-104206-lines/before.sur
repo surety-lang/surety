@@ -1,0 +1,22 @@
+// draft
+// drafted
+type Marked = { is_first: Bool, is_last: Bool, item: Text }
+
+mark_ends(items: Text[]) -> Marked[]
+	note "pair every item with whether it is the first and whether it is the last, keeping the items in order"
+	# The output has exactly as many elements as the input has items.
+
+	# The output's items are the input items, in the input's order.
+
+	# The first output element is marked first.
+
+	# No output element after the first is marked first.
+
+	# The last output element is marked last.
+
+	# No output element before the last is marked last.
+	// example wanted: the empty list; the output is empty.
+	// example wanted: a single item; the one element is both the first and the last.
+	// example wanted: items ["A", "B", "C"], the docstring's case; one first, one middle, one last.
+	// example wanted: items ["A", "A"]; the two equal items must still get different flags by
+	// position, not by value.

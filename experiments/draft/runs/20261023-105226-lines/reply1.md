@@ -1,0 +1,10 @@
+```surety
+# If the element's length is not the number of iterables times repeat, the result is the not-in-product error.
+	len(element) != len(iterables) * repeat -> out == Err(not_in_product_err)
+# If some value of the element is not among the values of its iterable, meaning the iterable at the same position once the iterables are written out repeat times end to end, the result is the not-in-product error.
+	reaching for: if there is some position k in element for which element's value at k is not in the values of iterables at position (k mod len(iterables)), then out == Err(not_in_product_err). The notation has no binder that yields a position number, no `%`, and no way to write the iterables out repeat times end to end, so I cannot pair each value with its iterable.
+# If the element's length is the number of iterables times repeat and every value of the element is among the values of its iterable, the result is Ok.
+	reaching for: (len(element) == len(iterables) * repeat and, for every position k in element, element's value at k is in the values of iterables at position (k mod len(iterables))) -> exactly_one Ok(_) in out. The length half is expressible. The per-position membership half needs the same positional pairing of element with the repeated iterables, and the notation lacks it.
+# An Ok index is the position, counted from 0, of the first product equal to the element, where the products are listed in lexicographic order with the last iterable varying fastest.
+	reaching for: all Ok(i) in out: i equals the 0-based position of the first tuple equal to element in the full list of products, in itertools.product order over the iterables written out repeat times. Equivalently, i is the sum over positions k of (the index of the first occurrence of element's value at k in its iterable's values) times (the product of the lengths of the iterables after position k in the written-out sequence). The notation has no form that enumerates the products, no index-of-first-occurrence that returns a number, and no product over a list of lengths.
+```

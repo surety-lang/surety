@@ -1,0 +1,49 @@
+// draft
+// drafted
+type Series = { items: Text[] }
+// drafted
+type Row = { cells: Option<Text>[] }
+// drafted
+type ZipOffsetError = { code: Text, display: Text }
+
+// drafted
+mismatch_error: ZipOffsetError = {code: "e-offsets-count", display: "Number of iterables and offsets didn't match"}
+
+zip_offset(iterables: Series[], offsets: Int[], longest: Bool, fillvalue: Option<Text>) -> Result<Row[], ZipOffsetError>
+	note "zip the iterables together, the i-th shifted by the i-th offset, stopping at the shortest unless longest is set, filling gaps with fillvalue"
+	# The output is Ok exactly when there are as many offsets as iterables.
+
+	# Every error output is the mismatch error.
+
+	# Every row has one cell per iterable, in the order of the iterables.
+
+	# Cell i of row k is the item of iterable i at position k plus offset i when that position is
+	# within iterable i, and the fillvalue otherwise.
+
+	# There are rows only if there is at least one iterable.
+
+	# If longest is false and the output has rows, every iterable has at least the number of rows
+	# plus its offset items.
+
+	# If longest is false and there is at least one iterable, some iterable has at most the number
+	# of rows plus its offset items.
+
+	# If longest is true, every iterable has at most the number of rows plus its offset items.
+
+	# If longest is true and the output has rows, some iterable has at least the number of rows plus
+	# its offset items.
+	// example wanted: iterables "0123" and "abcdef" at offsets 0 and 1, longest false: the first
+	// iterable is the shortest once shifted, and it decides the row count
+	// example wanted: the same iterables and offsets with longest true: the second iterable decides
+	// the row count, and the first runs past its end into the fillvalue
+	// example wanted: iterables "ab" and "wxyz" at offsets -2 and 0, longest false: the negative
+	// offset puts fillvalue cells at the start, not the end
+	// example wanted: iterables "abc" and "wxyz" at offsets 3 and 0, longest false: an offset
+	// exactly equal to an iterable's length leaves it nothing, the boundary of the row count
+	// example wanted: iterables "abc" and "wxyz" at offsets 5 and 0, longest false: an offset past
+	// an iterable's end, where its length minus its offset is below zero
+	// example wanted: iterables "ab" and "wxyz" at offsets 0 and 0, longest true, fillvalue "x":
+	// the fill is the given value, not None
+	// example wanted: no iterables and no offsets, either value of longest: the counts match and
+	// there is nothing to zip
+	// example wanted: two iterables and one offset: the counts differ, so the error case decides it

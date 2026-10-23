@@ -1,0 +1,19 @@
+// draft
+// drafted
+type Item = { value: Text, key: Text }
+
+duplicates_everseen(items: Item[]) -> Item[]
+	note "keep every item whose key already appeared earlier in the input, dropping the first appearance of each key; with no key function, each item's key is its value"
+	# The output keeps the input's order.
+
+	# Every output item has an earlier input item with the same key.
+
+	# No two input items left out of the output share a key.
+
+	# Every input item's key is the key of some input item left out of the output.
+
+	// example wanted: empty input: nothing has appeared before, so nothing is a duplicate
+	// example wanted: items with all-distinct keys: each item is its key's first appearance
+	// example wanted: 'mississippi' with each key equal to its value: only the first 'm', 'i', 's' and 'p' are dropped, so later copies are kept in input order
+	// example wanted: 'AaaBbbCccAaa' keyed by lowercase: the second 'A' is a duplicate because key 'a' first appeared at position 0, even though value 'A' differs from the items between
+	// example wanted: one key repeated three times with three different values: which value is the dropped one, decided by position

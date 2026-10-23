@@ -1,0 +1,3 @@
+nth_product  inputs 0+500  mutants 2 of 13 apply  slipped 1  caught 1  underdetermined 8 in 1 gap
+  gap  out can be Ok([]) or Err({code: ""}); 8 inputs show it; `empty` returns one of the two; the smallest in: (0, [], 0)
+  slipped  empty: returns the empty value of the output type; through 1 clause (line 21); caught by no example; in: (0, [], 0)

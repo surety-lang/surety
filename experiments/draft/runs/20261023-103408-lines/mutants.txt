@@ -1,0 +1,2 @@
+sliced  inputs 0+500  mutants 1 of 13 apply  slipped 0  caught 1  underdetermined 4 in 1 gap
+  gap  out.error can be None or {code: "ValueError", display: "seq is not divisible by n."}; 4 inputs show it; the smallest in: ([], -1, false)

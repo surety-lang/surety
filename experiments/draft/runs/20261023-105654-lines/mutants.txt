@@ -1,0 +1,3 @@
+partial_product  inputs 0+500  mutants 6 of 13 apply  slipped 0  caught 6  underdetermined 8 in 2 gaps
+  gap  out can have {values: []} or not; 7 inputs show it; the smallest in: ([], -1)
+  gap  out[0].values[0] can be "" or "a"; 1 input show it; the smallest in: ([{values: ["a", "a", "", "b"]}], 1)

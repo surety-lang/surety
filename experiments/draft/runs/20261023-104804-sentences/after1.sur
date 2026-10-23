@@ -1,0 +1,23 @@
+// draft
+// drafted
+type Call = { item: Option<Text>, result: Result<Int, Text> }
+
+map_except(calls: Call[], exceptions: Text[]) -> Result<Int[], Text>
+	note "yield the function's value for each item, skip an item whose call raised one of the given exceptions, and fail with any other exception the function raised"
+	# The output is Ok exactly when every call either returned a value or raised an exception that is among the given exceptions.
+
+	# An Err output names the exception raised by the first call whose exception is not among the given exceptions.
+
+	# An Ok output is drawn from the values the calls returned.
+
+	# No value a call returned is left out of an Ok output.
+
+	# An Ok output keeps the order of the calls that returned its values.
+
+	// example wanted: the docstring case: items '1', '2', 'three', '4', None, with 'three' raising ValueError and None raising TypeError, exceptions [ValueError, TypeError]: every raised exception is listed, so the calls that raised are skipped
+	// example wanted: no calls at all, any exceptions: nothing returned and nothing raised
+	// example wanted: one call raising ValueError with no exceptions given: an empty list of exceptions lists nothing
+	// example wanted: a call returning a value, then a call raising KeyError, with exceptions [ValueError]: an unlisted exception after a returned value still decides the output
+	// example wanted: one call raising KeyError and a later call raising IndexError, neither listed: the first unlisted one is the one reported
+	// example wanted: one call raising ValueError (listed) before a call raising KeyError (unlisted): the listed one is skipped, so the unlisted one decides
+	// example wanted: two calls returning the same value: duplicates are values, and both are kept

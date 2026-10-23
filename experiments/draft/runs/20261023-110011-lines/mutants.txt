@@ -1,0 +1,4 @@
+idft  inputs 0+341  mutants 6 of 13 apply  slipped 2  caught 4  underdetermined 8 in 1 gap
+  gap  out can hold the same elements in another order; 8 inputs show it; `identity` returns one of the two; the smallest in: [{im: 0.0, re: 0.0}, {im: 0.0, re: 0.0}, {im: 1.0, re: 0.0}, {im: 1.0, re: 0.0}]
+  slipped  identity: returns the input unchanged; through 1 clause (line 8); caught by no example; in: []
+  slipped  swap_adjacent: returns the input with its first two elements swapped; through 1 clause (line 8); caught by no example; in: [{im: 0.0, re: 0.0}, {im: 0.0, re: 0.0}]

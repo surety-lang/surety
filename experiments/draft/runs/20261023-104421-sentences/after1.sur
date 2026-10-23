@@ -1,0 +1,29 @@
+// draft
+// drafted
+type KeyedItem = { key: Id, value: Int }
+// drafted
+type Category = { key: Id, values: Int[] }
+
+map_reduce(items: KeyedItem[]) -> Category[]
+	note "gather each item's value into the category named by its key, keeping the values in input order"
+	// keyfunc and valuefunc are already applied: each input item carries its key and its transformed value
+	// reducefunc is a sibling obligation over one category's values; with none given, this is the whole result
+	# No two categories share a key.
+
+	# Every input item's key is the key of some category.
+
+	# Every category's key is the key of some input item.
+
+	# Each category's values are drawn from the values of the input items with that category's key.
+
+	# The values across all categories, taken together, are the same elements as the input items' values.
+
+	# Each category's values keep the input's order.
+
+	# The order of the categories is not claimed.
+
+	// example wanted: the empty list; no key exists, so the boundary is whether any category is made
+	// example wanted: keys A, B, B, C, C, C with values 1 to 6, the docstring's 'abbccc'; one category per distinct key, sized by its occurrences
+	// example wanted: every item under one key; a single category holding every value in input order
+	// example wanted: (A, 1), (A, 2), (B, 1), (B, 2); equal values under different keys, so each category's multiplicity is decided per key, not overall
+	// example wanted: (A, 3), (B, 1), (A, 2), (B, 4), (A, 1); interleaved keys, so each category's order is decided by input position, not by value

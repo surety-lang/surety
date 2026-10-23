@@ -1,0 +1,22 @@
+```surety
+# The output is an error exactly when window_size is less than 1.
+	window_size < 1 <-> exactly_one Err(_) in out
+
+# Every error output is the window size error.
+	all Err(e) in out: e == window_size_error
+
+# When no item's window matches, or count is at most 0, the output is the items' values in their order.
+	reaching for: when no item's window_matches, or count holds an Int that is at most 0, out == Ok(items.value). The notation cannot take the Int out of an Option<Int>: there is no Some(c) pattern, and `count <= 0` compares an Option<Int> with an Int.
+
+# When the first item's window does not match, or count is at most 0, the output starts with the first item's value and continues as replace over the items after it, with the same substitutes, count and window size.
+	reaching for: when items is non-empty and either the first item's window_matches is false or count holds an Int at most 0, out is Ok of the first item's value followed by the Ok list of replace(items[1 .. len(items)], substitutes, count, window_size). This needs a way to take the Int out of an Option<Int>, which has no pattern, and a way to say "x followed by list L", which has no concatenation form.
+
+# When the first item's window matches and count is None or more than 0, the output starts with the substitutes.
+	reaching for: when items is non-empty, the first item's window_matches is true, and count is None or holds an Int greater than 0, the Ok list in out begins with substitutes (its first len(substitutes) values equal substitutes). The notation has no way to take the Int out of an Option<Int> to compare it with 0.
+
+# When the first item's window matches and count is None or more than 0, the output after the substitutes is replace over the items from position window_size on, with the same substitutes and window size and with one fewer replacement allowed.
+	reaching for: under the same condition, the Ok list in out, from position len(substitutes) on, equals the Ok list of replace(items[window_size .. len(items)], substitutes, fewer, window_size). Here fewer stays None when count is None and is c - 1 when count holds c. The notation cannot take the Int out of an Option<Int> to test or decrement it, and cannot build the Option to pass.
+
+# Every output value is the value of some item or one of the substitutes.
+	all Ok(vs) in out: all v in vs: v in items.value or v in substitutes
+```

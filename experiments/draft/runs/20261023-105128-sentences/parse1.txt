@@ -1,0 +1,1 @@
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__combination_index.sur: ok combination_index props=0 accepts=0 examples=0 abbrevs=0 pins=18

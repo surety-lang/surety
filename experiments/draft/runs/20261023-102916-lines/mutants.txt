@@ -1,0 +1,1 @@
+strictly_n  inputs 0+500  mutants 1 of 13 apply  slipped 0  caught 1  underdetermined 0

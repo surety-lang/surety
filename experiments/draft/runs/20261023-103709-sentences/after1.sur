@@ -1,0 +1,21 @@
+// draft
+
+repeat_each(iterable: Text[], n: Int) -> Text[]
+	note "repeat each element of the iterable n times in a row, keeping the iterable's order; n defaults to 2 when the caller leaves it out"
+	# When n is at least 0, the output's length is the iterable's length times n.
+
+	# When n is negative, the output is empty.
+
+	# Every output element is an element of the iterable.
+
+	# Each of the first n elements of the output is the iterable's first element.
+
+	# The output from position n onward is repeat_each of the iterable from its second element onward, with the same n.
+
+	// example wanted: iterable ["A", "B", "C"] with n 3, the docstring's case: each element repeated in a block, blocks in input order
+	// example wanted: iterable ["A", "B"] with n 2, the default n written out, since the signature cannot carry a default
+	// example wanted: the empty iterable with n 3: the length is the iterable's length times n
+	// example wanted: iterable ["A", "B"] with n 0: the length claim at its zero boundary
+	// example wanted: iterable ["A", "B"] with n -1: the negative-n claim, where Python's repeat yields nothing
+	// example wanted: iterable ["A", "B"] with n 1: each block is a single element
+	// example wanted: iterable ["A", "A", "B"] with n 2: equal elements in the input each get their own block, adjacent to each other

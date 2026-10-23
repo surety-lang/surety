@@ -1,0 +1,3 @@
+locate  inputs 0+31  mutants 1 of 13 apply  slipped 1  caught 0  underdetermined 4 in 1 gap
+  gap  out can have 0 or not; 4 inputs show it; `empty` returns one of the two; the smallest in: [true]
+  slipped  empty: returns the empty value of the output type; through 3 clauses (lines 6, 12, 14); caught by no example; in: []

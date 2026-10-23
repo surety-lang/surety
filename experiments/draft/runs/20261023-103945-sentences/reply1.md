@@ -1,0 +1,32 @@
+```surety
+// draft
+// drafted
+type Part = { items: Int[] }
+// drafted
+type DivideError = { code: Text, display: Text }
+// drafted
+n_too_small_error: DivideError = { code: "e-n-too-small", display: "n must be at least 1" }
+
+divide(n: Int, iterable: Int[]) -> Result<Part[], DivideError>
+	note "split the iterable into n consecutive parts that keep its order, the earlier parts taking the extra elements when the length is not a multiple of n"
+	# The output is Ok exactly when n is at least 1.
+
+	# An error output is the n-too-small error.
+
+	# An Ok output has exactly n parts.
+
+	# The items of the parts, taken in part order, are the iterable element for element and in its order.
+
+	# No two parts of an Ok output differ in length by more than one.
+
+	# No part of an Ok output is longer than a part before it.
+
+	// example wanted: n 2 over [1, 2, 3, 4, 5, 6]: the length is a multiple of n, so every part has the same length
+	// example wanted: n 3 over [1, 2, 3, 4, 5, 6, 7]: one element left over, and the earliest part takes it
+	// example wanted: n 5 over [1, 2, 3]: n is more than the length, so the trailing parts are empty
+	// example wanted: n 3 over []: the empty iterable still gives n parts
+	// example wanted: n 1 over [1, 2, 3]: the smallest valid n, so one part holds everything
+	// example wanted: n 0 over [1, 2, 3]: just below the threshold, so the n-too-small error
+	// example wanted: n -1 over []: a negative n with an empty iterable, still the n-too-small error
+	// example wanted: n 2 over [4, 4, 4]: duplicate values, where the parts are decided by position and not by value
+```

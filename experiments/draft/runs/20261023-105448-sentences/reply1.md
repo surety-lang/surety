@@ -1,0 +1,24 @@
+```surety
+// draft
+// drafted
+type Element = { value: Text, key: Text }
+
+duplicates_justseen(iterable: Element[]) -> Element[]
+	note "yield every element whose key equals the key of the element immediately before it, in input order, where key is key(value), or the value itself when no key function is given"
+	# The output keeps the input's order: it is the input with some elements removed and none added or rearranged.
+
+	# Every input element after the first whose key equals the key of the element immediately before it in the input is in the output.
+
+	# Every input element that is the first in the input, or whose key differs from the key of the element immediately before it, is left out of the output.
+
+	# Every output element is an input element carried as-is, with its own value and not its key.
+
+	// example wanted: the empty input: no element, so nothing is a duplicate
+	// example wanted: a single element: it is the first, so it is left out
+	// example wanted: "mississippi" with each key equal to its value: only the second element of each adjacent pair (ss, ss, pp) is kept
+	// example wanted: "AaaBbbCccAaa" with keys lowercased: each run's first element is dropped and the kept elements are the lowercase originals, not the keys
+	// example wanted: three adjacent elements with one key: the second and the third are both kept, so a run longer than two counts every element after the first
+	// example wanted: values A, B, A with keys equal to values: the two A's are not adjacent, so neither is a duplicate
+	// example wanted: values "A" then "a" with the same key "a": they differ by value and agree by key, so the key decides and "a" is kept
+	// example wanted: values "a" then "a" with different keys: they agree by value and differ by key, so the key decides and nothing is kept
+```

@@ -1,0 +1,23 @@
+
+// draft
+pad_none(iterable: Option<Int>[], taken: Int) -> Option<Int>[]
+	note "the first `taken` elements of pad_none(iterable): the iterable's elements in order, then None for as long as is taken; the endless stream is observed through a finite prefix"
+	# The output has exactly taken elements.
+
+	# The output's elements before position len(iterable) are the iterable's elements before
+	# position taken, in the same order.
+
+	# Every output element at or past position len(iterable) is None.
+	// example wanted: iterable [0, 1, 2] taken 5, the docstring's case: the iterable in full, then
+	// padding up to the count taken
+	// example wanted: iterable [] taken 3: no element comes from the iterable, so every position is
+	// padding
+	// example wanted: iterable [0, 1, 2] taken 0: nothing is taken
+	// example wanted: iterable [0, 1, 2] taken 2: fewer taken than the iterable holds, so the
+	// output is cut short and has no padding
+	// example wanted: iterable [0, 1, 2] taken 3: taken equals the iterable's length exactly, the
+	// boundary where padding would begin
+	// example wanted: iterable [None, 1] taken 4: a None that comes from the iterable is kept in
+	// its position, ahead of the padding
+	// example wanted: taken -1: Python's take raises here; decide whether this is an error case in
+	// a Result or a refinement, since the first sentence cannot hold

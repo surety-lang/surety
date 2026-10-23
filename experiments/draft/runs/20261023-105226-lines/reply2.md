@@ -1,0 +1,10 @@
+```surety
+# If the element's length is not the number of iterables times repeat, the result is the not-in-product error.
+	len(element) != len(iterables) * repeat -> exactly_one Err(e) in out: e == not_in_product_err
+# If some value of the element is not among the values of its iterable, meaning the iterable at the same position once the iterables are written out repeat times end to end, the result is the not-in-product error.
+	reaching for: pair each value of element with the iterable at the same position in iterables written out repeat times end to end (the value at position k with iterables at position k mod len(iterables)), then say: if any value is not in its paired iterable's values, out is exactly one Err equal to not_in_product_err. The notation has no position index on a binder, no zip of two lists, no repetition of a list and no %.
+# If the element's length is the number of iterables times repeat and every value of the element is among the values of its iterable, the result is Ok.
+	reaching for: (len(element) == len(iterables) * repeat and every value of element, at position k, is in the values of iterables at position k mod len(iterables)) -> exactly_one Ok(_) in out. The pairing of each value with its iterable by position across the repeated iterables cannot be written: there is no position index on a binder, no zip and no list repetition.
+# An Ok index is the position, counted from 0, of the first product equal to the element, where the products are listed in lexicographic order with the last iterable varying fastest.
+	reaching for: the Ok value equals the position, counted from 0, of the first product equal to element in the list of all products of the iterables repeated repeat times, ordered lexicographically with the last iterable varying fastest. Equivalently, it is the mixed-radix sum over positions k of (the index of the first occurrence of element at position k in its iterable's values) times the product of the lengths of the iterables after position k. The notation cannot build the product list, cannot take the index of a value's first occurrence, and has no sum or product over positions.
+```

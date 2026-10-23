@@ -1,0 +1,23 @@
+```surety
+// draft
+// drafted
+type Element = { value: Text, key: Text }
+// drafted
+type Classified = { element: Element, unique_justseen: Bool, unique_everseen: Bool }
+
+classify_unique(items: Element[]) -> Classified[]
+	note "pair each element with whether its key differs from the one just before it and whether its key has not been seen earlier; with no key function, an element's key is its value"
+	# The output has exactly as many entries as the input has elements.
+
+	# The output's elements, taken in order, are the input elements in the input's order.
+
+	# An entry's unique_justseen flag is true exactly when it is the first entry or its element's key differs from the key of the entry immediately before it.
+
+	# An entry's unique_everseen flag is true exactly when no input element that comes before its element has the same key.
+
+	// example wanted: the empty input, where there is nothing to classify
+	// example wanted: the docstring's 'otto' with each key equal to its value; the adjacent repeat and the non-adjacent repeat decide the flags differently
+	// example wanted: values "a" then "A" with keys both "a", as with a case-folding key; the keys decide, not the values
+	// example wanted: values "x" then "x" with keys "1" then "2"; equal values with different keys stay unique
+	// example wanted: "aba" with each key equal to its value; a key that returns after a different one is new to its run but already seen
+```

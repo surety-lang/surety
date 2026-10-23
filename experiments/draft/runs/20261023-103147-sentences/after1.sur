@@ -1,0 +1,23 @@
+// draft
+// drafted
+type Substring = { substr: Text[], i: Int, j: Int }
+
+substrings_indexes(seq: Text[], reverse: Bool) -> Substring[]
+	note "list every non-empty contiguous run of seq with its start and end positions, shortest first and left to right, or the opposite order when reverse is true"
+	# Every output element's substr is the elements of seq from position i up to but not including j.
+
+	# Every output element has i at least 0, j more than i, and j at most the length of seq.
+
+	# No two output elements share both i and j.
+
+	# Twice the number of output elements is the length of seq times one more than the length of seq.
+
+	# If reverse is false, the output is sorted by the length of substr ascending, then by i ascending.
+
+	# If reverse is true, the output is sorted by the length of substr descending, then by i descending.
+
+	// example wanted: seq is empty, reverse false: no run exists, so nothing is listed
+	// example wanted: seq is a single element, reverse false: the only run is the whole seq
+	// example wanted: seq ["m", "o", "r", "e"], reverse false: the docstring's case, decided by length first, then start
+	// example wanted: seq ["m", "o", "r", "e"], reverse true: the same runs as the previous case, in the opposite order
+	// example wanted: seq ["a", "a"], reverse false: equal runs at different positions are each listed, decided by i and j rather than by the value of substr

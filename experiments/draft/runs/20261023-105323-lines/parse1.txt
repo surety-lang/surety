@@ -1,0 +1,1 @@
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__permutation_index.sur: ok permutation_index props=5 accepts=0 examples=0 abbrevs=0 pins=25

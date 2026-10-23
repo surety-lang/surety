@@ -1,0 +1,1 @@
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__locate.sur: ok locate props=0 accepts=0 examples=0 abbrevs=0 pins=11

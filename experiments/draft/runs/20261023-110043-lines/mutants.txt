@@ -1,0 +1,1 @@
+nth_prime  inputs 0+10  mutants 8 of 19 apply  slipped 0  caught 8  underdetermined 0

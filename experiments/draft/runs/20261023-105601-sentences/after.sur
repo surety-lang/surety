@@ -1,0 +1,48 @@
+// draft
+// drafted
+type Factor = { items: Text[] }
+// drafted
+type Combo = { values: Text[] }
+// drafted
+type GrayError = { code: Text, display: Text }
+
+// drafted
+too_few_items_err: GrayError = {code: "ValueError", display: "each iterable must have two or more items"}
+
+gray_product(iterables: Factor[], repeat: Int) -> Result<Combo[], GrayError>
+	note "every combination of one item per iterable, repeated repeat times, ordered so that only one value changes from one tuple to the next"
+	# The output is too_few_items_err exactly when repeat is at least 1 and some iterable has fewer
+	# than two items.
+
+	# In an Ok output, every tuple's length is the number of iterables times repeat, or 0 when
+	# repeat is below 1.
+
+	# In an Ok output, every value in a tuple is an item of the iterable its position belongs to,
+	# with the positions running through the iterables in order and starting over for each repeat.
+
+	# In an Ok output, every combination that takes one item from each position's iterable appears
+	# as some tuple.
+
+	# If no iterable repeats an item, no two tuples in an Ok output are equal.
+
+	# In an Ok output, the first tuple takes the first item of every position's iterable.
+
+	# If no iterable repeats an item, each tuple in an Ok output differs from the tuple before it in
+	# exactly one position.
+
+	# In an Ok output, the value that changes from one tuple to the next moves to an item next to it
+	# in its iterable.
+
+	# The output for a repeat of at least 1 is the output for the iterables written out that many
+	# times in sequence with a repeat of 1.
+	// example wanted: iterables "AB" and "CD" at repeat 1, the docstring's case: the order is
+	// decided by which position changes first and where it turns back
+	// example wanted: iterables "ABC" and "DE" at repeat 1: a three-item iterable shows the first
+	// position running forward, then running back after the second position changes
+	// example wanted: iterable "AB" at repeat 3, the docstring's equivalence with "AB", "AB", "AB"
+	// example wanted: no iterables at repeat 1: the only combination is the empty one
+	// example wanted: iterable "A" at repeat 0: the one-item iterable is never used, so whether the
+	// error is raised is the case
+	// example wanted: iterables "AB" and "C" at repeat 1: one iterable has a single item
+	// example wanted: iterables "AA" and "CD" at repeat 1: repeated items, so tuples may be equal
+	// by value and consecutive tuples may not differ

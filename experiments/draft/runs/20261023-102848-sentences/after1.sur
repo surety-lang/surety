@@ -1,0 +1,31 @@
+// draft
+// drafted
+// an item of the iterable; the problem allows any value, and Int stands in for it
+type Item = { value: Int }
+// drafted
+// the exception raised: its class name and its message
+type OneError = { kind: Text, message: Text }
+// drafted
+default_too_short_err: OneError = { kind: "ValueError", message: "too few items in iterable (expected 1)" }
+
+one(iterable: Item[], too_short: Option<OneError>, too_long: Option<OneError>) -> Result<Item, OneError>
+	note "return the only item of the iterable, and report an error when it is empty or has more than one item"
+	# The result is Ok exactly when the iterable has exactly one item.
+
+	# An Ok result is an item of the iterable.
+
+	# If the iterable is empty and too_short is given, the error is too_short.
+
+	# If the iterable is empty and too_short is not given, the error is the default too-short ValueError.
+
+	# If the iterable has more than one item and too_long is given, the error is too_long.
+
+	# If the iterable has more than one item and too_long is not given, the error's kind is ValueError and its message is the too-long message for the first two items, which a sibling obligation decides.
+
+	// example wanted: an empty iterable with neither too_short nor too_long given; the default too-short error decides it
+	// example wanted: an empty iterable with too_short given as an IndexError "too few items"; too_short replaces the default
+	// example wanted: an iterable of one item with both too_short and too_long given; neither error applies when there is exactly one item
+	// example wanted: an iterable of two items, "too" and "many", with too_long not given; the default ValueError and its message naming the first two items decide it
+	// example wanted: an iterable of two items with too_long given as a RuntimeError; too_long replaces the default
+	// example wanted: an iterable of three items with only too_short given; too_short does not apply to a long iterable, so the default too-long error decides it
+	// example wanted: an empty iterable with only too_long given; too_long does not apply to an empty iterable, so the default too-short error decides it

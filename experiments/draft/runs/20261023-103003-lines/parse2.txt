@@ -1,0 +1,1 @@
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__distinct_permutations.sur: line 23: sort key `items` is not ordered (Int[]) (type_error)

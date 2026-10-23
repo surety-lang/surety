@@ -1,0 +1,43 @@
+// draft
+// drafted
+type Step = { from: Int, to: Int }
+// drafted
+type IterateError = { code: Text, display: Text }
+
+// drafted
+negative_count_error: IterateError = {code: "e-negative-count", display: "The number of values to take must be at least 0"}
+// drafted
+missing_step_error: IterateError = {code: "e-missing-step", display: "func has no step from a value the iteration reached"}
+
+iterate(func: Step[unique from], start: Int, count: Int) -> Result<Int[], IterateError>
+	note "the first count values of start, func(start), func(func(start)), ..., with func given as a table of steps from one value to the next"
+	# The output is Ok exactly when the count is at least 0 and every value among the first count
+	# minus one values of the iteration from start has a step in func.
+
+	# The output is the negative-count error exactly when the count is below 0.
+
+	# The output is the missing-step error exactly when the count is at least 0 and some value among
+	# the first count minus one values of the iteration from start has no step in func.
+
+	# An Ok output has exactly count elements.
+
+	# If the count is at least 1, an Ok output's first element is start.
+
+	# If the count is at least 1 and start has a step in func, an Ok output's elements after the
+	# first are the Ok output of iterate on the same func from that step's to, with a count one
+	# less.
+	// example wanted: count 0 with start having no step in func: no step is ever needed, so this is
+	// decided by whether the empty prefix needs a step
+	// example wanted: count 1 with an empty func: the only value is start, so no step is needed
+	// example wanted: count 2 with start having no step in func: the second value needs a step from
+	// start
+	// example wanted: count -1 with a func that also lacks a step from start: decided by which
+	// error wins when both could apply
+	// example wanted: a doubling table from 1 through 512 with start 1 and count 10, the
+	// docstring's first case
+	// example wanted: the collatz steps 10→5→16→8→4→2→1→4 with start 10 and count 7, the
+	// docstring's second case cut where takewhile_inclusive stops
+	// example wanted: a cycle 4→2→1→4 with start 4 and count 7: values repeat, so the output holds
+	// duplicates
+	// example wanted: a fixed point, a step from 3 to 3, with start 3 and count 4: every value is
+	// start

@@ -1,0 +1,33 @@
+// draft
+// drafted
+type Item = { value: Text, key: Text }
+// drafted
+type WindowError = { message: Text }
+
+// drafted
+window_error: WindowError = {message: "n must be greater than 0"}
+
+unique_in_window(items: Item[], n: Int) -> Result<Item[], WindowError>
+	note "keep each item whose key has not been seen among the n - 1 items just before it; key equals value when no key function is given"
+	# The result is the window-size error exactly when n is less than 1.
+
+	# On success, the output is drawn from the items and keeps their order.
+
+	# On success, every output item's key matches no key among the n minus 1 items just before it in
+	# the input.
+
+	# On success, every item left out of the output has its key among the n minus 1 items just
+	# before it in the input, whether or not those items were kept.
+	// example wanted: values [0, 1, 0, 2, 3, 0] with n = 3, keys equal to values: the second 0 is
+	// two positions after the first, the last 0 is three positions after the second
+	// example wanted: values "a b A c d a" with keys lowercased and n = 3: "A" shares key "a" with
+	// an item two positions earlier
+	// example wanted: values "a a b" with n = 1: the window looks at no earlier item
+	// example wanted: an empty item list with n = 3
+	// example wanted: n = 0 and n = -1 with a non-empty list: below the threshold of 1
+	// example wanted: key "x" repeated exactly n positions later, and again exactly n - 1 positions
+	// later: the edge of the window
+	// example wanted: keys [a, b, a, a] with n = 3: the third item is dropped, and it still sits in
+	// the window that decides the fourth
+	// example wanted: two items with different values and the same key, adjacent, n = 2: the key
+	// decides, not the value

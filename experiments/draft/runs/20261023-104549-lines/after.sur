@@ -1,0 +1,38 @@
+// draft
+// drafted
+type Block = { items: Text[] }
+// drafted
+type Partition = { blocks: Block[] }
+
+partitions(iterable: Text[]) -> Partition[]
+	note "every way of cutting the input into consecutive blocks, keeping the input's order, fewest blocks first"
+	# For every partition in the output, its blocks' items, concatenated in block order, are exactly
+	# the input elements in the input's order.
+	all p in out: flatten(p.blocks.items) == iterable
+	# If the input has at least one element, no block of any output partition is empty.
+	len(iterable) >= 1 -> (all p in out: all b in p.blocks: len(b.items) >= 1)
+	# Every way of cutting the input into consecutive non-empty blocks is one of the output
+	# partitions.
+	// reaching for: a quantifier over every cutting of iterable into consecutive non-empty blocks,
+	// as in `all c in cuttings(iterable): c in out`. The cuttings are not a list in the input, so
+	// the notation has no range to quantify over. The count form, `len(out) == 2^(len(iterable) -
+	// 1)` for non-empty input, needs exponentiation, and it only means "every cutting" alongside
+	// the uniqueness and soundness siblings.
+	# No two output partitions are equal.
+	unique out.blocks
+	# The output is sorted by the number of blocks, fewest first.
+	all p in out: all q in out where p before q in out: len(p.blocks) <= len(q.blocks)
+	# Of two output partitions with the same number of blocks, the one whose first differing block
+	# is shorter comes first.
+	// reaching for: for p before q in out with len(p.blocks) == len(q.blocks), at the first
+	// position i where p.blocks[i] != q.blocks[i], len(p.blocks[i].items) < len(q.blocks[i].items).
+	// This needs a binder over block positions or element indexing, and the notation has neither.
+	// An equivalent form is `out sorted_by` a computed key, the list of block lengths, compared
+	// lexicographically ascending, but sorted_by takes only fields.
+	// example wanted: iterable ["a", "b", "c"], the docstring's case: pins all four cuttings and
+	// their order
+	// example wanted: the empty input: no partitions at all, or one partition holding one empty
+	// block; the docstring does not say, the author decides
+	// example wanted: a single element ["a"]: no cut is possible, so only the uncut cutting exists
+	// example wanted: repeated elements ["a", "a"]: different cuts must stay distinct partitions
+	// even though every element is equal

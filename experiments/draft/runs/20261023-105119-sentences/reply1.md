@@ -1,0 +1,32 @@
+```surety
+// draft
+// drafted
+type Iterable = { values: Int[] }
+// drafted
+type ProductIndexError = { code: Text, display: Text }
+// drafted
+not_in_product_err: ProductIndexError = { code: "ValueError", display: "element is not in the product of args" }
+
+product_index(element: Int[], iterables: Iterable[], repeat: Int) -> Result<Int, ProductIndexError>
+	note "the first index of element in the lexicographic list of products of the iterables taken repeat times, found without building the list"
+	# If the element's length is not the number of iterables times repeat, the result is the not-in-product error.
+
+	# If some value of the element is not among the values of its iterable, meaning the iterable at the same position once the iterables are written out repeat times end to end, the result is the not-in-product error.
+
+	# If the element's length is the number of iterables times repeat and every value of the element is among the values of its iterable, the result is Ok.
+
+	# An Ok index is the position, counted from 0, of the first product equal to the element, where the products are listed in lexicographic order with the last iterable varying fastest.
+
+	// example wanted: element [8, 2] over range(10) and range(5), repeat 1: the docstring's own case; the first value's position is weighted by the second iterable's length
+	// example wanted: element [8, 0, 7] over range(10) with repeat 3: the single iterable is written out three times, so each value is matched against the same iterable
+	// example wanted: element [9, 4] over range(10) and range(5): the last product, the largest index the iterables allow
+	// example wanted: element [0, 0] over range(10) and range(5): the first product, the smallest index
+	// example wanted: element [3] over one iterable [5, 3, 3]: the value appears twice, and the first occurrence decides the index
+	// example wanted: element [] with no iterables: the product of zero iterables holds exactly the empty product
+	// example wanted: element [] over range(10) with repeat 0: zero repetitions leave zero positions, the same empty product
+	// example wanted: element [1] over range(10) with repeat -1: whether the docstring's equivalence with `product`, which refuses a negative repeat, decides this, or the length rule does
+	// example wanted: element [1, 2] over range(10) and an iterable with no values: an empty iterable leaves the product empty, so no element is in it
+	// example wanted: element [8] over range(10) and range(5): one value short of the number of iterables times repeat
+	// example wanted: element [8, 2, 1] over range(10) and range(5): one value more than the number of iterables times repeat
+	// example wanted: element [8, 7] over range(10) and range(5): the length fits, but 7 is not among the second iterable's values
+```

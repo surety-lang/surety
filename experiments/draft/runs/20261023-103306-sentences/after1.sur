@@ -1,0 +1,35 @@
+// draft
+// drafted
+type SliceError = { code: Text, display: Text }
+// drafted
+type Sliced = { slices: Int[][], error: Option<SliceError> }
+// drafted
+not_divisible_error: SliceError = { code: "ValueError", display: "seq is not divisible by n." }
+
+// n below 1 is outside the docstring: Python yields nothing for n = 0, and seq without its last element for a negative n. Decide on a refinement or an error case; until then every sentence is guarded.
+sliced(seq: Int[], n: Int, strict: Bool) -> Sliced
+	note "yield consecutive slices of length n from seq, a shorter last slice allowed unless strict, where a short last slice is an error raised in its place"
+	# When n is at least 1, the slices joined in order are the elements of seq from position 0 up to but not including the number of slices times n.
+
+	# When n is at least 1, every slice has at least one element and at most n elements.
+
+	# When n is at least 1, a slice with fewer than n elements is the last slice.
+
+	# When n is at least 1 and strict is true, every slice has exactly n elements.
+
+	# When n is at least 1, the length of seq is less than the number of slices plus one, times n, so no full slice is left unyielded.
+
+	# When n is at least 1 and there is no error, the length of seq is at most the number of slices times n, so the slices cover the whole of seq.
+
+	# When n is at least 1, an error is reported exactly when strict is true and the length of seq is not equal to the number of slices times n.
+
+	# Every reported error is not_divisible_error.
+
+	// example wanted: seq (1, 2, 3, 4, 5, 6), n 3, not strict: the docstring's exact-multiple case
+	// example wanted: seq (1, 2, 3, 4, 5, 6, 7, 8), n 3, not strict: the docstring's short last slice
+	// example wanted: seq (1, 2, 3, 4, 5, 6, 7, 8), n 3, strict: the full slices come before the error, and the short slice is not among them
+	// example wanted: seq (1, 2, 3, 4, 5, 6), n 3, strict: an exact multiple raises nothing
+	// example wanted: empty seq, n 3, strict and not strict: no slices, and whether strict raises on zero elements
+	// example wanted: seq (1, 2), n 5, strict and not strict: n longer than seq, one short slice or an error with no slices
+	// example wanted: seq (1, 2, 3), n 1: every slice is a single element
+	// example wanted: seq (1, 2, 3), n 0: what Python does (no slices) against what the obligation should admit

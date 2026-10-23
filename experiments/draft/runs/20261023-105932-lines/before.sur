@@ -1,0 +1,34 @@
+// draft
+// drafted
+type Entry = { key: Text, value: Int }
+// drafted
+type FieldMap = { field: Text, entries: Entry[unique key] }
+// drafted
+type FieldValue = { field: Text, value: Int }
+// drafted
+type Joined = { key: Text, fields: FieldValue[unique field] }
+
+join_mappings(field_to_map: FieldMap[unique field]) -> Joined[unique key]
+	note "join several keyed mappings into one record per key, carrying each mapping's value for that key under the mapping's field name"
+	# Every key of every input mapping has exactly one output record with that key.
+
+	# Every output record's key is a key of some input mapping.
+
+	# For every input mapping and every entry in it, the output record with that entry's key carries
+	# a field value with the mapping's field and the entry's value.
+
+	# Every field value in an output record names an input mapping whose entry for the record's key
+	# has that value.
+
+	# The order of the output records is not claimed.
+
+	# The order of the field values within an output record is not claimed.
+	// example wanted: the docstring case, score {elliot 50, claris 60} and time {elliot 30, claris
+	// 40}; what decides it is that every key is in both mappings, so each record carries both
+	// fields
+	// example wanted: score {elliot 50} and time {claris 40}; what decides it is whether a key
+	// missing from one mapping still gets a record (the docstring says "common keys", the
+	// implementation joins on every key)
+	// example wanted: no mappings at all; what decides it is that there are no keys to join
+	// example wanted: score {elliot 50} beside a time mapping with no entries; what decides it is
+	// that an empty mapping contributes no field to any record

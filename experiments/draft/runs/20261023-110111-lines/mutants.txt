@@ -1,0 +1,2 @@
+argmax  inputs 0+500  mutants 1 of 13 apply  slipped 0  caught 1  underdetermined 7 in 1 gap
+  gap  out can be -1 or 0; 7 inputs show it; the smallest in: [-1]

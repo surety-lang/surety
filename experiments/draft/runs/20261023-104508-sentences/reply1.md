@@ -1,0 +1,35 @@
+```surety
+// draft
+// drafted
+type Item = { value: Int, window_matches: Bool }
+// drafted
+type ReplaceError = { code: Text, display: Text }
+// drafted
+window_size_error: ReplaceError = { code: "e-window-size", display: "window_size must be at least 1" }
+
+replace(items: Item[], substitutes: Int[], count: Option<Int>, window_size: Int) -> Result<Int[], ReplaceError>
+	note "yield the items' values, replacing each window where pred holds (each item's window_matches) with the substitutes, at most count times, scanning left to right without overlap"
+	# The output is an error exactly when window_size is less than 1.
+
+	# Every error output is the window size error.
+
+	# When no item's window matches, or count is at most 0, the output is the items' values in their order.
+
+	# When the first item's window does not match, or count is at most 0, the output starts with the first item's value and continues as replace over the items after it, with the same substitutes, count and window size.
+
+	# When the first item's window matches and count is None or more than 0, the output starts with the substitutes.
+
+	# When the first item's window matches and count is None or more than 0, the output after the substitutes is replace over the items from position window_size on, with the same substitutes and window size and with one fewer replacement allowed.
+
+	# Every output value is the value of some item or one of the substitutes.
+
+	// example wanted: no items, window_size 1, count None: nothing to scan
+	// example wanted: values [1, 1, 0, 1, 1, 0, 1, 1] with the two 0s matching, substitutes [2, 3], count None, window_size 1: each match becomes two values
+	// example wanted: values [1, 1, 0, 1, 1, 0, 1, 1, 0] with the three 0s matching, substitutes [0], count 2: the limit is reached before the third match
+	// example wanted: values [0, 1, 2, 5, 0, 1, 2, 5] with windows at positions 0 and 4 matching, window_size 3, substitutes [3, 4]: each match takes three items
+	// example wanted: window_size 2 with the windows at positions 0 and 1 both matching: the second window overlaps the first replacement and is skipped
+	// example wanted: values [7, 8] with window_size 3 and only the window at position 1 matching: the match near the end is shorter than window_size and takes only the remaining item
+	// example wanted: matching items with count 0, and again with count -1: no replacement remains
+	// example wanted: a matching item with substitutes []: the matched window is dropped
+	// example wanted: window_size 0: the error case
+```

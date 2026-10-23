@@ -1,0 +1,25 @@
+
+// draft
+dotproduct(vec1: Int[], vec2: Int[]) -> Int
+	note "the dot product of two vectors of whole units: the sum of the products of the elements at the same position, stopping at the end of the shorter vector"
+	# The dot product is the product of the first elements of vec1 and vec2, with a missing first
+	# element counting as 0, plus the dot product of the two vectors with their first elements
+	# dropped.
+
+	# If every element of vec2 is 1 and vec2 is at least as long as vec1, the dot product is the sum
+	# of vec1.
+	// example wanted: the docstring's case with vec2 in hundredths, vec1 [10, 15, 12] and vec2 [65,
+	// 80, 125]: the sum of the three pairwise products, read as hundredths
+	// example wanted: vec1 [] and vec2 []: the base case, where there are no products to sum
+	// example wanted: vec1 [] and vec2 [4, 5]: one vector empty, so no position is shared
+	// example wanted: vec1 [1, 2, 3] and vec2 [4, 5]: unequal lengths, decided by whether the
+	// longer vector's extra element is ignored
+	// example wanted: vec1 [-2, 3] and vec2 [4, -1]: negative elements, where each product's sign
+	// carries into the sum
+	// the first sentence calls dotproduct itself and needs the second to pin values; together they
+	// fix the output, so truncation and symmetry are not separate sentences
+	// the sentences follow more_itertools 11.2.1, which truncates to the shorter vector;
+	// math.sumprod raises on unequal lengths instead, which would make this a Result with a length
+	// error
+	// elements are Int as scaled whole units (hundredths in the docstring's case), so no Float
+	// arithmetic is claimed

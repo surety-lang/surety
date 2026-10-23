@@ -1,0 +1,1 @@
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__takewhile_inclusive.sur: ok takewhile_inclusive props=4 accepts=0 examples=0 abbrevs=0 pins=16

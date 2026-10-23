@@ -280,6 +280,8 @@ v0 is the obligation language, the checker, and the graph, over pure data transf
 
 **Boundary contract, amended 2026-10-21.** `Time` crosses the Python boundary as a comparable value (a UTC `datetime`), not as RFC 3339 text; the closed-loop run showed a performance writing its own 45-line parser when it was text. `Id` is an opaque identity, `str` in Python, equality only; `UUID` stays a format refinement for when the format matters. Inputs are validated at the boundary too, refinements included, so a generated input never fails it; an output that fails it on a generated input is a finding, not a failure. Accepted non-decisions are `accept` lines in the obligation; there is no separate list to maintain.
 
+**The space, stated (2026-10-23).** v0 is pure transformations over business records: lists of declared records or primitives in; a record, a list, or a `Result` out; every element type declared, as a record or a primitive. No function-typed inputs, no infinite outputs, no element-agnostic functions. The sentence exists so that a reach-for from outside the space is logged as outside and not queued: the reach-for census of the same day ran the draft over 107 functions of more-itertools and found 45 list parameters forced to `Int` and five workarounds for function arguments, which read as a roadmap until the space was said. Read against it, the census's in-space findings are the `Some(n)` binder over an `Option` and the "exactly when" error form; type parameters are out of v0 by definition. An obligation inside the space that never reads its element declares a record it does not read, as problem 13 does with `Item`; one opaque element type with equality only, no parameters and no instantiation at a call, is the direction if a second such problem appears. The library behind the standing claim (a library's API as obligations, reproduced on a stranger's machine) is chosen from inside the space, not sampled by size; the census's second half is the measurement of which libraries are inside.
+
 **Deliberately out of v0**
 
 - Effects and capabilities beyond the all-or-nothing boundary. The evidence-kind slot exists; nothing populates it until v1.
@@ -288,6 +290,7 @@ v0 is the obligation language, the checker, and the graph, over pure data transf
 - The Surety-core target, per its triggers.
 - A standard library of any kind. Performances use the target's own.
 - Importing foreign components. v0 performances are called; they do not call.
+- Function-typed inputs, infinite outputs, and element-agnostic functions with type parameters (added 2026-10-23, with the space stated above). A function argument is modelled as a sibling obligation called by name, or not at all.
 
 **v1 candidates, in order:** read-only capabilities (data sources) as the first effect class, which is also the first trigger for the core target; then write capabilities; then service handlers composed from v0 transformations. Each step adds one effect class and tests whether the boundary model holds under it.
 
@@ -424,3 +427,4 @@ v1 is preserved as a separate document and is not edited further.
 | 2026-10-23 | Architecture: examples run against the lines on every check, with no performance, as the obligation's finding when they disagree; an open pin refuses on one; the verdict's four counts and its no-pass-without-an-example rule; no credit for a catch on an input with no passing output, and the bounded wording. From the slice 6 brief and the engineer's read of it. |
 | 2026-10-23 | Human-facing surfaces: the draft flow (sentences, the author's examples, lines; the input literal on an example-wanted line; the lines stage's refusal without an example; the unreached-clause hint). |
 | 2026-10-23 | Architecture: the not-judged state for a mutant, the search outcome per input in the record (the next format move), and which finding keeps the word "unsatisfiable". From the engineer's second read of the slice 6 brief. |
+| 2026-10-23 | v0 scope: the space stated in one sentence (pure transformations over business records, every element type declared); function-typed inputs, infinite outputs and type parameters listed as deliberately out; the opaque element type as a direction; the claim's library chosen from inside the space. After the reach-for census's first spot-check. |

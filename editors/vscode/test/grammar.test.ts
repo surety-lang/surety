@@ -31,7 +31,7 @@ async function registry(): Promise<textmate.Registry> {
 const keywords = new Set(['all', 'any', 'none', 'exactly_one', 'in', 'where', 'else', 'and', 'or', 'not',
     'leftover', 'before', 'unordered', 'unique', 'sorted_by', 'same_order_as', 'same_elements_as',
     'drawn_from', 'asc', 'desc', 'type', 'note', 'accept']);
-const builtins = new Set(['sum', 'len', 'min', 'max', 'count', 'flatten']);
+const builtins = new Set(['sum', 'len', 'min', 'max', 'count', 'flatten', 'abs']);
 const primitives = new Set(['Int', 'Float', 'Text', 'Bool', 'Id', 'Time', 'UUID', 'Option', 'Result']);
 
 async function main(): Promise<void> {

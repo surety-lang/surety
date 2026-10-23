@@ -1,0 +1,16 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py lines /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__sort_together.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 96s
+
+round 1: tokens 16611/9598
+sort_together  inputs 0+500  mutants 7 of 13 apply  slipped 0  caught 7  underdetermined 8 in 1 gap
+  gap  out can be Ok([]) or Err({code: "", display: ""}); 8 inputs show it; the smallest in: ([], [], false, false)
+
+reaching for (for the sheet):
+  - two abbreviations, length_ok = not strict or all a in iterables: all b in iterables: len(a.cells) == len(b.cells) and keys_ok = none k in key_list: k < 0 or k >= len(iterables), then the line length_ok and keys_ok <-> exactly_one Ok(_) in out; written as one line it joins two quantified conditions with and, and also needs exactly_one Ok(_) in out as the last operand, but a line may end in only one quantifier
+  - the rows of a column list as a list of tuples (a zip or transpose: the row at position p is the cells at p across the columns), so the line is rows(cols) same_elements_as rows(iterables) with each input column first cut to the shortest column's length; the notation has no transpose and no binder over positions, so it cannot assemble a row from its cells
+  - not reverse -> rows(cols) sorted_by (row[k] asc for each k in key_list, in key_list order); sorted_by takes a fixed tuple of named fields, while here the keys are positions within a row given by an input list, and rows themselves cannot be formed (see the row sentence above)
+  - reverse -> rows(cols) sorted_by (row[k] desc for each k in key_list, in key_list order); this has the same two gaps: a lexicographic key built from an input list of positions, and rows formed across columns
+  - for any two input rows at positions p < q below the shortest length whose cells are equal at every index in key_list, the output row equal to row p comes before the output row equal to row q (row p before row q in rows(cols)); this needs rows formed across columns and an occurrence-based before over those rows
+
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__sort_together.sur still carries `// draft`; review the lines, remove the mark, then `surety pin`.
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-104000-lines

@@ -1,0 +1,14 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__join_mappings.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__join_mappings.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 21s
+
+round 1: tokens 15331/2029
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__join_mappings.sur: parse ok
+  drafted: 4 types, 0 named values; each under // drafted, read first
+  sentences: 6, no property lines yet; stage 2 asks for them
+  examples wanted: 4, as // example wanted lines; yours to turn into e: blocks or delete
+    the docstring case, score {elliot 50, claris 60} and time {elliot 30, claris 40}; what decides it is that every key is in both mappings, so each record carries both fields
+    score {elliot 50} and time {claris 40}; what decides it is whether a key missing from one mapping still gets a record (the docstring says "common keys", the implementation joins on every key)
+    no mappings at all; what decides it is that there are no keys to join
+    score {elliot 50} beside a time mapping with no entries; what decides it is that an empty mapping contributes no field to any record
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-105910-sentences

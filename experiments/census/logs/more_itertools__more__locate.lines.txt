@@ -1,0 +1,13 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py lines /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__locate.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 16s
+
+round 1: tokens 15566/1465
+locate  inputs 0+31  mutants 1 of 13 apply  slipped 1  caught 0  underdetermined 4 in 1 gap
+  gap  out can have 0 or not; 4 inputs show it; `empty` returns one of the two; the smallest in: [true]
+  slipped  empty: returns the empty value of the output type; through 3 clauses (lines 6, 12, 14); caught by no example; in: []
+
+reaching for (for the sheet):
+  - a range over the positions of verdicts, 0 up to len(verdicts) - 1 (or the position of a binder's occurrence as an Int), so the line could say: all p in positions of verdicts where true in verdicts[p .. p + 1]: p in out
+
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__locate.sur still carries `// draft`; review the lines, remove the mark, then `surety pin`.
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-104231-lines

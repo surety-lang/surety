@@ -1,0 +1,19 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__partial_product.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__partial_product.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 37s
+
+round 1: tokens 15475/3620
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__partial_product.sur: parse ok
+  drafted: 2 types, 0 named values; each under // drafted, read first
+  sentences: 7, no property lines yet; stage 2 asks for them
+  examples wanted: 9, as // example wanted lines; yours to turn into e: blocks or delete
+    the docstring case, iterables "AB", "C", "DEF" at repeat 1: the single-value middle pool never advances, so the advancing position goes straight from the first pool to the third
+    iterables "AB" at repeat 3: decided by the note's expansion into three pools "AB", "AB", "AB", each advanced in turn
+    no iterables at repeat 1: there are no pools, none of them is empty, so the first-tuple sentence applies to a tuple with no values
+    iterables "AB", "C" at repeat 0: repeating the list zero times leaves no pools, the same case as no iterables
+    iterables "AB" at repeat -1: a negative repeat leaves no pools, as Python's tuple times a negative number gives the empty tuple
+    iterables "AB", "", "C" at repeat 1: one empty pool, decided by the empty-output sentence
+    iterables "AB", "" at repeat 0: the empty iterable is never repeated into a pool, so no pool is empty
+    iterables "AA", "B" at repeat 1: advancing to the next value of the first pool sets the same value again, so two consecutive tuples are equal
+    iterables "ABC" at repeat 1: a single pool, so every tuple has one value and the pool advances through all three
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-105617-sentences

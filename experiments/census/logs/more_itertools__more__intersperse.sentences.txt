@@ -1,0 +1,18 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__intersperse.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__intersperse.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 60s
+
+round 1: tokens 15359/5720
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__intersperse.sur: parse ok
+  drafted: 1 type, 1 named value; each under // drafted, read first
+  sentences: 7, no property lines yet; stage 2 asks for them
+  examples wanted: 8, as // example wanted lines; yours to turn into e: blocks or delete
+    the docstring's first case, e 0 among [1, 2, 3, 4, 5] with n 1: a filler between every pair
+    the docstring's second case, e 0 among [1, 2, 3, 4, 5] with n 2: the last group is one element, and no filler follows it
+    an empty iterable with n 1: no element to put a filler between
+    an iterable of exactly n elements, [1, 2] with n 2: decided by "more than n", not "at least n"
+    an iterable whose length is a multiple of n, [1, 2, 3, 4] with n 2: whether a filler trails the last full group
+    e equal to one of the iterable's values, e 2 among [1, 2, 3] with n 1: the fillers are told apart by position, not by value
+    n 0 with [1, 2]: the boundary of the error
+    n -1 with an empty iterable: the error is decided by n alone, even when there is nothing to intersperse
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-102951-sentences

@@ -1,0 +1,15 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__always_reversible.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__always_reversible.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 28s
+
+round 1: tokens 15349/2494
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__always_reversible.sur: parse ok
+  drafted: 0 types, 0 named values; each under // drafted, read first
+  sentences: 4, no property lines yet; stage 2 asks for them
+  examples wanted: 5, as // example wanted lines; yours to turn into e: blocks or delete
+    an empty iterable: there is no last element to put first, and nothing is cached or yielded
+    a single item: its reversal is the same one-item sequence
+    the docstring's generator over range(3), items [0, 1, 2]: an iterable that is not Reversible, so the remaining items are cached and yielded back to front
+    items [1, 2, 1]: equal values at both ends, where the different-values order claim says nothing and the first-element and rest-of-output claims decide the positions
+    items [3, 3]: every value equal, so only the element-count claim distinguishes outputs
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-104247-sentences

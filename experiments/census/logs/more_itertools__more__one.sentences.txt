@@ -1,0 +1,17 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__one.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__one.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 21s
+
+round 1: tokens 15831/2038
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__one.sur: parse ok
+  drafted: 0 types, 1 named value; each under // drafted, read first
+  sentences: 6, no property lines yet; stage 2 asks for them
+  examples wanted: 7, as // example wanted lines; yours to turn into e: blocks or delete
+    an empty iterable with neither too_short nor too_long given; the default too-short error decides it
+    an empty iterable with too_short given as an IndexError "too few items"; too_short replaces the default
+    an iterable of one item with both too_short and too_long given; neither error applies when there is exactly one item
+    an iterable of two items, "too" and "many", with too_long not given; the default ValueError and its message naming the first two items decide it
+    an iterable of two items with too_long given as a RuntimeError; too_long replaces the default
+    an iterable of three items with only too_short given; too_short does not apply to a long iterable, so the default too-long error decides it
+    an empty iterable with only too_long given; too_long does not apply to an empty iterable, so the default too-short error decides it
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-102848-sentences

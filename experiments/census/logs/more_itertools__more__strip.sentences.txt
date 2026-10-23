@@ -1,0 +1,17 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__strip.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__strip.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 31s
+
+round 1: tokens 15354/2926
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__strip.sur: parse ok
+  drafted: 1 type, 0 named values; each under // drafted, read first
+  sentences: 4, no property lines yet; stage 2 asks for them
+  examples wanted: 7, as // example wanted lines; yours to turn into e: blocks or delete
+    the empty iterable; no item at all decides it
+    every item has pred true; nothing lies between two pred-false items, so whether anything survives is decided by the interior rule
+    no item has pred true; nothing is at either end to strip
+    the docstring case (None, False, None, 1, 2, None, 3, False, None), pred true for None and False; the inner None sits between 2 and 3
+    a single item with pred false surrounded by pred-true items; first and last pred-false item are the same item
+    the same pred-true value at the start, in the middle and at the end, e.g. [N, 1, N, 2, N]; which copies are kept is decided by position, not value
+    pred-true items only at the start, none at the end; the strip is one-sided
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-104246-sentences

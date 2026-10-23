@@ -1,0 +1,16 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__interleave_longest.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__interleave_longest.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 21s
+
+round 1: tokens 15341/1809
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__interleave_longest.sur: parse ok
+  drafted: 1 type, 0 named values; each under // drafted, read first
+  sentences: 3, no property lines yet; stage 2 asks for them
+  examples wanted: 6, as // example wanted lines; yours to turn into e: blocks or delete
+    no iterables at all: nothing to take from
+    several iterables, every one empty: all are exhausted from the start
+    a single iterable: each turn has only one iterable to take from
+    the docstring case [1, 2, 3], [4, 5], [6, 7, 8]: the middle one is exhausted first, and the later turns skip it
+    an empty iterable between two non-empty ones: it is skipped from the first turn
+    the same value in two iterables, e.g. [1, 2] and [2, 1]: occurrences, not values, decide each position
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-103222-sentences

@@ -1,0 +1,23 @@
+// draft
+// drafted
+type Element = { value: Text, sort_key: Text }
+
+unique(iterable: Element[], reverse: Bool) -> Element[]
+	note "keep one element per sort key, the earliest in the input, sorted by sort key (descending when reverse is true); with no key function, sort_key is the value itself"
+	# The output is drawn from the input.
+
+	# Every input element's sort key is the sort key of some output element.
+
+	# No two output elements share a sort key.
+
+	# If reverse is false, the output is sorted by sort key ascending.
+
+	# If reverse is true, the output is sorted by sort key descending.
+
+	# For every output element, every input element left out of the output with the same sort key comes after it in the input.
+
+	// example wanted: empty input, reverse false: nothing to keep
+	// example wanted: values [1, 2], [3, 4], [1, 2] with no key (sort key equals value), reverse false: the two equal copies collapse to one, and the earlier copy is kept
+	// example wanted: 'ABBcCAD' with casefolded sort keys, reverse false: 'c' and 'C' share a key, and the input position decides which one is kept
+	// example wanted: 'ABBcCAD' with casefolded sort keys, reverse true: the descending sort still keeps the earliest input occurrence of each key
+	// example wanted: input already holds one element per distinct key, in descending order, reverse false: only the order changes

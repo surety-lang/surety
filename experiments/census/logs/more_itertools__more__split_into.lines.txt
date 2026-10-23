@@ -1,0 +1,12 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py lines /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__split_into.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 33s
+
+round 1: tokens 16066/3228
+split_into  inputs 0+500  mutants 1 of 13 apply  slipped 0  caught 1  underdetermined 0
+
+reaching for (for the sheet):
+  - for every position i in out, if sizes at position i is a whole number n, then the length of the chunk at position i of out is at most n. That needs the chunk and the size at the same position, a positional index or a zip of out with sizes, and the fragment has neither.
+  - if, at some position i, sizes at i is a whole number n and the chunk at position i of out has length less than n, then flatten(out) == iterable. Like the line above, it pairs each chunk with the size at its own position, which needs a positional index or a zip of out with sizes.
+
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__split_into.sur still carries `// draft`; review the lines, remove the mark, then `surety pin`.
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-103655-lines

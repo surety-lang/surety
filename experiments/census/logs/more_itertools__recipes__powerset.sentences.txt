@@ -1,0 +1,76 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__recipes__powerset.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__recipes__powerset.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit -2 in 0s
+
+
+--- stderr ---
+Traceback (most recent call last):
+  File "/Users/bennett/projects/surety/experiments/draft.py", line 558, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/Users/bennett/projects/surety/experiments/draft.py", line 554, in main
+    return cmd_sentences(args) if args.stage == "sentences" else cmd_lines(args)
+           ~~~~~~~~~~~~~^^^^^^
+  File "/Users/bennett/projects/surety/experiments/draft.py", line 443, in cmd_sentences
+    reply, usage = call_model(SYSTEM_SENTENCES, ask, args.model, args.effort, args.workspace)
+                   ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/bennett/projects/surety/experiments/draft.py", line 183, in call_model
+    with client.messages.stream(
+         ~~~~~~~~~~~~~~~~~~~~~~^
+        model=model,
+        ^^^^^^^^^^^^
+    ...<6 lines>...
+        extra_headers=headers,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ) as stream:
+    ^
+  File "/Users/bennett/.pyenv/versions/3.14.0/lib/python3.14/site-packages/anthropic/lib/streaming/_messages.py", line 167, in __enter__
+    raw_stream = self.__api_request()
+  File "/Users/bennett/.pyenv/versions/3.14.0/lib/python3.14/site-packages/anthropic/_base_client.py", line 1364, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/bennett/.pyenv/versions/3.14.0/lib/python3.14/site-packages/anthropic/_base_client.py", line 1072, in request
+    response = self._client.send(
+        request,
+        stream=stream or self._should_stream_response_body(request=request),
+        **kwargs,
+    )
+  File "/Users/bennett/.pyenv/versions/3.14.0/lib/python3.14/site-packages/httpx/_client.py", line 914, in send
+    response = self._send_handling_auth(
+        request,
+    ...<2 lines>...
+        history=[],
+    )
+  File "/Users/bennett/.pyenv/versions/3.14.0/lib/python3.14/site-packages/httpx/_client.py", line 942, in _send_handling_auth
+    response = self._send_handling_redirects(
+        request,
+        follow_redirects=follow_redirects,
+        history=history,
+    )
+  File "/Users/bennett/.pyenv/versions/3.14.0/lib/python3.14/site-packages/httpx/_client.py", line 979, in _send_handling_redirects
+    response = self._send_single_request(request)
+  File "/Users/bennett/.pyenv/versions/3.14.0/lib/python3.14/site-packages/httpx/_client.py", line 1014, in _send_single_request
+    response = transport.handle_request(request)
+  File "/Users/bennett/.pyenv/versions/3.14.0/lib/python3.14/site-packages/httpx/_transports/default.py", line 250, in handle_request
+    resp = self._pool.handle_request(req)
+  File "/Users/bennett/.pyenv/versions/3.14.0/lib/python3.14/site-packages/httpcore/_sync/connection_pool.py", line 256, in handle_request
+    raise exc from None
+  File "/Users/bennett/.pyenv/versions/3.14.0/lib/python3.14/site-packages/httpcore/_sync/connection_pool.py", line 236, in handle_request
+    response = connection.handle_request(
+        pool_request.request
+    )
+  File "/Users/bennett/.pyenv/versions/3.14.0/lib/python3.14/site-packages/httpcore/_sync/connection.py", line 101, in handle_request
+    raise exc
+  File "/Users/bennett/.pyenv/versions/3.14.0/lib/python3.14/site-packages/httpcore/_sync/connection.py", line 78, in handle_request
+    stream = self._connect(request)
+  File "/Users/bennett/.pyenv/versions/3.14.0/lib/python3.14/site-packages/httpcore/_sync/connection.py", line 124, in _connect
+    stream = self._network_backend.connect_tcp(**kwargs)
+  File "/Users/bennett/.pyenv/versions/3.14.0/lib/python3.14/site-packages/httpcore/_backends/sync.py", line 208, in connect_tcp
+    sock = socket.create_connection(
+        address,
+        timeout,
+        source_address=source_address,
+    )
+  File "/Users/bennett/.pyenv/versions/3.14.0/lib/python3.14/socket.py", line 855, in create_connection
+    sock.connect(sa)
+    ~~~~~~~~~~~~^^^^
+KeyboardInterrupt

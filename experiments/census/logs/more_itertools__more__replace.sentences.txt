@@ -1,0 +1,19 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__replace.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__replace.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 68s
+
+round 1: tokens 15762/6733
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__replace.sur: parse ok
+  drafted: 2 types, 1 named value; each under // drafted, read first
+  sentences: 7, no property lines yet; stage 2 asks for them
+  examples wanted: 9, as // example wanted lines; yours to turn into e: blocks or delete
+    no items, window_size 1, count None: nothing to scan
+    values [1, 1, 0, 1, 1, 0, 1, 1] with the two 0s matching, substitutes [2, 3], count None, window_size 1: each match becomes two values
+    values [1, 1, 0, 1, 1, 0, 1, 1, 0] with the three 0s matching, substitutes [0], count 2: the limit is reached before the third match
+    values [0, 1, 2, 5, 0, 1, 2, 5] with windows at positions 0 and 4 matching, window_size 3, substitutes [3, 4]: each match takes three items
+    window_size 2 with the windows at positions 0 and 1 both matching: the second window overlaps the first replacement and is skipped
+    values [7, 8] with window_size 3 and only the window at position 1 matching: the match near the end is shorter than window_size and takes only the remaining item
+    matching items with count 0, and again with count -1: no replacement remains
+    a matching item with substitutes []: the matched window is dropped
+    window_size 0: the error case
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-104508-sentences

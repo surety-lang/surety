@@ -1,0 +1,17 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__longest_common_prefix.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__longest_common_prefix.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 28s
+
+round 1: tokens 15260/2568
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__longest_common_prefix.sur: parse ok
+  drafted: 0 types, 0 named values; each under // drafted, read first
+  sentences: 2, no property lines yet; stage 2 asks for them
+  examples wanted: 7, as // example wanted lines; yours to turn into e: blocks or delete
+    no iterables at all: zip over nothing decides it, and the two sentences above hold vacuously, so only an example pins it
+    one iterable ["a", "b", "c"]: every element is shared with itself, so the second sentence's first branch decides it
+    the docstring case, ["a","b","c","d"], ["a","b","c"], ["a","b","f"]: the third position is where they first disagree
+    ["a","b","c"] and ["a","b"]: they never disagree, so the shorter one running out decides it
+    an empty iterable among non-empty ones, [] and ["a"]: the empty one has nothing to share
+    iterables that disagree at the first position, ["a"] and ["b"]: no element is shared
+    identical iterables ["x","x"] and ["x","x"]: repeated equal values, compared by value at each position
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-104209-sentences

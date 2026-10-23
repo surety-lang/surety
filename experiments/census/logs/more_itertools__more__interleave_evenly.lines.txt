@@ -1,0 +1,16 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py lines /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__interleave_evenly.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 52s
+
+round 1: tokens 16323/5232
+interleave_evenly  inputs 0+500  mutants 2 of 13 apply  slipped 1  caught 1  underdetermined 8 in 1 gap
+  gap  out can be Ok([]) or Err({code: "", display: ""}); 8 inputs show it; `empty` returns one of the two; the smallest in: ([], None)
+  slipped  empty: returns the empty value of the output type; through 3 clauses (lines 33, 35, 38); caught by no example; in: ([], None)
+
+reaching for (for the sheet):
+  - out is Ok iff lengths is None, or the list inside a given lengths has len equal to len(iterables) and, at every position i, its entry i equals len(iterables[i]). Two pieces are missing. No binder takes the Int[] out of a given Option (no Some pattern beside Ok and Err), and nothing pairs two lists by position: there is no index binder and no zip, and a slice needs a position that no quantifier supplies.
+  - (lengths is given and len(the list inside it) != len(iterables)) <-> any Err(e) in out: e == count_error. The missing piece is a binder for the Int[] inside a given Option, or a defined len on Option<Int[]>; neither is in the notation.
+  - (lengths is given, len(the list inside it) == len(iterables), and at some position i its entry i != len(iterables[i])) <-> any Err(e) in out: e == length_error. This needs the same two missing pieces as the Ok sentence: unwrapping a given Option, and pairing lengths with iterables by position.
+  - for every iterable occurrence that is not the leader (the leader is the longest, and the earliest-listed among the longest), and every pair a, b consecutive in it, some element of the leader sits strictly between a's and b's places in res. Three pieces are missing. First, naming the leader takes a quantifier inside a where clause, or an abbreviation that names a list rather than a boolean, and either needs more than one line. Second, a and b must be placed at their own occurrences in res. Third, `before` on values resolves each one to its first occurrence in res, and an Id can repeat across iterables, so that occurrence may belong to another iterable.
+
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__interleave_evenly.sur still carries `// draft`; review the lines, remove the mark, then `surety pin`.
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-103346-lines

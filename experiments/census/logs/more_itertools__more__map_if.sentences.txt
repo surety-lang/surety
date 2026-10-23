@@ -1,0 +1,16 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__map_if.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__map_if.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 34s
+
+round 1: tokens 15556/2993
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__map_if.sur: parse ok
+  drafted: 0 types, 0 named values; each under // drafted, read first
+  sentences: 5, no property lines yet; stage 2 asks for them
+  examples wanted: 6, as // example wanted lines; yours to turn into e: blocks or delete
+    an empty input, with and without func_else: nothing is evaluated, and the length claim decides it
+    items -5 through 4, pred "more than 3", func a constant, no func_else (the docstring's first case): only the last item is replaced, and the rest pass through unchanged
+    the same items with pred "at least 0" and a func_else: the identity default must not be used, and 0 is the item on the threshold
+    items that all sit exactly on the threshold of pred "more than 3" (e.g. [3, 3]): pred is false for each one, so none of them goes to func
+    items for which pred holds of every one: func_else is never applied, so whether it was given makes no difference
+    a repeated item at two positions, e.g. [4, 4]: both positions are decided by the same pred result, so neither copy may be dropped or merged
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-104805-sentences

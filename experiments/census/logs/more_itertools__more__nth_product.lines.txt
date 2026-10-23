@@ -1,0 +1,17 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py lines /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__nth_product.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 19s
+
+round 1: tokens 16337/1905
+nth_product  inputs 0+500  mutants 2 of 13 apply  slipped 1  caught 1  underdetermined 8 in 1 gap
+  gap  out can be Ok([]) or Err({code: ""}); 8 inputs show it; `empty` returns one of the two; the smallest in: (0, [], 0)
+  slipped  empty: returns the empty value of the output type; through 1 clause (line 21); caught by no example; in: (0, [], 0)
+
+reaching for (for the sheet):
+  - a product built-in over a list and a power, so that with n = (the product of len(p.items) for p in iterables) raised to repeat, the line is `(index >= n or index < 0 - n) <-> exactly_one Err(e) in out where e == index_error`; the notation has sum but no product and no exponent, so the number of products cannot be named
+  - for every position i of an Ok product p, the element at i is in iterables[i mod len(iterables)].items; this needs the position of a binder as an Int and a remainder, and the notation has neither (no indexing by position, no %), and slices alone cannot pair the product's positions with the iterables' positions
+  - `out == nth_product(index, R, 1)` where R is iterables concatenated with itself repeat times in a row; the notation has no way to build that repeated list from iterables and repeat
+  - when index and index + 1 are both in range (which needs the number of products from the first sentence), with p the product at index and q the product at index + 1: let k be the last position whose element in p is not at the last position of iterables[k mod len(iterables)].items; positions before k agree between p and q; at k, q holds the item at the next position of that iterable's items; every position after k in q holds that iterable's first item; with no such k, every position in q holds its iterable's first item. This needs positions as Ints, a remainder, and "the next item after this one in a list", none of which the notation has
+  - `index < 0 -> out == nth_product(index + n, iterables, repeat)`, where n is the number of products (the product of len(p.items) over iterables, raised to repeat); the self-call is expressible, but n is not, because the notation has no product over a list and no exponent
+
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__nth_product.sur still carries `// draft`; review the lines, remove the mark, then `surety pin`.
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-105100-lines

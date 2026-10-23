@@ -1,0 +1,18 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__recipes__nth.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__recipes__nth.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 23s
+
+round 1: tokens 15278/1971
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__recipes__nth.sur: parse ok
+  drafted: 1 type, 1 named value; each under // drafted, read first
+  sentences: 3, no property lines yet; stage 2 asks for them
+  examples wanted: 8, as // example wanted lines; yours to turn into e: blocks or delete
+    iterable [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] with n 3 and no default: n is inside the iterable, so the item at position 3 is returned
+    iterable [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] with n 20 and a default given: n is past the end, so the default is returned
+    n exactly equal to the iterable's length with a default given: the first position past the end, so the default and not the last item
+    n one less than the iterable's length: the last item, the threshold from the inside
+    n 0 on a non-empty iterable: positions count from 0, so the first item
+    an empty iterable with n 0 and no default: there is no position 0, so the default, which is None
+    n -1 on a non-empty iterable: a negative n is the error and never counts from the end
+    an iterable with repeated values, such as [7, 7, 8] with n 1: the position decides the item, not the value
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-110229-sentences

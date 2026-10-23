@@ -1,0 +1,17 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__recipes__take.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__recipes__take.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 24s
+
+round 1: tokens 15297/2146
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__recipes__take.sur: parse ok
+  drafted: 0 types, 0 named values; each under // drafted, read first
+  sentences: 2, no property lines yet; stage 2 asks for them
+  examples wanted: 7, as // example wanted lines; yours to turn into e: blocks or delete
+    n 3 over the iterable 0 through 9: more items than n, so only the leading three are kept
+    n 10 over the iterable 0, 1, 2: fewer items than n, so the second sentence decides it
+    n equal to the iterable's length: the exact threshold, where both sentences apply and must agree
+    n 0 over a non-empty iterable: a zero count, decided by the first sentence
+    n 2 over an empty iterable: no items at all, decided by the second sentence
+    n 2 over the iterable 5, 5, 5: repeated values, so the positions decide which occurrences are kept
+    n -1 over a non-empty iterable: the docstring is silent, and islice raises ValueError on a negative count, so the author decides whether this is an error case in a Result or an ordinary input
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-110133-sentences

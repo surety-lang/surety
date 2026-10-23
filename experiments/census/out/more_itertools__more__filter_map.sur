@@ -1,0 +1,31 @@
+// draft
+// drafted
+type Applied = { element: Text, result: Option<Int> }
+
+filter_map(iterable: Applied[]) -> Int[]
+	note "keep func's result for every element of iterable where that result is not None; each element carries the result func gives it, since a function is not a value the notation has"
+	# The output is drawn from the input elements' results.
+	// reaching for: `out drawn_from` the list of the Int inside each non-None result in
+	// `iterable.result`, kept in input order and with duplicates kept, so `out` (Int) and the
+	// results (Option<Int>) are lists of one element type. `drawn_from` refuses Int against
+	// Option<Int>, and the notation has no binder pattern for Option the way `Ok(x)` matches a
+	// Result.
+	# Every input element whose result is left out of the output has a result of None.
+	// reaching for: `all a leftover in iterable: a.result == None`, where `leftover` takes away,
+	// for each Int in `out`, the earliest unremoved input element whose result holds that Int.
+	// Today `leftover` matches by value against `out`'s Int elements, so it cannot match them
+	// against Applied or Option<Int> elements. `a.result != None -> a.result in out` loses the
+	// occurrence count: with two results of 5, it is met when only one 5 is kept.
+	# The output keeps the input's order of results.
+	// reaching for: `out same_order_as` the list of the Int inside each non-None result in
+	// `iterable.result`. It is the same unwrapping of Option<Int> to Int as the first sentence, and
+	// `same_order_as` refuses mismatched element types for the same reason `drawn_from` does.
+	// example wanted: the docstring case, elements '1', 'a', '2', 'b', '3' with results 1, None, 2,
+	// None, 3: decided by which results are None
+	// example wanted: the empty iterable: decided by drawn_from with nothing to draw from
+	// example wanted: every element's result is None: decided by the leftover sentence leaving
+	// nothing out but Nones
+	// example wanted: an element whose result is 0: kept, because only None is dropped, not a falsy
+	// result (unlike filter over map)
+	// example wanted: two elements with the same result 5: decided by occurrences, so the result is
+	// kept twice

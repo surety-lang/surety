@@ -1,0 +1,19 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__combination_with_replacement_index.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__combination_with_replacement_index.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 46s
+
+round 1: tokens 15387/4729
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__combination_with_replacement_index.sur: parse ok
+  drafted: 1 type, 1 named value; each under // drafted, read first
+  sentences: 6, no property lines yet; stage 2 asks for them
+  examples wanted: 9, as // example wanted lines; yours to turn into e: blocks or delete
+    element ['a','d','f'] in ['a','b','c','d','e','f','g'], the docstring's case: the first item is the iterable's first, so it reduces to ['d','f']
+    empty element, empty iterable: the single empty combination exists
+    empty element, non-empty iterable: the empty combination is the first one
+    element ['a'], empty iterable: an empty iterable has no combination of length 1
+    element ['b','a'] in ['a','b']: the matched positions go back
+    element ['z'] in ['a','b']: an item that is not in the iterable
+    element ['b','a'] in ['a','b','a']: the repeated 'a' lets the matched positions stay in order
+    element ['a','a','a'] in ['a','b']: the first item repeated, the index-0 boundary
+    element ['b','b'] in ['a','b']: the last combination of length 2
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-105215-sentences

@@ -1,0 +1,38 @@
+// draft
+// drafted
+type Item = { value: Text, raises: Text[] }
+
+filter_except(items: Item[], exceptions: Text[]) -> Result<Item[], Item>
+	note "keep the items the validator accepts; an item's raises lists its exception's class and that class's ancestors, empty when the validator returns, and an exception is caught when one of those classes is among the exceptions"
+	# The output is Ok exactly when every item on which the validator raises has some class of its
+	# exception among the exceptions.
+	// reaching for: an iff whose two sides are both quantified, out is Ok exactly when every item
+	// with a nonempty raises has some r in its raises with r in exceptions. As one line, one
+	// quantifier has to sit mid-line on one side of the `<->`. The corpus form is an abbreviation
+	// `all_caught = all i in items where len(i.raises) > 0: any r in i.raises: r in exceptions`
+	// followed by `all_caught <-> exactly_one Ok(_) in out`, which is two lines.
+	# Every element of an Ok output is an item on which the validator returns, with an empty raises.
+	all Ok(res) in out: all x in res: x in items and len(x.raises) == 0
+	# An Ok output is drawn from the items.
+	all Ok(res) in out: res drawn_from items
+	# Every item left out of an Ok output is one on which the validator raises an exception with
+	# some class among the exceptions.
+	all Ok(res) in out: all i in items where i not in res: any r in i.raises: r in exceptions
+	# An Ok output keeps the items' order.
+	all Ok(res) in out: res same_order_as items
+	# An Err output carries an input item on which the validator raises an exception with no class
+	# among the exceptions.
+	all Err(x) in out: x in items and len(x.raises) > 0 and (none r in x.raises: r in exceptions)
+	# Every item before the Err item in the input either has an empty raises or has some class of
+	# its exception among the exceptions.
+	all Err(x) in out: all i in items where i before x in items: len(i.raises) == 0 or (any r in i.raises: r in exceptions)
+	// example wanted: the docstring case, values ['1', '2', 'three', '4', None] with 'three'
+	// raising ValueError and None raising TypeError, exceptions [ValueError, TypeError]: which
+	// items survive
+	// example wanted: no items at all: what an empty input gives
+	// example wanted: an item raising ZeroDivisionError (ancestors ArithmeticError, Exception) with
+	// exceptions [ArithmeticError]: the ancestor decides whether it is caught
+	// example wanted: valid items followed by one raising KeyError with exceptions [ValueError]:
+	// the items yielded before the raise are not returned
+	// example wanted: two items raising uncaught exceptions: the earlier one is the one reported
+	// example wanted: an empty exceptions list with one item that raises: nothing is caught

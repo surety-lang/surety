@@ -1,0 +1,17 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py lines /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__zip_broadcast.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 1 in 116s
+
+round 1: tokens 16084/3678
+round 1: /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__zip_broadcast.sur: line 16: `Err(...)` is a pattern; a value is expected here (pattern_as_value)
+round 2: tokens 16199/4932
+round 2: /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__zip_broadcast.sur: line 16: a quantifier must be the last operand on its line (quantifier_mid_line)
+round 3: tokens 16196/2446
+round 3: /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__zip_broadcast.sur: line 16: `Err(...)` is a pattern; a value is expected here (pattern_as_value)
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__zip_broadcast.sur: /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__zip_broadcast.sur: line 16: `Err(...)` is a pattern; a value is expected here (pattern_as_value)
+
+reaching for (for the sheet):
+  - a binder for an argument's position in objects, so that for every row r and every scalar argument a at position i, r.values at position i == a.value (e.g. `all i, a in objects where a.scalar: all r in rows: r.values[i .. i + 1] == [a.value]`)
+  - binders for positions in two lists at once, so that for every row at position k in rows and every iterable argument a at position i in objects, the row's value at position i == a.items at position k (e.g. `all k, r in rows: all i, a in objects where not a.scalar: r.values[i .. i + 1] == a.items[k .. k + 1]`)
+
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__zip_broadcast.sur still carries `// draft`; review the lines, remove the mark, then `surety pin`.
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-105403-lines

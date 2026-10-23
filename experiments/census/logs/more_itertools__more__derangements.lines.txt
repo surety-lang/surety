@@ -1,0 +1,16 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py lines /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__derangements.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 18s
+
+round 1: tokens 16174/1814
+derangements  inputs 0+500  mutants 1 of 13 apply  slipped 1  caught 0  underdetermined 4 in 1 gap
+  gap  out can have {items: []} or not; 4 inputs show it; `empty` returns one of the two; the smallest in: ([], None)
+  slipped  empty: returns the empty value of the output type; through 2 clauses (lines 9, 12); caught by no example; in: ([], None)
+
+reaching for (for the sheet):
+  - for each derangement, a one-to-one assignment of input positions to its items in which no item at index i came from input position i. A derangement is a list of Text and does not record which input position each item came from. The notation has no binder over indices and no existential over assignments. So it can only compare values, and that would wrongly reject ["Bob", "Alice", "Bob"] from ["Alice", "Bob", "Bob"].
+  - a quantifier over every arrangement of r input positions (or all of them when r is None) with no position at its own index, saying the arrangement of values it picks out is in out. The notation quantifies only over lists that exist in the inputs or out, not over all permutations of a list.
+  - the multiplicity of each value arrangement in out equals the number of fixed-point-free arrangements of input positions that produce it. This needs each derangement's source positions, which the output does not carry, and a count over position arrangements. `unique` and `drawn_from` compare values, so they would wrongly forbid the repeats.
+  - out sorted lexicographically by each derangement's sequence of source input positions. `sorted_by` takes field keys, not a key that is a list of positions, and a derangement's source positions are not recorded in it. Sorting by the item values would be wrong whenever the iterable is not already sorted.
+
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__derangements.sur still carries `// draft`; review the lines, remove the mark, then `surety pin`.
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-103012-lines

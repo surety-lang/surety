@@ -1,0 +1,14 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py lines /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__unzip.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 16s
+
+round 1: tokens 15745/1416
+unzip  inputs 0+500  mutants 6 of 13 apply  slipped 0  caught 6  underdetermined 6 in 1 gap
+  gap  out[0].cells can have "" or not; 6 inputs show it; the smallest in: [{cells: [""]}]
+
+reaching for (for the sheet):
+  - a quantifier over integer positions, so I could write "for every i from 0 up to len(out), and every j from 0 up to the length of column i, flatten(out[i .. i + 1].cells)[j .. j + 1] == flatten(iterable[j .. j + 1].cells)[i .. i + 1]". The slices can pick out single cells, but nothing binds i or j, and a binder over out gives me an occurrence, never its position as an Int
+  - a quantifier over the integer position i of each column, so I could write "for every i from 0 up to len(out), every r in iterable[0 .. len(flatten(out[i .. i + 1].cells))] has len(r.cells) > i". The slice and the length comparison are expressible, but nothing binds the column's position i as an Int
+  - a quantifier over the integer position i of each column, so I could write "for every i from 0 up to len(out), with k = len(flatten(out[i .. i + 1].cells)): k < len(iterable) -> every r in iterable[k .. k + 1] has len(r.cells) <= i". The slice picks out the row at position k, but nothing binds the column's position i as an Int
+
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__unzip.sur still carries `// draft`; review the lines, remove the mark, then `surety pin`.
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-103959-lines

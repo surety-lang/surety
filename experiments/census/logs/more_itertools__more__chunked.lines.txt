@@ -1,0 +1,10 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py lines /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__chunked.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 46s
+
+round 1: tokens 16109/1367
+round 1: /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__chunked.sur: line 12: `Err(...)` is a pattern; a value is expected here (pattern_as_value)
+round 2: tokens 16220/3413
+chunked  inputs 0+500  mutants 2 of 13 apply  slipped 0  caught 2  underdetermined 0
+
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__chunked.sur still carries `// draft`; review the lines, remove the mark, then `surety pin`.
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-102804-lines

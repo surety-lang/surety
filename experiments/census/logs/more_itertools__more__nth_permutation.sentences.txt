@@ -1,0 +1,20 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__nth_permutation.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__nth_permutation.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 48s
+
+round 1: tokens 15381/4728
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__nth_permutation.sur: parse ok
+  drafted: 1 type, 2 named values; each under // drafted, read first
+  sentences: 7, no property lines yet; stage 2 asks for them
+  examples wanted: 10, as // example wanted lines; yours to turn into e: blocks or delete
+    iterable "ghijk" as five letters, r 2, index 5: the docstring's own case, the sixth arrangement in position order
+    iterable "ghijk", r 2, index -1: a negative index counts from the end, so it is the last of the 20 arrangements
+    iterable "ghijk", r 2, index 20: the first index equal to the number of arrangements, the upper boundary
+    iterable "ghijk", r 2, index -20 and index -21: the lower boundary crossed from both sides
+    iterable "ghijk", r 0, index 0: there is exactly one arrangement of zero elements, the empty one
+    empty iterable, r 0, index 0: the empty iterable still has its one empty arrangement
+    iterable "ghijk", r 5, index 0: r equal to the length, the full arrangements
+    iterable "ghijk", r -1, any index: r negative decides the error before the index is looked at
+    iterable "aab", r 2: arrangements are by position, not by value, so equal letters give repeated arrangements and each counts toward the index
+    iterable "ghijk", r 6, index 0: the docstring's equivalence gives no arrangements, so the index is invalid, while the 11.2.1 implementation raises ValueError for r past the length; the author decides which
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-105003-sentences

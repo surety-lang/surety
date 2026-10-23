@@ -1,0 +1,15 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__map_reduce.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__map_reduce.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 31s
+
+round 1: tokens 16191/2902
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__map_reduce.sur: parse ok
+  drafted: 2 types, 0 named values; each under // drafted, read first
+  sentences: 7, no property lines yet; stage 2 asks for them
+  examples wanted: 5, as // example wanted lines; yours to turn into e: blocks or delete
+    the empty list; no key exists, so the boundary is whether any category is made
+    keys A, B, B, C, C, C with values 1 to 6, the docstring's 'abbccc'; one category per distinct key, sized by its occurrences
+    every item under one key; a single category holding every value in input order
+    (A, 1), (A, 2), (B, 1), (B, 2); equal values under different keys, so each category's multiplicity is decided per key, not overall
+    (A, 3), (B, 1), (A, 2), (B, 4), (A, 1); interleaved keys, so each category's order is decided by input position, not by value
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-104421-sentences

@@ -1,0 +1,15 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__unzip.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__unzip.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 20s
+
+round 1: tokens 15457/1774
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__unzip.sur: parse ok
+  drafted: 2 types, 0 named values; each under // drafted, read first
+  sentences: 4, no property lines yet; stage 2 asks for them
+  examples wanted: 5, as // example wanted lines; yours to turn into e: blocks or delete
+    the docstring's rows [("a","1"), ("b","2"), ("c","3"), ("d","4")]: two columns, each read straight down the rows
+    no rows at all: decided by the first sentence's no-rows clause
+    a first row with no cells followed by longer rows: the first row alone decides the column count
+    rows [("a","1"), ("b"), ("c","3")]: the second column stops at the short row even though a later row is long again
+    rows [("a","1"), ("b","2","x")]: the cell past the first row's length is in no column
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-103940-sentences

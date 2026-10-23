@@ -1,0 +1,19 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__interleave_evenly.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__interleave_evenly.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 50s
+
+round 1: tokens 15604/4952
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__interleave_evenly.sur: parse ok
+  drafted: 1 type, 1 named value; each under // drafted, read first
+  sentences: 7, no property lines yet; stage 2 asks for them
+  examples wanted: 9, as // example wanted lines; yours to turn into e: blocks or delete
+    [[1, 2, 3, 4, 5], ['a', 'b']] with lengths None: the placement of 'a' and 'b' is decided by the Bresenham error terms starting at 5 // 2
+    [[1, 2, 3], [4, 5], [6, 7, 8]] with lengths None: two iterables tie for longest, and the earlier one leads; the other two are placed by their error terms
+    no iterables at all, lengths None: the library fails on the empty list of lengths, so the author decides whether this is an empty output or an error
+    iterables all empty, lengths None: nothing to interleave
+    a single non-empty iterable, lengths None: no other iterable to place
+    two iterables of equal length: the second alternates with the first, one for one
+    lengths given and equal to the actual lengths, as in the combinations case: the same output as with lengths None
+    three iterables with lengths of two entries: the counts disagree
+    two iterables with lengths of two entries, one of them off by one: the count agrees but a value does not
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-103256-sentences

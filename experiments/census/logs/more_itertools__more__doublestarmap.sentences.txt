@@ -1,0 +1,16 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__doublestarmap.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__doublestarmap.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 26s
+
+round 1: tokens 15417/2412
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__doublestarmap.sur: parse ok
+  drafted: 3 types, 1 named value; each under // drafted, read first
+  sentences: 4, no property lines yet; stage 2 asks for them
+  examples wanted: 6, as // example wanted lines; yours to turn into e: blocks or delete
+    the empty iterable: no item is unpacked, so func's signature never comes into it
+    the docstring's case, items {a: 1, b: 2} and {a: 40, b: 60} with func adding a and b: each result comes from its own item, in order
+    one item with an extra key c beside a and b, for func taking a and b: a key func does not name is a mismatch
+    one item with only key a, for func taking a and b: a missing keyword is a mismatch
+    a matching item followed by a mismatching one: the Python generator yields the first result before raising, and this obligation reports only the error
+    an item with no entries, for func taking no parameters: an empty mapping matches an empty signature
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-105949-sentences

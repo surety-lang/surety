@@ -1,0 +1,14 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py lines /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__argmax.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 22s
+
+round 1: tokens 15625/1632
+argmax  inputs 0+500  mutants 1 of 13 apply  slipped 0  caught 1  underdetermined 7 in 1 gap
+  gap  out can be -1 or 0; 7 inputs show it; the smallest in: [-1]
+
+reaching for (for the sheet):
+  - a binder for the present side of an Option, the way `Ok(i)` binds one side of a Result, so I could write `all Some(i) in out: i >= 0 and i < len(values)`; the notation has no way to name the Int inside `out`
+  - the same Option binder, then the one-element slice at the index, as in `all Some(i) in out: all m in values[i .. i + 1]: none v in values: v > m`; without a name for the Int inside `out`, the value at the returned index can't be reached
+  - the same Option binder, then the slice before the index against the one-element slice at it, as in `all Some(i) in out: all m in values[i .. i + 1]: all v in values[0 .. i]: v < m`; without a name for the Int inside `out`, neither slice can be bounded
+
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__argmax.sur still carries `// draft`; review the lines, remove the mark, then `surety pin`.
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-110111-lines

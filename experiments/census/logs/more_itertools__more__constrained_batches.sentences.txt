@@ -1,0 +1,19 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__constrained_batches.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__constrained_batches.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 28s
+
+round 1: tokens 15602/2709
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__constrained_batches.sur: parse ok
+  drafted: 3 types, 2 named values; each under // drafted, read first
+  sentences: 8, no property lines yet; stage 2 asks for them
+  examples wanted: 9, as // example wanted lines; yours to turn into e: blocks or delete
+    no items at all: decided by whether an empty input gives no batches rather than one empty batch
+    the docstring's sizes 5, 3, 8, 1, 1, 2, 1 at max_size 10 with no max_count: decided by the greedy fill, a batch closing only when the next item would overflow it
+    the same sizes at max_size 10 with max_count 2: decided by the count limit closing batches that still have room
+    items whose sizes sum to exactly max_size: decided by whether a combined size equal to max_size still fits in one batch
+    an item larger than max_size between two small items with strict false: decided by the oversize item standing alone in its own batch
+    the same items with strict true: decided by the oversize error
+    max_count 0 with items that all fit: decided by the count error
+    max_count 0 and an oversize item with strict true: decided by which of the two errors is the one reported
+    several items of size 0 at max_size 0: decided by zero-size items fitting with no limit on their number when max_count is absent
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-105558-sentences

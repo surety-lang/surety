@@ -1,0 +1,20 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__extract.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__extract.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 37s
+
+round 1: tokens 15458/3401
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__extract.sur: parse ok
+  drafted: 1 type, 3 named values; each under // drafted, read first
+  sentences: 6, no property lines yet; stage 2 asks for them
+  examples wanted: 10, as // example wanted lines; yours to turn into e: blocks or delete
+    the docstring's alphabet with indices [7, 4, 11, 11, 14], monotonic false: the indices are out of order and repeated, and neither is an error when monotonic is false
+    empty indices over a non-empty iterable, and empty indices over an empty iterable: no index means nothing is checked
+    an empty iterable with indices [0]: index 0 is already beyond an empty iterable
+    a three-element iterable with indices [2], then with indices [3]: the exact threshold, last position against one past the end
+    indices [-1] with monotonic false: a negative index never counts from the end
+    monotonic true with indices [1, 1, 2]: equal neighbours are non-decreasing, so no decreasing error
+    monotonic true with indices [2, 1]: a decrease that is reported only because monotonic is true
+    monotonic false with indices [5, -1] over a three-element iterable: the beyond index comes first but the negative check decides
+    monotonic true with indices [5, 2] over a three-element iterable: beyond the iterable and then a decrease, and the earlier index decides
+    monotonic true with indices [1, -1]: the second index is both negative and a decrease, so the implementation's check order decides which ValueError is reported
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-110059-sentences

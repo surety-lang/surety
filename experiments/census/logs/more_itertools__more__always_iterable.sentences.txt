@@ -1,0 +1,20 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__always_iterable.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__always_iterable.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 48s
+
+round 1: tokens 15680/2449
+round 1: /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__always_iterable.sur: line 6: unexpected character `\` (syntax)
+round 2: tokens 15788/2188
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__always_iterable.sur: parse ok
+  drafted: 1 type, 0 named values; each under // drafted, read first
+  sentences: 4, no property lines yet; stage 2 asks for them
+  examples wanted: 8, as // example wanted lines; yours to turn into e: blocks or delete
+    the tuple (1, 2, 3) with the default base_type; obj is iterable and neither str nor bytes, so the output is its items in order
+    the int 1 with the default base_type; obj is not iterable, so it is wrapped alone
+    None with the default base_type; the None case decides it before any other check
+    None with a base_type naming NoneType; the None check comes first, so the base_type match does not wrap it
+    an empty list, not None, with the default base_type; it is iterable with no items, which is distinct from the None case
+    the text foo with the default base_type; str is in base_type, so it is treated as a unit
+    the text foo with base_type None; no special handling, so it is iterated character by character
+    the dict with key a, once with the default base_type and once with base_type naming dict; the first iterates its keys, the second treats it as a unit
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-104015-sentences

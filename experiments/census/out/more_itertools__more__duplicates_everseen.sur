@@ -1,0 +1,28 @@
+// draft
+// drafted
+type Item = { value: Text, key: Text }
+
+duplicates_everseen(items: Item[]) -> Item[]
+	note "keep every item whose key already appeared earlier in the input, dropping the first appearance of each key; with no key function, each item's key is its value"
+	# The output keeps the input's order.
+	out same_order_as items
+	# Every output item has an earlier input item with the same key.
+	// reaching for: for each output item o, some input item with o's key sits at an earlier
+	// position than the input occurrence o was kept from (all o in out: any i in items where i.key
+	// == o.key: i before o in items). But `before` places an output element at the earliest input
+	// occurrence of its value, and `leftover` assigns earliest occurrences too. This function keeps
+	// the later copies, so on [X, X] -> [X], or the second 's' in 'mississippi', that line is false
+	// on the correct output. The notation has no way to bind an output item to the later occurrence
+	// it came from.
+	# No two input items left out of the output share a key.
+	all a leftover in items: exactly_one b leftover in items: b.key == a.key
+	# Every input item's key is the key of some input item left out of the output.
+	all i in items: any l leftover in items: l.key == i.key
+	// example wanted: empty input: nothing has appeared before, so nothing is a duplicate
+	// example wanted: items with all-distinct keys: each item is its key's first appearance
+	// example wanted: 'mississippi' with each key equal to its value: only the first 'm', 'i', 's'
+	// and 'p' are dropped, so later copies are kept in input order
+	// example wanted: 'AaaBbbCccAaa' keyed by lowercase: the second 'A' is a duplicate because key
+	// 'a' first appeared at position 0, even though value 'A' differs from the items between
+	// example wanted: one key repeated three times with three different values: which value is the
+	// dropped one, decided by position

@@ -1,0 +1,24 @@
+// draft
+// drafted
+type Spied = { head: Text[], rest: Text[] }
+
+spy(iterable: Text[], n: Int) -> Spied
+	note "look ahead at the first n items of the iterable without consuming any of them; n defaults to 1 at the call site"
+	# The head is the iterable's items from position 0 up to but not including position n.
+	out.head == iterable[0 .. n]
+	# The rest is the iterable itself: the same items, in the same order, none left out and none
+	# added.
+	out.rest == iterable
+	// example wanted: 'abcdefg' as seven one-character items with n at its default of 1: the head
+	// is the slice to position 1
+	// example wanted: 'abcdefg' with n of 2: the head is the first two items, and the rest is still
+	// all seven
+	// example wanted: [1, 2, 3, 4, 5] as text items with n of 10: the head stops at the end of the
+	// iterable
+	// example wanted: five items with n of 5: n is exactly the length, so the head is every item
+	// example wanted: five items with n of 0: the slice from 0 to 0
+	// example wanted: an empty iterable with n of 1: both the head and the rest come from an empty
+	// list
+	// example wanted: five items with n of -1: the slice clamps to an empty head, but Python's
+	// islice raises ValueError on a negative count; decide whether this becomes an error case in a
+	// Result or stays an empty head

@@ -1,0 +1,18 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__distinct_permutations.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__distinct_permutations.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 41s
+
+round 1: tokens 15897/3711
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__distinct_permutations.sur: parse ok
+  drafted: 1 type, 0 named values; each under // drafted, read first
+  sentences: 8, no property lines yet; stage 2 asks for them
+  examples wanted: 8, as // example wanted lines; yours to turn into e: blocks or delete
+    iterable [1, 0, 1] with no r: the docstring's case, and the count is the multinomial 3! / (2! * 1!), which no sentence states
+    iterable [1, 0, 1] with r 2: the duplicate 1 may fill both positions, but only once per arrangement
+    iterable [0, 1, 2] with r 2: distinct elements, so every ordered pair of different positions counts
+    empty iterable with no r: r defaults to the input length, 0, which is a zero-length request
+    iterable [1, 0, 1] with r 0: a zero-length request on a non-empty input
+    iterable [1, 0, 1] with r 4: r is past the input length, so no permutation can be drawn
+    iterable [1, 0, 1] with r -1: a negative r, which no permutation can have as its length
+    iterable [2, 2, 2] with no r: every element is equal, so every arrangement has the same items
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-102923-sentences

@@ -1,0 +1,12 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py lines /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__split_at.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 39s
+
+round 1: tokens 16742/4316
+split_at  inputs 0+500  mutants 1 of 13 apply  slipped 0  caught 1  underdetermined 0
+
+reaching for (for the sheet):
+  - when keep_separator is false, every occurrence left in iterable after removing the items of flatten(out.items) has is_sep true. That is `all i leftover in iterable: i.is_sep`, but with leftover taken against flatten(out.items) and not against out, which is a list of groups. `in` compares by value, so it cannot say this for repeated items.
+  - when keep_separator is false, take any two occurrences in flatten(out.items), each tied to its position in iterable. They sit in different groups (different occurrences of out, not unequal values) if and only if some occurrence of iterable that is left over against flatten(out.items) lies between their positions in iterable. This needs leftover against a flattened list and group identity by occurrence, and the notation has neither.
+
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__split_at.sur still carries `// draft`; review the lines, remove the mark, then `surety pin`.
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-103624-lines

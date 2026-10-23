@@ -1,0 +1,13 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py lines /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__intersperse.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 1 in 57s
+
+round 1: tokens 16140/2698
+round 1: /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__intersperse.sur: line 11: `else` needs a `where` on the quantifier it attaches to (else_without_where)
+round 2: tokens 16251/1970
+round 2: /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__intersperse.sur: line 11: `Err(...)` is a pattern; a value is expected here (pattern_as_value)
+round 3: tokens 16252/1519
+round 3: /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__intersperse.sur: line 11: a quantifier must be the last operand on its line (quantifier_mid_line)
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__intersperse.sur: /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__intersperse.sur: line 11: a quantifier must be the last operand on its line (quantifier_mid_line)
+
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__intersperse.sur still carries `// draft`; review the lines, remove the mark, then `surety pin`.
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-103051-lines

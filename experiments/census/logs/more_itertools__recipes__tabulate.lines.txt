@@ -1,0 +1,16 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py lines /Users/bennett/projects/surety/experiments/census/out/more_itertools__recipes__tabulate.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 49s
+
+round 1: tokens 16127/3227
+round 1: /Users/bennett/projects/surety/experiments/census/out/more_itertools__recipes__tabulate.sur: line 16: a quantifier must be the last operand on its line (quantifier_mid_line)
+round 2: tokens 16238/1898
+tabulate  inputs 0+500  mutants 7 of 13 apply  slipped 0  caught 7  underdetermined 6 in 2 gaps
+  gap  on Err, out.display can be "" or "The function has no value given for an argument the results…; 4 inputs show it; the smallest in: ([{arg: 0, value: 0}, {arg: 4, value: 0}, {arg: 2, value: 0}], 1, 3)
+  gap  out can be Ok([]) or Err({code: "", display: ""}); 2 inputs show it; the smallest in: ([{arg: 1, value: 0}, {arg: 2, value: 2}, {arg: 3, value: 0}, {arg: -1, value: 0…
+
+reaching for (for the sheet):
+  - a list of the integers from start up to but not including start + count to quantify over, so the line could read `(count >= 0 and all a in <start .. start + count>: a in func.arg) <-> exactly_one Ok(_) in out`; the notation has no integer range and no count-where, so whether every integer in that range is covered cannot be stated over the table alone
+  - `all Err(e) in out: e == uncovered_arg_error <-> (count >= 0 and any a in <start .. start + count>: a not in func.arg)`; it needs a list of the integers from start up to but not including start + count, and the notation has no integer range
+
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__recipes__tabulate.sur still carries `// draft`; review the lines, remove the mark, then `surety pin`.
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-110231-lines

@@ -1,0 +1,18 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__difference.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__difference.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 42s
+
+round 1: tokens 15621/4087
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__difference.sur: parse ok
+  drafted: 0 types, 0 named values; each under // drafted, read first
+  sentences: 6, no property lines yet; stage 2 asks for them
+  examples wanted: 8, as // example wanted lines; yours to turn into e: blocks or delete
+    iterable [0, 1, 3, 6, 10] with initial absent, the docstring's accumulate case: first element kept, then successive differences
+    iterable [] with initial absent: no first element to keep, and the sum of nothing is 0
+    iterable [] with initial present: nothing to skip and nothing to difference
+    iterable [7] with initial present: the only element is the skipped first, and there is no pair to difference
+    iterable [10, 11, 13, 16] with initial 10, the docstring's case: first element skipped, the differences remain
+    iterable [10, 11, 13, 16] with initial 99: the value of initial is ignored, only its presence counts
+    iterable [0, 1, 3] with initial 0: a present zero still skips the first element, since presence decides, not truthiness
+    iterable [5, 2, 2, -4] with initial absent: differences that are negative and zero
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-104336-sentences

@@ -1,0 +1,21 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__sort_together.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__sort_together.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 53s
+
+round 1: tokens 15904/5249
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__sort_together.sur: parse ok
+  drafted: 2 types, 2 named values; each under // drafted, read first
+  sentences: 9, no property lines yet; stage 2 asks for them
+  examples wanted: 11, as // example wanted lines; yours to turn into e: blocks or delete
+    columns [4,3,2,1] and [10,20,30,40], key_list [0]: rows ordered by the first column
+    columns [3,1,2], [0,1,0], [3,2,1], key_list [1,2]: the tie on column 1 is broken by column 2
+    reverse true with two rows tied on every key column: stability decides their order, not reversal
+    columns of lengths 3 and 2, strict false: both trimmed to 2, the third row of the longer column dropped
+    columns of lengths 3 and 2, strict true: the length error
+    columns [2,1] and [], strict false: Python returns no columns at all, not two empty ones
+    no input columns, key_list [0]: Python returns [] because no row is ever keyed; decide whether the key range error applies
+    two columns, key_list [2]: the exact threshold, index equal to the number of columns
+    two columns, key_list [-1]: Python counts from the end; decide whether the obligation allows it
+    two non-empty columns, key_list []: Python raises TypeError; decide whether it is an error case
+    strict true, unequal lengths and key_list [5]: Python consumes the zip before keying, so the length error is the one reported
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-103907-sentences

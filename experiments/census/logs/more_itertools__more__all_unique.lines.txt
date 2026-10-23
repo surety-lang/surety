@@ -1,0 +1,8 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py lines /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__all_unique.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 5s
+
+round 1: tokens 15494/277
+all_unique  inputs 0+500  mutants 2 of 14 apply  slipped 0  caught 2  underdetermined 0
+
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__all_unique.sur still carries `// draft`; review the lines, remove the mark, then `surety pin`.
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-104958-lines

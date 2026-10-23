@@ -1,0 +1,16 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py lines /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__zip_offset.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 25s
+
+round 1: tokens 16338/2469
+zip_offset  inputs 0+500  mutants 2 of 13 apply  slipped 0  caught 2  underdetermined 0
+
+reaching for (for the sheet):
+  - for every row r in an Ok output and every position i below len(iterables), cell i of r belongs to iterables[i]. The count half alone is a line (`all Ok(rows) in out: all r in rows: len(r.cells) == len(iterables)`), but that drops the ordering, and pairing cell i with iterable i needs a binder that carries a position as an Int, which the fragment does not have.
+  - all Ok(rows) in out: for every row position k and every cell position i: if 0 <= k + offsets[i] < len(iterables[i].items) then rows[k].cells[i] is iterables[i].items[k + offsets[i]], else rows[k].cells[i] == fillvalue. This needs index binders over 0 .. len(rows) and 0 .. len(iterables), and element access at a computed position. A slice gives back a list, not the element.
+  - all Ok(rows) in out: longest == false and len(rows) > 0 -> for every position i below len(iterables), len(iterables[i].items) >= len(rows) + offsets[i]. Pairing an iterable with "its offset" pairs iterables[i] with offsets[i] by position, and the fragment has no index binder or zip to do that.
+  - all Ok(rows) in out: longest == false and len(iterables) > 0 -> there is some position i below len(iterables) with len(iterables[i].items) <= len(rows) + offsets[i]. This needs the same positional pairing of iterables[i] with offsets[i], under an existential over positions.
+  - all Ok(rows) in out: longest == true -> for every position i below len(iterables), len(iterables[i].items) <= len(rows) + offsets[i]. This needs the positional pairing of iterables[i] with offsets[i].
+  - all Ok(rows) in out: longest == true and len(rows) > 0 -> there is some position i below len(iterables) with len(iterables[i].items) >= len(rows) + offsets[i]. This needs the positional pairing of iterables[i] with offsets[i], under an existential over positions.
+
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__zip_offset.sur still carries `// draft`; review the lines, remove the mark, then `surety pin`.
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-103920-lines

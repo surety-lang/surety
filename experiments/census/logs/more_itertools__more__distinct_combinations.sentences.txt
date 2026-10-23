@@ -1,0 +1,18 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__distinct_combinations.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__distinct_combinations.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 25s
+
+round 1: tokens 15322/2451
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__distinct_combinations.sur: parse ok
+  drafted: 2 types, 1 named value; each under // drafted, read first
+  sentences: 7, no property lines yet; stage 2 asks for them
+  examples wanted: 8, as // example wanted lines; yours to turn into e: blocks or delete
+    the docstring's case, [0, 0, 1] with r 2: the two sub-sequences (0, 1) collapse to one, and (0, 0) is kept
+    [0, 1, 0] with r 2: (0, 1) and (1, 0) are both sub-sequences with different items, so both are kept as distinct combinations
+    r 0 on a non-empty iterable: the empty sub-sequence is the only combination of zero items
+    an empty iterable with r 0: the empty sub-sequence still exists, so the empty combination is the only one
+    r greater than the iterable's length: no sub-sequence has r items
+    r equal to the iterable's length, with a duplicate in it: the whole iterable is the only sub-sequence of that length
+    r of -1: the threshold just below 0, which decides the error case
+    every item the same, [5, 5, 5] with r 2: every sub-sequence has the same items, so only one combination remains
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-104728-sentences

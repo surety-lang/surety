@@ -1,0 +1,17 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py lines /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__filter_map.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 29s
+
+round 1: tokens 15547/622
+round 1: /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__filter_map.sur: line 8: `drawn_from` relates lists of different element types: `out` holds Int, and `iterable.result` holds Option<Int> (element_type_mismatch)
+round 2: tokens 15681/1603
+filter_map  inputs 0+500  mutants 1 of 13 apply  slipped 1  caught 0  underdetermined 8 in 1 gap
+  gap  out can have 0 or not; 8 inputs show it; `empty` returns one of the two; the smallest in: [{element: "", result: None}, {element: "", result: 0}, {element: "", result: 2}…
+  slipped  empty: returns the empty value of the output type; through 0 clauses (); caught by no example; in: []
+
+reaching for (for the sheet):
+  - `out drawn_from` the list of the Int inside each non-None result in `iterable.result`, kept in input order and with duplicates kept, so `out` (Int) and the results (Option<Int>) are lists of one element type. `drawn_from` refuses Int against Option<Int>, and the notation has no binder pattern for Option the way `Ok(x)` matches a Result.
+  - `all a leftover in iterable: a.result == None`, where `leftover` takes away, for each Int in `out`, the earliest unremoved input element whose result holds that Int. Today `leftover` matches by value against `out`'s Int elements, so it cannot match them against Applied or Option<Int> elements. `a.result != None -> a.result in out` loses the occurrence count: with two results of 5, it is met when only one 5 is kept.
+  - `out same_order_as` the list of the Int inside each non-None result in `iterable.result`. It is the same unwrapping of Option<Int> to Int as the first sentence, and `same_order_as` refuses mismatched element types for the same reason `drawn_from` does.
+
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__filter_map.sur still carries `// draft`; review the lines, remove the mark, then `surety pin`.
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-105848-lines

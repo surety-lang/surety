@@ -1,0 +1,14 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py lines /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__extract.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 241s
+
+round 1: tokens 16362/23931
+extract  inputs 0+500  mutants 7 of 13 apply  slipped 0  caught 7  underdetermined 7 in 2 gaps
+  gap  out can be Ok([]) or Err({code: "", display: ""}); 1 input show it; the smallest in: ([], [], false)
+  gap  on Ok, out[0] can be "" or "An index is less than the one before it while monotonic is …; 6 inputs show it; the smallest in: ([], [-1], false)
+
+reaching for (for the sheet):
+  - one line joining two quantified operands with <->, "(all i in indices: i >= 0 and i < len(iterable) and all j in indices where monotonic and i before j in indices: i <= j) <-> exactly_one Ok(_) in out". Comparing each index with every earlier one says the same as comparing it with the one just before it. A quantifier has to be the last operand on a line, so this needs the condition as an obligation-level abbreviation, like apply_diff's `checks`, and that abbreviation is the author's to name.
+  - a binder over the positions of a list, so the line could say "for every position k of indices, res[k .. k + 1] == iterable[i .. i + 1], where i is the element of indices at position k". Binders range over occurrences but never expose their position as an Int, and nothing pairs the k-th element of one list with the k-th element of another.
+
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__extract.sur still carries `// draft`; review the lines, remove the mark, then `surety pin`.
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-110136-lines

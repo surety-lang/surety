@@ -1,0 +1,23 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py lines /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__gray_product.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 144s
+
+round 1: tokens 16337/3770
+round 1: /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__gray_product.sur: line 16: `Err(...)` is a pattern; a value is expected here (pattern_as_value)
+round 2: tokens 16449/10531
+gray_product  inputs 0+500  mutants 2 of 13 apply  slipped 2  caught 0  underdetermined 8 in 2 gaps
+  gap  on Ok, out can have {values: []} or not; 6 inputs show it; `ok_empty` returns one of the two; the smallest in: ([], -1)
+  gap  out can be Ok([]) or Err({code: "", display: ""}); 2 inputs show it; `empty` returns one of the two; the smallest in: ([{items: ["", "ValueError", "ValueError", "b"]}], 2)
+  slipped  empty: returns the empty value of the output type; through 2 clauses (lines 21, 32); caught by no example; in: ([], -1)
+  slipped  ok_empty: returns Ok of the empty value; through 2 clauses (lines 21, 32); caught by no example; in: ([], -1)
+
+reaching for (for the sheet):
+  - an iff with a quantifier on each side, "repeat is at least 1 and some iterable has fewer than two items" if and only if "out is the Err side holding too_few_items_err"; Err(...) cannot be compared as a value, and a line can end in only one quantifier
+  - a quantifier over the positions p of a tuple, and the iterable at index p modulo the number of iterables, so that the value at p is in that iterable's items
+  - a quantifier over every combination that takes one item from each position's iterable (the cartesian product, with the iterables repeated repeat times), each found among the tuples' values
+  - the list of each iterable's first item, written out repeat times in sequence (list repetition), equal to the values of the tuple at position 0
+  - a quantifier over pairs of consecutive tuples, and a count of the positions at which their values differ, required to be exactly 1
+  - for consecutive tuples, the position where they differ and that position's iterable, with the old and new values at adjacent indexes of the iterable's items
+  - list repetition, the iterables written out repeat times in sequence, so the line reads: when repeat is at least 1, out equals gray_product(<iterables repeated repeat times>, 1)
+
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__gray_product.sur still carries `// draft`; review the lines, remove the mark, then `surety pin`.
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-105644-lines

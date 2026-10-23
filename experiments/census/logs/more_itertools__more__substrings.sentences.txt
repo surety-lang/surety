@@ -1,0 +1,14 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__substrings.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__substrings.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 20s
+
+round 1: tokens 15378/1772
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__substrings.sur: parse ok
+  drafted: 0 types, 0 named values; each under // drafted, read first
+  sentences: 5, no property lines yet; stage 2 asks for them
+  examples wanted: 4, as // example wanted lines; yours to turn into e: blocks or delete
+    the empty input, where there are no positions to start from
+    a one-element input, where the only slice is the whole input
+    [0, 1, 2] from the docstring, where the order by length and then by start position decides the layout
+    [0, 0], where two slices are equal in value but start at different positions, so the output keeps both rather than deduplicating
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-103111-sentences

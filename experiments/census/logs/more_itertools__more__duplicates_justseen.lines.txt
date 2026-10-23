@@ -1,0 +1,15 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py lines /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__duplicates_justseen.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 44s
+
+round 1: tokens 15843/4053
+duplicates_justseen  inputs 0+500  mutants 6 of 13 apply  slipped 2  caught 4  underdetermined 8 in 2 gaps
+  gap  out can have {key: "b", value: ""} or not; 7 inputs show it; `identity` returns one of the two; the smallest in: [{key: "b", value: ""}, {key: "", value: ""}, {key: "b", value: ""}, {key: "", v…
+  gap  out can hold the same elements in another order; 1 input show it; `drop_one` returns one of the two; the smallest in: [{key: "", value: "b"}, {key: "", value: "a"}, {key: "", value: "b"}, {key: "", …
+  slipped  identity: returns the input unchanged; through 3 clauses (lines 9, 12, 26); caught by no example; in: []
+  slipped  drop_one: returns the input without its first element; through 3 clauses (lines 9, 12, 26); caught by no example; in: [{key: "", value: ""}]
+
+reaching for (for the sheet):
+  - for each input occurrence that is first, or whose immediate predecessor has a different key, no output element stands for that occurrence. `b not in out` compares by value, so it would be false on the correct output whenever a later occurrence with the same value is kept: in "mississippi" the s at position 2 is left out while the identical s at position 3 is kept. `leftover` assigns each output element to the earliest equal occurrence, so it marks the wrong copy as left out (position 2 counted as kept, position 3 as leftover). What I wanted is the multiplicity form: for every value, the number of its copies in out equals the number of its input occurrences whose immediate predecessor shares its key. Expressing that needs a count-where form or an occurrence-of-origin relation between out and iterable.
+
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__duplicates_justseen.sur still carries `// draft`; review the lines, remove the mark, then `surety pin`.
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-105517-lines

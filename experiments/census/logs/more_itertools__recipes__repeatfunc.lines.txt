@@ -1,0 +1,86 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py lines /Users/bennett/projects/surety/experiments/census/out/more_itertools__recipes__repeatfunc.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit -2 in 47s
+
+round 1: tokens 15761/4304
+round 1: /Users/bennett/projects/surety/experiments/census/out/more_itertools__recipes__repeatfunc.sur: line 18: expected `in` in the quantifier head (syntax)
+
+--- stderr ---
+Traceback (most recent call last):
+  File "/Users/bennett/projects/surety/experiments/draft.py", line 558, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/Users/bennett/projects/surety/experiments/draft.py", line 554, in main
+    return cmd_sentences(args) if args.stage == "sentences" else cmd_lines(args)
+                                                                 ~~~~~~~~~^^^^^^
+  File "/Users/bennett/projects/surety/experiments/draft.py", line 498, in cmd_lines
+    reply, usage = call_model(SYSTEM_LINES, ask, args.model, args.effort, args.workspace)
+                   ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/bennett/projects/surety/experiments/draft.py", line 183, in call_model
+    with client.messages.stream(
+         ~~~~~~~~~~~~~~~~~~~~~~^
+        model=model,
+        ^^^^^^^^^^^^
+    ...<6 lines>...
+        extra_headers=headers,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ) as stream:
+    ^
+  File "/Users/bennett/.pyenv/versions/3.14.0/lib/python3.14/site-packages/anthropic/lib/streaming/_messages.py", line 167, in __enter__
+    raw_stream = self.__api_request()
+  File "/Users/bennett/.pyenv/versions/3.14.0/lib/python3.14/site-packages/anthropic/_base_client.py", line 1364, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/bennett/.pyenv/versions/3.14.0/lib/python3.14/site-packages/anthropic/_base_client.py", line 1072, in request
+    response = self._client.send(
+        request,
+        stream=stream or self._should_stream_response_body(request=request),
+        **kwargs,
+    )
+  File "/Users/bennett/.pyenv/versions/3.14.0/lib/python3.14/site-packages/httpx/_client.py", line 914, in send
+    response = self._send_handling_auth(
+        request,
+    ...<2 lines>...
+        history=[],
+    )
+  File "/Users/bennett/.pyenv/versions/3.14.0/lib/python3.14/site-packages/httpx/_client.py", line 942, in _send_handling_auth
+    response = self._send_handling_redirects(
+        request,
+        follow_redirects=follow_redirects,
+        history=history,
+    )
+  File "/Users/bennett/.pyenv/versions/3.14.0/lib/python3.14/site-packages/httpx/_client.py", line 979, in _send_handling_redirects
+    response = self._send_single_request(request)
+  File "/Users/bennett/.pyenv/versions/3.14.0/lib/python3.14/site-packages/httpx/_client.py", line 1014, in _send_single_request
+    response = transport.handle_request(request)
+  File "/Users/bennett/.pyenv/versions/3.14.0/lib/python3.14/site-packages/httpx/_transports/default.py", line 250, in handle_request
+    resp = self._pool.handle_request(req)
+  File "/Users/bennett/.pyenv/versions/3.14.0/lib/python3.14/site-packages/httpcore/_sync/connection_pool.py", line 256, in handle_request
+    raise exc from None
+  File "/Users/bennett/.pyenv/versions/3.14.0/lib/python3.14/site-packages/httpcore/_sync/connection_pool.py", line 236, in handle_request
+    response = connection.handle_request(
+        pool_request.request
+    )
+  File "/Users/bennett/.pyenv/versions/3.14.0/lib/python3.14/site-packages/httpcore/_sync/connection.py", line 103, in handle_request
+    return self._connection.handle_request(request)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/Users/bennett/.pyenv/versions/3.14.0/lib/python3.14/site-packages/httpcore/_sync/http11.py", line 136, in handle_request
+    raise exc
+  File "/Users/bennett/.pyenv/versions/3.14.0/lib/python3.14/site-packages/httpcore/_sync/http11.py", line 106, in handle_request
+    ) = self._receive_response_headers(**kwargs)
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "/Users/bennett/.pyenv/versions/3.14.0/lib/python3.14/site-packages/httpcore/_sync/http11.py", line 177, in _receive_response_headers
+    event = self._receive_event(timeout=timeout)
+  File "/Users/bennett/.pyenv/versions/3.14.0/lib/python3.14/site-packages/httpcore/_sync/http11.py", line 217, in _receive_event
+    data = self._network_stream.read(
+        self.READ_NUM_BYTES, timeout=timeout
+    )
+  File "/Users/bennett/.pyenv/versions/3.14.0/lib/python3.14/site-packages/httpcore/_backends/sync.py", line 128, in read
+    return self._sock.recv(max_bytes)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^
+  File "/Users/bennett/.pyenv/versions/3.14.0/lib/python3.14/ssl.py", line 1285, in recv
+    return self.read(buflen)
+           ~~~~~~~~~^^^^^^^^
+  File "/Users/bennett/.pyenv/versions/3.14.0/lib/python3.14/ssl.py", line 1140, in read
+    return self._sslobj.read(len)
+           ~~~~~~~~~~~~~~~~~^^^^^
+KeyboardInterrupt

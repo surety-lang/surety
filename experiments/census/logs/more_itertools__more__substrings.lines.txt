@@ -1,0 +1,15 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py lines /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__substrings.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 17s
+
+round 1: tokens 15599/1533
+substrings  inputs 0+500  mutants 1 of 13 apply  slipped 0  caught 1  underdetermined 7 in 2 gaps
+  gap  out[0] can have 0 or not; 5 inputs show it; the smallest in: [0]
+  gap  out can have [3], [3, 0, 4], [4, 3, 1, 3] or [], [0, 4], [3, 4, 4, 1] in its place; 2 inputs show it; the smallest in: [0, 0]
+
+reaching for (for the sheet):
+  - for every s in out, there exist integer positions i and j with 0 <= i < j <= len(iterable) such that s == iterable[i .. j]. The notation quantifies only over list elements, never over a range of integer positions, and the end position len(iterable) is not the position of any element.
+  - for all integer positions i and j with 0 <= i < j <= len(iterable), iterable[i .. j] in out. This needs a quantifier over a range of integers, which the notation lacks.
+  - for every length k from 1 to len(iterable), the sub-list of out whose elements have length k equals the list [iterable[0 .. k], iterable[1 .. 1 + k], ..., iterable[len(iterable) - k .. len(iterable)]]. This needs a filter producing a sub-list of out and a quantifier or list built over integer start positions, and the notation has neither.
+
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__substrings.sur still carries `// draft`; review the lines, remove the mark, then `surety pin`.
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-103131-lines

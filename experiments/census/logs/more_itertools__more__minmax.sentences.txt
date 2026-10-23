@@ -1,0 +1,17 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__minmax.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__minmax.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 26s
+
+round 1: tokens 15590/2403
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__minmax.sur: parse ok
+  drafted: 3 types, 1 named value; each under // drafted, read first
+  sentences: 6, no property lines yet; stage 2 asks for them
+  examples wanted: 7, as // example wanted lines; yours to turn into e: blocks or delete
+    items [3, 1, 5] with keys equal to values and no default: the smallest is the lowest key and the largest the highest
+    one item and no default: the smallest and the largest are that same item
+    items 5 and 30 with keys that rank 30 below 5 (as str does): the key, not the value, decides which is smallest
+    empty items with default (0, 0): the default is returned
+    empty items with no default: the empty error is reported
+    non-empty items with a default given: the default is ignored and the items decide
+    two items with different values and the same key: either may be the smallest or the largest, the tie the docstring leaves open
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-105540-sentences

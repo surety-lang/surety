@@ -1,0 +1,19 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__circular_shifts.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__circular_shifts.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 41s
+
+round 1: tokens 15452/3883
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__circular_shifts.sur: parse ok
+  drafted: 2 types, 1 named value; each under // drafted, read first
+  sentences: 7, no property lines yet; stage 2 asks for them
+  examples wanted: 9, as // example wanted lines; yours to turn into e: blocks or delete
+    iterable [0, 1, 2, 3] with the default steps 1: one shift per element, each rotated one place left
+    iterable [0, 1, 2, 3] at steps 2: steps shares a factor with the length, so the rotation comes back to the start before every element has led
+    iterable [0, 1, 2, 3] at steps -1: a negative step rotates right
+    iterable [0, 1, 2, 3] at steps 5: a step larger than the length wraps around
+    iterable [] at steps 1: the empty input yields no shifts rather than one empty shift
+    iterable [0, 1, 2] at steps 0: zero steps is the error, whatever the input
+    iterable [] at steps 0: decides whether the error or the empty input wins
+    iterable [7, 7] at steps 1: equal elements give equal shifts, and decides whether the count goes by position or by distinct value
+    iterable [9] at steps -3: one element under a negative step larger than the length
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-104353-sentences

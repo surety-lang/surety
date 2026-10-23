@@ -1,0 +1,16 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__recipes__tabulate.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__recipes__tabulate.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 40s
+
+round 1: tokens 15374/3797
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__recipes__tabulate.sur: parse ok
+  drafted: 2 types, 2 named values; each under // drafted, read first
+  sentences: 8, no property lines yet; stage 2 asks for them
+  examples wanted: 6, as // example wanted lines; yours to turn into e: blocks or delete
+    the docstring's case, a square table covering -3 to 0 with start -3 and count 4; the values are read from the table at -3, -2, -1, 0 in that order
+    start 0 (the source's default) with a table covering 0 onward; the first result is the table's value at 0
+    count 0 with an empty table; the coverage condition holds vacuously, so Ok or error is decided by sentence one
+    count -1; decided by which error the negative count reports
+    a table missing only the argument start plus count minus 1, the last one reached; decided by the coverage boundary
+    a table with extra entries at start minus 1 and at start plus count; decided by the range in sentence six leaving them out
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-110150-sentences

@@ -1,0 +1,15 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py lines /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__collapse.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 123s
+
+round 1: tokens 16272/8623
+round 1: /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__collapse.sur: line 23: `<=` needs ordered values; found Int and Option<Int> (type_error)
+round 2: tokens 16381/4032
+collapse  inputs 0+500  mutants 1 of 13 apply  slipped 0  caught 1  underdetermined 0
+
+reaching for (for the sheet):
+  - a way to compare against the Int inside an Option<Int> (an unwrap, or a `Some(n)` binder over levels). With one, the line would be: for every leaf l of iterable, (some piece p with p.root == None has l in p.leaves) <-> ((none a in l.ancestors: a.type_name == base_type) and (levels == None or len(l.ancestors) <= the Int in levels)). As written, `len(l.ancestors) <= levels` compares Int with Option<Int> and is refused.
+  - field access through an Option (the type_name of the Container inside p.root), a way to name an element's position in a list (the index of p.root within l.ancestors), and a comparison of that position with the Int inside levels. With these, the line would be: every piece p with a root has p.root's type_name == base_type, or, for every l in p.leaves, the position of p.root in l.ancestors equals levels.
+  - `before` with an Option<Container> operand (p.root), and an ordered comparison of the root's position in l.ancestors with the Int inside levels (an unwrap of levels, plus a position-of form). With these, the line would be: for every piece p with a root and every l in p.leaves, no a in l.ancestors that comes before p.root has a.type_name == base_type, and either levels == None or the position of p.root in l.ancestors <= the Int in levels.
+
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__collapse.sur still carries `// draft`; review the lines, remove the mark, then `surety pin`.
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-103424-lines

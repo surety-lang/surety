@@ -1,0 +1,11 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py lines /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__groupby_transform.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 16s
+
+round 1: tokens 15666/1561
+groupby_transform  inputs 0+500  mutants 1 of 13 apply  slipped 0  caught 1  underdetermined 0
+
+reaching for (for the sheet):
+  - for each group g in out, some start position p in items such that items[p .. p + len(g.values)].value == g.values and every item in that slice has key == g.key. The slice needs an integer start, and the notation has no binder over positions and no way to take the position of an occurrence. `g.values same_order_as items.value` says subsequence, not consecutive, so it would widen the sentence.
+
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__groupby_transform.sur still carries `// draft`; review the lines, remove the mark, then `surety pin`.
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-104133-lines

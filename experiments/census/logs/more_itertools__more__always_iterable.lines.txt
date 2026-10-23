@@ -1,0 +1,17 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py lines /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__always_iterable.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 66s
+
+round 1: tokens 15957/3821
+round 1: /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__always_iterable.sur: line 12: expected `in` in the quantifier head (syntax)
+round 2: tokens 16059/2408
+always_iterable  inputs 0+500  mutants 1 of 13 apply  slipped 1  caught 0  underdetermined 3 in 1 gap
+  gap  out can have "k0" or not; 3 inputs show it; `empty` returns one of the two; the smallest in: ({id: "k3", is_none: false, items: [], iterable: true, type_names: ["", "", "a"]…
+  slipped  empty: returns the empty value of the output type; through 1 clause (line 8); caught by no example; in: ({id: "k0", is_none: true, items: [], iterable: false, type_names: ["", "b"]}, […
+
+reaching for (for the sheet):
+  - a binder that opens an Option the way Ok(x) opens a Result (`Some(bt)` is not accepted in the quantifier head), so I could write: all Some(bt) in base_type: all n in obj.type_names where not obj.is_none and n in bt: len(out) == 1 and obj.id in out
+  - a way to name the list inside base_type when it is Some, and to use "no name in obj.type_names is in that list" as a condition that is not the last operand on its line, so I could write: (not obj.is_none and obj.iterable and (base_type == None or no name in obj.type_names is in the given base_type list)) -> (out same_order_as obj.items and obj.items same_order_as out)
+  - the same opened Option and non-final quantifier, so I could write: (not obj.is_none and not obj.iterable and (base_type == None or no name in obj.type_names is in the given base_type list)) -> (len(out) == 1 and obj.id in out)
+
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__always_iterable.sur still carries `// draft`; review the lines, remove the mark, then `surety pin`.
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-104103-lines

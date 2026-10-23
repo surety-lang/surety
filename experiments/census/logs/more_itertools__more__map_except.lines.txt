@@ -1,0 +1,19 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py lines /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__map_except.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 88s
+
+round 1: tokens 15862/3321
+round 1: /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__map_except.sur: line 9: a quantifier must be the last operand on its line (quantifier_mid_line)
+round 2: tokens 15970/5441
+map_except  inputs 0+500  mutants 2 of 13 apply  slipped 1  caught 1  underdetermined 8 in 2 gaps
+  gap  on Ok, out can have 0 or not; 2 inputs show it; `ok_empty` returns one of the two; the smallest in: ([{item: "", result: Ok(3)}, {item: "a", result: Ok(3)}, {item: None, result: Ok…
+  gap  out can be Ok([]) or Err(""); 6 inputs show it; the smallest in: ([{item: "a", result: Err("")}, {item: None, result: Err("")}, {item: "", result…
+  slipped  ok_empty: returns Ok of the empty value; through 1 clause (line 15); caught by no example; in: ([], [])
+
+reaching for (for the sheet):
+  - the iff `exactly_one Ok(_) in out <-> none c in calls: any Err(e) in c.result: e not in exceptions`, but both sides are quantifiers and only one can be last on the line; the call side wants a named abbreviation like apply_diff's `checks`, which is a line of its own
+  - `all Ok(vs) in out: vs drawn_from <the values the calls returned>`, where that list is calls.result keeping only the Ok side, unwrapped, in call order; the fragment cannot build that list, and a per-element `any Ok(r) in calls.result: r == v` compares values, so it would admit a value repeated more often than the calls returned it
+  - `all Ok(vs) in out: <the values the calls returned> drawn_from vs`, over the same list of unwrapped Ok values in call order; a per-value `all Ok(r) in calls.result: r in vs` would let one output 5 stand for two calls that each returned 5
+  - `all Ok(vs) in out: vs same_order_as <the values the calls returned>`, over the same list of unwrapped Ok values in call order, which the fragment has no way to build from calls.result
+
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__map_except.sur still carries `// draft`; review the lines, remove the mark, then `surety pin`.
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-104830-lines

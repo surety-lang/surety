@@ -1,0 +1,18 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__strictly_n.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__strictly_n.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 25s
+
+round 1: tokens 15861/2379
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__strictly_n.sur: parse ok
+  drafted: 1 type, 0 named values; each under // drafted, read first
+  sentences: 5, no property lines yet; stage 2 asks for them
+  examples wanted: 8, as // example wanted lines; yours to turn into e: blocks or delete
+    ['a', 'b', 'c', 'd'] with n 4, exactly n items: all four yielded and neither callback is called
+    'ab' with n 3, one short: what is yielded before too_short runs, and the count it receives
+    'abc' with n 2, one over: what is yielded before too_long runs, and that it receives n + 1 rather than the real length
+    'abcdef' with n 4, several over: too_long is called once and only the first n are yielded, the docstring's printing callback case
+    an empty iterable with n 0: the empty input against the zero boundary
+    'a' with n 0: a non-empty iterable against n 0, too long from the start
+    'ab' with n -1: islice refuses a negative stop before anything is yielded; decide whether this becomes an error case in a Result or stays out of the domain
+    ['a', 'a', 'a'] with n 2: duplicate items, checking that the yielded items are by position, not by value
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-102851-sentences

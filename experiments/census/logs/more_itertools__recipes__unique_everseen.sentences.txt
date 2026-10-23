@@ -1,0 +1,15 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__recipes__unique_everseen.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__recipes__unique_everseen.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 13s
+
+round 1: tokens 15545/1007
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__recipes__unique_everseen.sur: parse ok
+  drafted: 1 type, 0 named values; each under // drafted, read first
+  sentences: 4, no property lines yet; stage 2 asks for them
+  examples wanted: 5, as // example wanted lines; yours to turn into e: blocks or delete
+    the empty list
+    'AAAABBBCCDAABBB' as items whose key equals the value; decided by keeping the first item of each run and dropping later repeats such as the second A run
+    'ABBCcAD' with the casefolded letter as key; decided by 'c' sharing key 'c' with the earlier 'C', so the earlier one is kept
+    two identical items (same value, same key); decided by keeping the first copy
+    two items with different values and the same key, the later one listed first in the expected output's candidates; decided by input position, not by value
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-110622-sentences

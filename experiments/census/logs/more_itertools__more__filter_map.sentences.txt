@@ -1,0 +1,15 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__filter_map.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__filter_map.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 17s
+
+round 1: tokens 15297/1471
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__filter_map.sur: parse ok
+  drafted: 1 type, 0 named values; each under // drafted, read first
+  sentences: 3, no property lines yet; stage 2 asks for them
+  examples wanted: 5, as // example wanted lines; yours to turn into e: blocks or delete
+    the docstring case, elements '1', 'a', '2', 'b', '3' with results 1, None, 2, None, 3: decided by which results are None
+    the empty iterable: decided by drawn_from with nothing to draw from
+    every element's result is None: decided by the leftover sentence leaving nothing out but Nones
+    an element whose result is 0: kept, because only None is dropped, not a falsy result (unlike filter over map)
+    two elements with the same result 5: decided by occurrences, so the result is kept twice
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-105831-sentences

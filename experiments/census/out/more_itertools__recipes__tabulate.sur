@@ -1,0 +1,50 @@
+// draft
+// drafted
+type Entry = { arg: Int, value: Int }
+// drafted
+type TabulateError = { code: Text, display: Text }
+
+// drafted
+negative_count_error: TabulateError = {code: "e-negative-count", display: "The number of results to take must be at least 0"}
+// drafted
+uncovered_arg_error: TabulateError = {code: "e-uncovered-arg", display: "The function has no value given for an argument the results reach"}
+
+tabulate(func: Entry[unique arg], start: Int, count: Int) -> Result<Entry[], TabulateError>
+	note "the first count results of func(start), func(start + 1), ..., with func given as a table of its value at each argument and each result paired with its argument; start defaults to 0 in the source"
+	# The output is Ok exactly when the count is at least 0 and every argument from start up to but
+	# not including start plus count has an entry in the table.
+	// reaching for: a list of the integers from start up to but not including start + count to
+	// quantify over, so the line could read `(count >= 0 and all a in <start .. start + count>: a
+	// in func.arg) <-> exactly_one Ok(_) in out`; the notation has no integer range and no
+	// count-where, so whether every integer in that range is covered cannot be stated over the
+	// table alone
+	# An error output is the negative-count error exactly when the count is below 0.
+	all Err(e) in out: e == negative_count_error <-> count < 0
+	# An error output is the uncovered-argument error exactly when the count is at least 0 and some
+	# argument from start up to but not including start plus count has no entry in the table.
+	// reaching for: `all Err(e) in out: e == uncovered_arg_error <-> (count >= 0 and any a in
+	// <start .. start + count>: a not in func.arg)`; it needs a list of the integers from start up
+	// to but not including start + count, and the notation has no integer range
+	# An Ok output has exactly count elements.
+	all Ok(r) in out: len(r) == count
+	# No two elements of an Ok output share an arg.
+	all Ok(r) in out: unique r.arg
+	# Every element of an Ok output has an arg that is at least start and less than start plus
+	# count.
+	all Ok(r) in out: all e in r: e.arg >= start and e.arg < start + count
+	# An Ok output is sorted by arg, ascending.
+	all Ok(r) in out: r sorted_by (arg asc)
+	# Every element of an Ok output is an entry of the table, so its value is func's value at its
+	# arg.
+	all Ok(r) in out: all e in r: e in func
+	// example wanted: the docstring's case, a square table covering -3 to 0 with start -3 and count
+	// 4; the values are read from the table at -3, -2, -1, 0 in that order
+	// example wanted: start 0 (the source's default) with a table covering 0 onward; the first
+	// result is the table's value at 0
+	// example wanted: count 0 with an empty table; the coverage condition holds vacuously, so Ok or
+	// error is decided by sentence one
+	// example wanted: count -1; decided by which error the negative count reports
+	// example wanted: a table missing only the argument start plus count minus 1, the last one
+	// reached; decided by the coverage boundary
+	// example wanted: a table with extra entries at start minus 1 and at start plus count; decided
+	// by the range in sentence six leaving them out

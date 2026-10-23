@@ -1,0 +1,17 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__recipes__all_equal.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__recipes__all_equal.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 27s
+
+round 1: tokens 15365/2245
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__recipes__all_equal.sur: parse ok
+  drafted: 1 type, 0 named values; each under // drafted, read first
+  sentences: 1, no property lines yet; stage 2 asks for them
+  examples wanted: 7, as // example wanted lines; yours to turn into e: blocks or delete
+    an empty iterable: there is no pair of elements to differ, so the claim holds vacuously
+    a single element: the only pair is the element with itself
+    'aaaa' with no key (each key is its value): every key is "a"
+    'aaab' with no key: only the last element's key "b" differs from the rest
+    'AaaA' with casefold keys: the values differ but every key is "a", and the key decides
+    [1, 2, 3] with key x < 10: the values differ but every key is "true", and the key decides
+    'aab' where the first two elements share a key and the third differs: one differing pair is enough
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-110315-sentences

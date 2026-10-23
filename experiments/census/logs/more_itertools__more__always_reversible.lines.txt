@@ -1,0 +1,11 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py lines /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__always_reversible.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 22s
+
+round 1: tokens 15658/2140
+always_reversible  inputs 0+500  mutants 6 of 13 apply  slipped 0  caught 6  underdetermined 0
+
+reaching for (for the sheet):
+  - for two input occurrences a and b with different values, where a is before b in iterable, the output occurrence that stands for b is before the output occurrence that stands for a. The notation has no way to say which output occurrence stands for which input occurrence. Here `b before a in out` resolves an input element to the first occurrence of its value in out. On iterable [1, 2, 1] that makes the line false on the correct output [1, 2, 1]: the first 1 is before the 2 in the input, and the first 1 in out is before the 2 too. The pairing I wanted is the k-th occurrence of a value in the input with the k-th-from-last occurrence in the output.
+
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__always_reversible.sur still carries `// draft`; review the lines, remove the mark, then `surety pin`.
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-104316-lines

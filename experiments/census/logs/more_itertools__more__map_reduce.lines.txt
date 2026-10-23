@@ -1,0 +1,12 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py lines /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__map_reduce.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 15s
+
+round 1: tokens 15796/1305
+map_reduce  inputs 0+500  mutants 1 of 13 apply  slipped 0  caught 1  underdetermined 0
+
+reaching for (for the sheet):
+  - all c in out: c.values drawn_from (the values of only those items whose key is c.key). That needs a filtered sublist as the right operand, and the notation has no expression for one. A membership form (any i in items where i.key == c.key: i.value == v) would drop the per-key multiplicity, and so widen the sentence.
+  - all c in out: c.values same_order_as (the values of only those items whose key is c.key). Writing c.values same_order_as items.value would let an equal value under another key stand in for a position, and so widen the sentence. A filtered sublist is again the missing operand.
+
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__map_reduce.sur still carries `// draft`; review the lines, remove the mark, then `surety pin`.
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-104452-lines

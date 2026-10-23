@@ -1,0 +1,19 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__split_after.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__split_after.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 39s
+
+round 1: tokens 15494/3707
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__split_after.sur: parse ok
+  drafted: 2 types, 0 named values; each under // drafted, read first
+  sentences: 6, no property lines yet; stage 2 asks for them
+  examples wanted: 9, as // example wanted lines; yours to turn into e: blocks or delete
+    an empty input with maxsplit -1; no split can happen, so whether any chunk is produced decides it
+    an empty input with maxsplit 0; the single empty chunk is the case the last sentence admits
+    'one1two2' with maxsplit 0; no split is allowed, so the whole input stays in one chunk
+    'one1two2' with maxsplit -1, pred on the digits; the last item is a match, so whether a trailing empty chunk follows decides it
+    'one1' with maxsplit 1; the one split uses up the input, so whether an empty remainder chunk follows decides it
+    range(10) with maxsplit 2, pred on multiples of 3; the limit is reached and later matches stay inside the last chunk
+    range(10) with maxsplit 10, pred on multiples of 3; the limit exceeds the matches, so every match closes a chunk
+    items where pred holds for none, maxsplit -1; no item closes a chunk
+    range(10) with maxsplit -2, pred on multiples of 3; a negative value other than -1 means no limit
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-103523-sentences

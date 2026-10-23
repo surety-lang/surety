@@ -1,0 +1,18 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__zip_broadcast.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__zip_broadcast.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 29s
+
+round 1: tokens 15596/2981
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__zip_broadcast.sur: parse ok
+  drafted: 3 types, 1 named value; each under // drafted, read first
+  sentences: 7, no property lines yet; stage 2 asks for them
+  examples wanted: 8, as // example wanted lines; yours to turn into e: blocks or delete
+    the docstring's first case, [1, 2, 3], ['a', 'b', 'c'] and the scalar '_', not strict: the scalar repeats in every row
+    the docstring's second case, 'abc' and 'xyz' as iterables with 0 as a scalar (scalar_types None): strings are zipped character by character
+    no arguments at all: no argument is iterable and none is a scalar
+    only scalar arguments, e.g. 'a' and 'b': the arguments themselves form the single row
+    iterables of 3 and 2 items, not strict: the shorter iterable decides the row count
+    iterables of 3 and 2 items, strict: the lengths differ, so the error is reported
+    iterables of 2 and 2 items with a scalar, strict: equal lengths, so no error
+    an empty iterable beside a non-empty one and a scalar, not strict: the empty one decides the row count
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-105334-sentences

@@ -1,0 +1,18 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__split_before.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__split_before.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 30s
+
+round 1: tokens 15490/2500
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__split_before.sur: parse ok
+  drafted: 2 types, 0 named values; each under // drafted, read first
+  sentences: 6, no property lines yet; stage 2 asks for them
+  examples wanted: 8, as // example wanted lines; yours to turn into e: blocks or delete
+    no items, maxsplit -1: no buffer is ever filled, so decide whether the output is no groups or one empty group
+    the first item has pred true, maxsplit -1: no split falls before position 0, so there is no empty leading group
+    two consecutive items with pred true, maxsplit -1: each one starts its own group
+    values 0 to 9 with pred true on multiples of 3, maxsplit 2: the third and later splits are not done, so the remaining items stay in the last group
+    values 0 to 9 with pred true on multiples of 3, maxsplit 0: no split is done at all
+    maxsplit exactly the number of pred-true items after position 0: the limit is reached and every split is still done
+    maxsplit -2: any value below 0 means no limit, not only -1
+    no item has pred true, maxsplit -1: nothing splits, so all the items are in one group
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-103438-sentences

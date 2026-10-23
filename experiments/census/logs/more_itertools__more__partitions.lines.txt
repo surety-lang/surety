@@ -1,0 +1,14 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py lines /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__partitions.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 31s
+
+round 1: tokens 15738/3085
+partitions  inputs 0+121  mutants 1 of 13 apply  slipped 1  caught 0  underdetermined 7 in 1 gap
+  gap  out can have {blocks: []} or not; 7 inputs show it; `empty` returns one of the two; the smallest in: []
+  slipped  empty: returns the empty value of the output type; through 4 clauses (lines 11, 13, 22, 24); caught by no example; in: []
+
+reaching for (for the sheet):
+  - a quantifier over every cutting of iterable into consecutive non-empty blocks, as in `all c in cuttings(iterable): c in out`. The cuttings are not a list in the input, so the notation has no range to quantify over. The count form, `len(out) == 2^(len(iterable) - 1)` for non-empty input, needs exponentiation, and it only means "every cutting" alongside the uniqueness and soundness siblings.
+  - for p before q in out with len(p.blocks) == len(q.blocks), at the first position i where p.blocks[i] != q.blocks[i], len(p.blocks[i].items) < len(q.blocks[i].items). This needs a binder over block positions or element indexing, and the notation has neither. An equivalent form is `out sorted_by` a computed key, the list of block lengths, compared lexicographically ascending, but sorted_by takes only fields.
+
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__partitions.sur still carries `// draft`; review the lines, remove the mark, then `surety pin`.
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-104549-lines

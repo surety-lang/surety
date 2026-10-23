@@ -1,0 +1,15 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__substrings_indexes.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__substrings_indexes.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 18s
+
+round 1: tokens 15451/1680
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__substrings_indexes.sur: parse ok
+  drafted: 1 type, 0 named values; each under // drafted, read first
+  sentences: 6, no property lines yet; stage 2 asks for them
+  examples wanted: 5, as // example wanted lines; yours to turn into e: blocks or delete
+    seq is empty, reverse false: no run exists, so nothing is listed
+    seq is a single element, reverse false: the only run is the whole seq
+    seq ["m", "o", "r", "e"], reverse false: the docstring's case, decided by length first, then start
+    seq ["m", "o", "r", "e"], reverse true: the same runs as the previous case, in the opposite order
+    seq ["a", "a"], reverse false: equal runs at different positions are each listed, decided by i and j rather than by the value of substr
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-103147-sentences

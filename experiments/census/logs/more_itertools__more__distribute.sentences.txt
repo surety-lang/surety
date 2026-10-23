@@ -1,0 +1,18 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__distribute.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__distribute.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 24s
+
+round 1: tokens 15558/2208
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__distribute.sur: parse ok
+  drafted: 1 type, 1 named value; each under // drafted, read first
+  sentences: 8, no property lines yet; stage 2 asks for them
+  examples wanted: 8, as // example wanted lines; yours to turn into e: blocks or delete
+    n 2 over [1, 2, 3, 4, 5, 6]: the length divides evenly, so every group is the same length
+    n 3 over [1, 2, 3, 4, 5, 7]: the length does not divide evenly, so the earlier groups take the extra items
+    n 5 over [1, 2, 3]: n is more than the length, so the groups at the end are empty
+    n 3 over []: the input is empty, so every group is empty and there are still n groups
+    n 1 over [4, 2, 9]: a single group, which holds the whole input in order
+    n 2 over [7, 7, 7]: repeated values, so the groups are decided by position and not by value
+    n 0 over [1, 2]: the threshold for the error
+    n -1 over []: a negative n with an empty input is still the error
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-103742-sentences

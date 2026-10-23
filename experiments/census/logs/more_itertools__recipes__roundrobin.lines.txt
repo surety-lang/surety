@@ -1,0 +1,12 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py lines /Users/bennett/projects/surety/experiments/census/out/more_itertools__recipes__roundrobin.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 19s
+
+round 1: tokens 15759/1665
+roundrobin  inputs 0+500  mutants 1 of 13 apply  slipped 0  caught 1  underdetermined 0
+
+reaching for (for the sheet):
+  - for any two iterables a and b (possibly the same) and positions i < j, the output occurrence that came from a.items at position i is before the output occurrence that came from b.items at position j. The notation cannot name an element's position within its iterable from the binder, and it cannot tie an output occurrence to the iterable and position it came from. When the same value appears in more than one iterable, `x before y in out` would resolve to the value's first occurrence in out, which may be the wrong one.
+  - for iterables a before b in iterables and a position i that both a.items and b.items have, the output occurrence that came from a.items at position i is before the output occurrence that came from b.items at position i. This needs the same two things the previous line lacks: a binder that carries its index within its list, and the provenance of each output occurrence, so that equal values from different iterables are told apart.
+
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__recipes__roundrobin.sur still carries `// draft`; review the lines, remove the mark, then `surety pin`.
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-110555-lines

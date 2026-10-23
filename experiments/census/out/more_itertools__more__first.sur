@@ -1,0 +1,30 @@
+// draft
+// drafted
+type FirstError = { code: Text, display: Text }
+
+// drafted
+empty_error: FirstError = {code: "ValueError", display: "first() was called on an empty iterable, and no default value was provided."}
+
+first(iterable: Int[], default: Option<Int>) -> Result<Int, FirstError>
+	note "return the first item of the iterable, or the default when the iterable is empty; with no items and no default, report a ValueError"
+	// `default: None` stands for the 'not supplied' sentinel; the element type is fixed to Int, so
+	// the docstring's Text default is out of scope
+	# The output is an error exactly when the iterable is empty and no default is supplied.
+	len(iterable) == 0 and default == None <-> (exactly_one Err(_) in out)
+	# If the iterable has at least one item, the output is Ok with the iterable's item at position
+	# 0.
+	len(iterable) >= 1 -> (exactly_one Ok(x) in out: x in iterable[0 .. 1])
+	# If the iterable is empty and a default is supplied, the output is Ok with the default.
+	len(iterable) == 0 and default != None -> (exactly_one Ok(x) in out: x == default)
+	# Every error output is the empty-iterable error.
+	all Err(e) in out: e == empty_error
+	// example wanted: iterable [0, 1, 2, 3] with no default: the item at position 0 is returned,
+	// and it is 0, a falsy value that must not be mistaken for "missing"
+	// example wanted: empty iterable with a default supplied: the default is returned
+	// example wanted: empty iterable with no default: the empty-iterable error is reported
+	// example wanted: non-empty iterable with a default supplied: the default is ignored because an
+	// item exists
+	// example wanted: one-item iterable with a default equal to that item: an Ok output that
+	// matches either one does not show which of them was returned
+	// example wanted: iterable whose first two items are equal, e.g. [7, 7, 3]: an equal value that
+	// is not the first must not be returned in its place

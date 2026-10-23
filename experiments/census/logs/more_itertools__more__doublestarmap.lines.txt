@@ -1,0 +1,14 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py lines /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__doublestarmap.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 44s
+
+round 1: tokens 15853/3787
+doublestarmap  inputs 0+500  mutants 2 of 13 apply  slipped 0  caught 2  underdetermined 8 in 2 gaps
+  gap  out can be Ok([]) or Err({code: "TypeError", display: "func's signature doesn't m…; 1 input show it; the smallest in: []
+  gap  on Ok, out[0] can be 0 or 1; 7 inputs show it; the smallest in: [{entries: [{key: "", value: 1}]}]
+
+reaching for (for the sheet):
+  - `exactly_one Ok(_) in out` iff `all k in iterable: func_accepts(k.entries.key)`, where `func_accepts` is a bodiless graph reference to the sibling acceptance obligation. Both sides of the iff need a quantifier, but a quantifier must be the last operand on a line. Folding "every item" into a predicate over the whole list would move this sentence's claim into the sibling, and an in-obligation abbreviation would be a second line.
+  - for every position i, element i of res equals func applied to item i of iterable, where func is a sibling obligation called as a graph reference returning Int. That is a positional zip of res with iterable mapped through func. Binders range over occurrences but cannot name an index to pair the two lists, and the notation has no map of a sibling function over a list to compare against res.
+
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__doublestarmap.sur still carries `// draft`; review the lines, remove the mark, then `surety pin`.
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-110015-lines

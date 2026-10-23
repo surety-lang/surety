@@ -1,0 +1,21 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py lines /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__set_partitions.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 87s
+
+round 1: tokens 16231/5756
+round 1: /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__set_partitions.sur: line 15: `<` needs ordered values; found Option<Int> and Int (type_error)
+round 2: tokens 16341/2978
+set_partitions  inputs 0+500  mutants 2 of 13 apply  slipped 2  caught 0  underdetermined 8 in 2 gaps
+  gap  on Ok, out can have {blocks: []} or not; 4 inputs show it; `ok_empty` returns one of the two; the smallest in: ([], None, 3, -1)
+  gap  out can be Ok([]) or Err({code: "", display: ""}); 4 inputs show it; `empty` returns one of the two; the smallest in: ([], 1, 1, 3)
+  slipped  empty: returns the empty value of the output type; through 5 clauses (lines 20, 22, 24, 46, 49); caught by no example; in: ([], None, 3, -1)
+  slipped  ok_empty: returns Ok of the empty value; through 5 clauses (lines 20, 22, 24, 46, 49); caught by no example; in: ([], None, 3, -1)
+
+reaching for (for the sheet):
+  - out == Err(k_error) <-> k holds some n with n < 1. That means unwrapping an Option<Int> before an ordered comparison, and `<` refuses the Option. No `Some(n)` binder or unwrap is in the fragment, and equality alone cannot say "less than 1".
+  - for every block b of every output partition, if min_size holds some n then len(b.items) >= n. The ordered comparison needs min_size unwrapped from Option<Int>, and the fragment has no unwrap.
+  - for every block b of every output partition, if max_size holds some n then len(b.items) <= n. The ordered comparison needs max_size unwrapped from Option<Int>, and the fragment has no unwrap.
+  - no two distinct occurrences p and q in the Ok list whose blocks are equal as a set of sets, ignoring both block order and element order within each block. `same_elements_as` on p.blocks compares Block values with their items in order, so [{a,b}] and [{b,a}] would count as different groupings.
+  - for every p in the Ok list of set_partitions(iterable, None, None, None) that has len(p.blocks) == k when k is given, and every block of size >= min_size and <= max_size when those are given, some q in out's Ok list groups the same elements into the same blocks, ignoring order. This needs min_size and max_size unwrapped for ordered comparison, and grouping equality up to order of blocks and of elements within blocks.
+
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__set_partitions.sur still carries `// draft`; review the lines, remove the mark, then `surety pin`.
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-104637-lines

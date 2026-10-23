@@ -1,0 +1,14 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py lines /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__filter_except.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 75s
+
+round 1: tokens 15945/2358
+round 1: /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__filter_except.sur: line 9: a quantifier must be the last operand on its line (quantifier_mid_line)
+round 2: tokens 16054/5097
+filter_except  inputs 0+500  mutants 7 of 13 apply  slipped 0  caught 7  underdetermined 1 in 1 gap
+  gap  on Ok, out can have {raises: [], value: ""} or not; 1 input show it; the smallest in: ([{raises: [], value: ""}, {raises: [], value: ""}, {raises: ["a", "a", "", ""],…
+
+reaching for (for the sheet):
+  - an iff whose two sides are both quantified, out is Ok exactly when every item with a nonempty raises has some r in its raises with r in exceptions. As one line, one quantifier has to sit mid-line on one side of the `<->`. The corpus form is an abbreviation `all_caught = all i in items where len(i.raises) > 0: any r in i.raises: r in exceptions` followed by `all_caught <-> exactly_one Ok(_) in out`, which is two lines.
+
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__filter_except.sur still carries `// draft`; review the lines, remove the mark, then `surety pin`.
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-104825-lines

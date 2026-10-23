@@ -1,0 +1,16 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__consecutive_groups.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__consecutive_groups.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 19s
+
+round 1: tokens 15745/1559
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__consecutive_groups.sur: parse ok
+  drafted: 2 types, 0 named values; each under // drafted, read first
+  sentences: 4, no property lines yet; stage 2 asks for them
+  examples wanted: 6, as // example wanted lines; yours to turn into e: blocks or delete
+    an empty iterable; decided by there being no items to group
+    the docstring's numbers [1, 10, 11, 12, 20, 30, 31, 32, 33, 40], each position equal to its value (the identity ordering); decided by where the step of one breaks
+    the docstring's letters "abcdfgilmnop", each position its ordinal (ord); decided by where the ordinals skip
+    a repeated item, positions [1, 1]; decided by a step of zero not being a step of one
+    a descending run, positions [3, 2, 1]; decided by a step of minus one not being a step of one
+    one item; decided by a lone item forming its own group
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-104310-sentences

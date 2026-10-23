@@ -1,0 +1,12 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py lines /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__distinct_combinations.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 11s
+
+round 1: tokens 16025/1149
+distinct_combinations  inputs 0+500  mutants 2 of 13 apply  slipped 0  caught 2  underdetermined 2 in 1 gap
+  gap  on Ok, out can have {items: []} or not; 2 inputs show it; the smallest in: ([], 0)
+
+reaching for (for the sheet):
+  - all Ok(cs) in out: all s in <the sub-sequences of iterable> where len(s) == r: s in cs.items. This needs a quantifier over every sub-sequence of a list, or a built-in that lists them. The notation's binders range only over lists already in the inputs or the output, so no line can range over the sub-sequences the output must cover.
+
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__distinct_combinations.sur still carries `// draft`; review the lines, remove the mark, then `surety pin`.
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-104753-lines

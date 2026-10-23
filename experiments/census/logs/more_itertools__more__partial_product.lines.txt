@@ -1,0 +1,17 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py lines /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__partial_product.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 26s
+
+round 1: tokens 16133/2355
+partial_product  inputs 0+500  mutants 6 of 13 apply  slipped 0  caught 6  underdetermined 8 in 2 gaps
+  gap  out can have {values: []} or not; 7 inputs show it; the smallest in: ([], -1)
+  gap  out[0].values[0] can be "" or "a"; 1 input show it; the smallest in: ([{values: ["a", "a", "", "b"]}], 1)
+
+reaching for (for the sheet):
+  - for every tuple t and every position p in t.values, the value at position p is in the values of the pool at position p, where the pool list is iterables repeated max(repeat, 0) times, i.e. iterables[p mod len(iterables)]; the notation has no way to bind an element's position as an Int, no list repetition, and no %
+  - when no pool is empty, out[0].values equals the list of each pool's values[0], taken over iterables repeated max(repeat, 0) times; the notation has no list repetition and no way to build the list of first elements of a list of lists (no map over a slice per element)
+  - for every adjacent pair out[i], out[i+1] there is exactly one position p where they may differ, out[i+1].values[p] is the element after out[i].values[p] in the values of the pool at position p (iterables repeated max(repeat, 0) times), and every other position is equal; the notation cannot range over adjacent pairs, index a list at a bound Int position, or say "the next element after this occurrence"
+  - writing a(i) for the position advanced between out[i] and out[i+1], a(i) <= a(i+1) for every i; the notation cannot name the advancing position as an Int or range over consecutive pairs of tuples
+  - for every pool position p (positions of iterables repeated max(repeat, 0) times) and every value v in that pool's values, some tuple t in out has t.values[p] == v; the notation cannot quantify over positions as Ints, index t.values at p, or repeat a list
+
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__partial_product.sur still carries `// draft`; review the lines, remove the mark, then `surety pin`.
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-105654-lines

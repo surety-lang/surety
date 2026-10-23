@@ -1,0 +1,18 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__chunked.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__chunked.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 30s
+
+round 1: tokens 15465/2889
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__chunked.sur: parse ok
+  drafted: 1 type, 1 named value; each under // drafted, read first
+  sentences: 7, no property lines yet; stage 2 asks for them
+  examples wanted: 8, as // example wanted lines; yours to turn into e: blocks or delete
+    iterable [1, 2, 3, 4, 5, 6] with n 3, strict false: the length is a multiple of n, so every chunk is full
+    iterable [1, 2, 3, 4, 5, 6, 7, 8] with n 3, strict false: the docstring's short last chunk
+    iterable [1, 2, 3, 4, 5, 6, 7, 8] with n 3, strict true: the length is not a multiple of n, so the error is decided by strict
+    iterable [1, 2, 3, 4, 5, 6] with n 3, strict true: the exact multiple, where strict changes nothing
+    the empty iterable with n 3, under both values of strict: whether the result has no chunks or one empty chunk, decided by the chunk-count bounds
+    iterable [1, 2] with n 5, strict false and strict true: n is larger than the whole iterable
+    iterable [1, 2, 3] with n 1: every element is its own chunk
+    n of 0 or a negative n: the docstring does not say what happens, so the author decides between an error case and a refinement
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-102732-sentences

@@ -1,0 +1,13 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py lines /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__interleave.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 22s
+
+round 1: tokens 15721/1825
+interleave  inputs 0+500  mutants 1 of 13 apply  slipped 0  caught 1  underdetermined 7 in 2 gaps
+  gap  out can have 0 or not; 5 inputs show it; the smallest in: []
+  gap  out[0] can be 0 or 1; 2 inputs show it; the smallest in: [[2]]
+
+reaching for (for the sheet):
+  - a quantifier over integer positions, k from 0 up to but not including the shortest iterable's length, and a way to build the list of each iterable's element at position k in the order the iterables are given (indexing mapped over iterables), so I could write: for every such k, out[k * len(iterables) .. (k + 1) * len(iterables)] == [it[k] for each it in iterables]; the notation binds only list occurrences, never a bare position, and has no index or map to form that list.
+
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__interleave.sur still carries `// draft`; review the lines, remove the mark, then `surety pin`.
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-103244-lines

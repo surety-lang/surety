@@ -1,0 +1,17 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__map_except.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__map_except.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 25s
+
+round 1: tokens 15371/2326
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__map_except.sur: parse ok
+  drafted: 1 type, 0 named values; each under // drafted, read first
+  sentences: 5, no property lines yet; stage 2 asks for them
+  examples wanted: 7, as // example wanted lines; yours to turn into e: blocks or delete
+    the docstring case: items '1', '2', 'three', '4', None, with 'three' raising ValueError and None raising TypeError, exceptions [ValueError, TypeError]: every raised exception is listed, so the calls that raised are skipped
+    no calls at all, any exceptions: nothing returned and nothing raised
+    one call raising ValueError with no exceptions given: an empty list of exceptions lists nothing
+    a call returning a value, then a call raising KeyError, with exceptions [ValueError]: an unlisted exception after a returned value still decides the output
+    one call raising KeyError and a later call raising IndexError, neither listed: the first unlisted one is the one reported
+    one call raising ValueError (listed) before a call raising KeyError (unlisted): the listed one is skipped, so the unlisted one decides
+    two calls returning the same value: duplicates are values, and both are kept
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-104804-sentences

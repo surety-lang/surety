@@ -1,0 +1,21 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__nth_combination_with_replacement.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__nth_combination_with_replacement.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 28s
+
+round 1: tokens 15412/2868
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__nth_combination_with_replacement.sur: parse ok
+  drafted: 1 type, 2 named values; each under // drafted, read first
+  sentences: 6, no property lines yet; stage 2 asks for them
+  examples wanted: 11, as // example wanted lines; yours to turn into e: blocks or delete
+    the docstring's case, range(5) with r 3 at index 5; the docstring decides it
+    iterable [0, 1, 2] with r 2 at index 0; decided by the first combination in lexicographic order, r copies of the first element
+    iterable [0, 1, 2] with r 2 at index 5; decided by the last of the six combinations
+    iterable [0, 1, 2] with r 2 at index 6; the index equals the number of combinations, so it is the first invalid one
+    iterable [0, 1, 2] with r 2 at index -1; decided by whether a negative index counts from the end, as list indexing does in the "equivalent to" line
+    iterable [0, 1, 2] with r 2 at index -7; one past the most negative valid index
+    iterable [0, 1] with r -1 at index 0; r is negative
+    iterable [0, 1] with r 3 at index 0; r is more than the iterable's length, which combinations with replacement allows. Decided by whether the docstring's equivalence holds or the library raises ValueError here
+    iterable [0, 1, 2] with r 0 at index 0; decided by there being exactly one combination of length 0, the empty one
+    empty iterable with r 0 at index 0, then the empty iterable with r 1 at index 0; decided by how many combinations an empty pool has
+    iterable [1, 1] with r 2 at index 1; repeated values in the iterable are separate positions, which decides which combination is at index 1
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-105017-sentences

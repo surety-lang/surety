@@ -1,0 +1,13 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py lines /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__interleave_longest.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 13s
+
+round 1: tokens 15669/1203
+interleave_longest  inputs 0+500  mutants 1 of 13 apply  slipped 0  caught 1  underdetermined 3 in 1 gap
+  gap  out can hold the same elements in another order; 3 inputs show it; the smallest in: [{items: [0, 2]}]
+
+reaching for (for the sheet):
+  - for every iterable s, every iterable t, every occurrence a in s.items and every occurrence b in t.items, if a's position in s.items is less than b's position in t.items, then the output occurrence that came from a sits before the output occurrence that came from b. The notation has no way to name an occurrence's position as a number to compare across two different lists. `before` cannot compare across them either. It can only link an input occurrence to an output occurrence by value, which picks the wrong copy when the same value appears in two iterables, as in [1, 2] and [2, 1].
+  - for every pair of iterables s before t in iterables, every occurrence a in s.items and every occurrence b in t.items at the same position, the output occurrence that came from a sits before the output occurrence that came from b. This needs the same two missing pieces: an occurrence's position as a number to compare across lists, and a link from an input occurrence to the output occurrence it became that does not go through value equality.
+
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__interleave_longest.sur still carries `// draft`; review the lines, remove the mark, then `surety pin`.
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-103243-lines

@@ -1,0 +1,17 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__iequals.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__iequals.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 19s
+
+round 1: tokens 15364/1628
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__iequals.sur: parse ok
+  drafted: 1 type, 0 named values; each under // drafted, read first
+  sentences: 2, no property lines yet; stage 2 asks for them
+  examples wanted: 7, as // example wanted lines; yours to turn into e: blocks or delete
+    no sequences given at all; the "every two" claims hold vacuously and decide it
+    a single sequence ["a", "b", "c"]; every pair is that sequence with itself
+    two empty sequences; equal with no items to compare
+    ["a", "b", "c"] and ["a", "b"], one a prefix of the other; the length difference decides it
+    ["a", "b", "c"] and ["a", "c", "b"], the same items in a different order; order decides it
+    four copies of ["a", "b", "c"] (the docstring's string, list, tuple and iterator flattened to one item type); all pairs equal
+    ["a", "b"], ["a", "b"], ["a", "x"], with only the last sequence differing; one bad pair decides it
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-104724-sentences

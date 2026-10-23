@@ -1,0 +1,16 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__interleave.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__interleave.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 31s
+
+round 1: tokens 15320/2583
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__interleave.sur: parse ok
+  drafted: 0 types, 0 named values; each under // drafted, read first
+  sentences: 2, no property lines yet; stage 2 asks for them
+  examples wanted: 6, as // example wanted lines; yours to turn into e: blocks or delete
+    no iterables at all; the length sentence has no shortest iterable to measure, and the output is decided by what zero rounds mean
+    [[1, 2, 3], [4, 5], [6, 7, 8]], the docstring case; the second iterable is the shortest and decides how many rounds there are
+    [[1, 2], [], [3]]; one iterable is empty, so there are zero rounds
+    a single iterable [1, 2, 3]; each round has one element, so the rounds are that iterable's positions
+    [[1, 2], [3, 4]], equal lengths; every element of every iterable is reached
+    [[5, 5], [5, 9]]; equal values in different iterables, so only position decides which iterable each output element came from
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-103212-sentences

@@ -1,0 +1,16 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py lines /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__product_index.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 30s
+
+round 1: tokens 16262/1617
+round 1: /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__product_index.sur: line 14: `Err(...)` is a pattern; a value is expected here (pattern_as_value)
+round 2: tokens 16373/1296
+product_index  inputs 0+500  mutants 14 of 24 apply  slipped 0  caught 14  underdetermined 6 in 1 gap
+  gap  on Ok, out can be 0 or 1; 6 inputs show it; the smallest in: ([], [], 0)
+
+reaching for (for the sheet):
+  - pair each value of element with the iterable at the same position in iterables written out repeat times end to end (the value at position k with iterables at position k mod len(iterables)), then say: if any value is not in its paired iterable's values, out is exactly one Err equal to not_in_product_err. The notation has no position index on a binder, no zip of two lists, no repetition of a list and no %.
+  - (len(element) == len(iterables) * repeat and every value of element, at position k, is in the values of iterables at position k mod len(iterables)) -> exactly_one Ok(_) in out. The pairing of each value with its iterable by position across the repeated iterables cannot be written: there is no position index on a binder, no zip and no list repetition.
+  - the Ok value equals the position, counted from 0, of the first product equal to element in the list of all products of the iterables repeated repeat times, ordered lexicographically with the last iterable varying fastest. Equivalently, it is the mixed-radix sum over positions k of (the index of the first occurrence of element at position k in its iterable's values) times the product of the lengths of the iterables after position k. The notation cannot build the product list, cannot take the index of a value's first occurrence, and has no sum or product over positions.
+
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__product_index.sur still carries `// draft`; review the lines, remove the mark, then `surety pin`.
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-105226-lines

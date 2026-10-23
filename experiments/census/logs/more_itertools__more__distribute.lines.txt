@@ -1,0 +1,17 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py lines /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__distribute.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 1 in 94s
+
+round 1: tokens 15916/3302
+round 1: /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__distribute.sur: line 11: a quantifier must be the last operand on its line (quantifier_mid_line)
+round 2: tokens 16024/3610
+round 2: /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__distribute.sur: line 11: `Err(...)` is a pattern; a value is expected here (pattern_as_value)
+round 3: tokens 16027/2202
+round 3: /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__distribute.sur: line 11: a quantifier must be the last operand on its line (quantifier_mid_line)
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__distribute.sur: /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__distribute.sur: line 11: a quantifier must be the last operand on its line (quantifier_mid_line)
+
+reaching for (for the sheet):
+  - the list made by taking each non-empty group's first item (g[0 .. 1]) in the order the groups appear in gs, compared with == to items[0 .. n]; the notation has no way to map a slice over every element of a list to build that list
+  - for a successful output gs, distribute(n, items[n .. len(items)]) is Ok(rest) where, for every position i, rest's group at i equals gs's group at i with its first item dropped (g[1 .. len(g)]); the notation has no positional pairing of two lists and no map over a list, so "each group without its first item" cannot be built or compared group by group
+
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__distribute.sur still carries `// draft`; review the lines, remove the mark, then `surety pin`.
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-103806-lines

@@ -1,0 +1,19 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__split_into.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__split_into.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 28s
+
+round 1: tokens 15709/2675
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__split_into.sur: parse ok
+  drafted: 0 types, 0 named values; each under // drafted, read first
+  sentences: 6, no property lines yet; stage 2 asks for them
+  examples wanted: 9, as // example wanted lines; yours to turn into e: blocks or delete
+    iterable [1,2,3,4,5,6], sizes [1,2,3]: the sizes sum exactly to the length, so every chunk is full
+    iterable [1,2,3,4,5,6], sizes [2,3]: the sizes sum to less than the length, so the tail is not returned
+    iterable [1,2,3,4], sizes [1,2,3,4]: the third chunk overruns the iterable and the fourth comes back empty
+    iterable [1,2,3,4,5,6,7,8,9,0], sizes [2,3,None]: the None chunk takes everything that remains
+    iterable [1,2,3,4,5], sizes [2,None,1]: the size after the first None gets no chunk at all
+    iterable [1,2,3], sizes []: no sizes, so no chunks
+    iterable [], sizes [2,None]: every chunk comes back empty, including the None chunk
+    iterable [1,2,3], sizes [1,0,2]: a size of 0 is an empty chunk in the middle and uses up nothing
+    iterable [1,2,3], sizes [-1]: islice refuses a negative size; the author decides whether this is an error case or a refinement on sizes
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-103627-sentences

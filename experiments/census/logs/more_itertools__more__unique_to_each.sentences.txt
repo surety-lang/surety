@@ -1,0 +1,17 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__unique_to_each.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__unique_to_each.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 23s
+
+round 1: tokens 15590/2151
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__unique_to_each.sur: parse ok
+  drafted: 1 type, 0 named values; each under // drafted, read first
+  sentences: 6, no property lines yet; stage 2 asks for them
+  examples wanted: 7, as // example wanted lines; yours to turn into e: blocks or delete
+    no iterables at all: the output has one entry per input, so it is empty
+    one iterable ["a", "b", "a"]: there are no other iterables, so every element and its duplicate stay, in order
+    the docstring's packages ["A", "B"], ["B", "C"], ["B", "D"]: "B" is in all three, each of the others in one
+    "mississippi" and "missouri" as character lists: a repeated element found in no other iterable is kept every time it occurs
+    two identical iterables ["a", "b"] and ["a", "b"]: they are at different positions, so each one's elements count as in another iterable
+    ["a", "a"] and ["b"]: an element repeated within one iterable is not in a different one, so both copies stay
+    an empty iterable [] beside ["a"]: the empty one's entry has no elements, and it removes nothing from the other
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-103030-sentences

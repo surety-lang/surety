@@ -1,0 +1,19 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__split_when.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__split_when.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 36s
+
+round 1: tokens 15535/3420
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__split_when.sur: parse ok
+  drafted: 2 types, 0 named values; each under // drafted, read first
+  sentences: 6, no property lines yet; stage 2 asks for them
+  examples wanted: 9, as // example wanted lines; yours to turn into e: blocks or delete
+    the docstring's run, values [1, 2, 3, 3, 2, 5, 2, 4, 2] with split_before true where the previous value is larger, maxsplit -1: every mark begins a piece
+    the same items at maxsplit 2: the third mark stays inside the last piece
+    no items, maxsplit -1: the source returns before taking any item, so decide whether the output is no pieces or one empty piece
+    no items, maxsplit 0: the source yields list(iterable) before looking, so decide between no pieces and one empty piece
+    three items with every item marked, maxsplit 0: no split is allowed, so all items stay in one piece
+    one item marked split_before, maxsplit -1: the first item's mark is never consulted
+    the docstring's items at maxsplit -2: any negative maxsplit counts down without reaching 1, so there is no limit
+    the docstring's items at maxsplit 10, more than there are marks: the limit is never reached
+    items with no marks after the first, maxsplit -1: the whole input is one piece
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-103617-sentences

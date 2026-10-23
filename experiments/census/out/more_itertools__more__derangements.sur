@@ -1,0 +1,56 @@
+// draft
+// drafted
+type Arrangement = { items: Text[] }
+
+derangements(iterable: Text[], r: Option<Int>) -> Arrangement[]
+	note "yield every arrangement of r of the iterable's elements, or of all of them when r is not given, in which no element sits at its original index, with elements told apart by position and not by value"
+	# Every derangement has r items when r is given, and as many items as the iterable when it is
+	# not.
+	all d in out: (r == None -> len(d.items) == len(iterable)) and (r != None -> len(d.items) == r)
+	# Every derangement's items are drawn from the iterable: each item is an occurrence of an input
+	# element, and no occurrence is used twice.
+	all d in out: d.items drawn_from iterable
+	# No derangement places an input occurrence at its own index: the item at each index of a
+	# derangement comes from a different index of the iterable, even when the two have the same
+	# value.
+	// reaching for: for each derangement, a one-to-one assignment of input positions to its items
+	// in which no item at index i came from input position i. A derangement is a list of Text and
+	// does not record which input position each item came from. The notation has no binder over
+	// indices and no existential over assignments. So it can only compare values, and that would
+	// wrongly reject ["Bob", "Alice", "Bob"] from ["Alice", "Bob", "Bob"].
+	# Every arrangement of the right length drawn from the iterable that leaves no occurrence at its
+	# own index is in the output.
+	// reaching for: a quantifier over every arrangement of r input positions (or all of them when r
+	// is None) with no position at its own index, saying the arrangement of values it picks out is
+	// in out. The notation quantifies only over lists that exist in the inputs or out, not over all
+	// permutations of a list.
+	# Each arrangement of input positions appears in the output exactly once, so two derangements
+	# may be equal by value when the iterable repeats a value.
+	// reaching for: the multiplicity of each value arrangement in out equals the number of
+	// fixed-point-free arrangements of input positions that produce it. This needs each
+	// derangement's source positions, which the output does not carry, and a count over position
+	// arrangements. `unique` and `drawn_from` compare values, so they would wrongly forbid the
+	// repeats.
+	# The derangements come in lexicographic order of the input positions they draw from.
+	// reaching for: out sorted lexicographically by each derangement's sequence of source input
+	// positions. `sorted_by` takes field keys, not a key that is a list of positions, and a
+	// derangement's source positions are not recorded in it. Sorting by the item values would be
+	// wrong whenever the iterable is not already sorted.
+	// example wanted: ["Alice", "Bob", "Carol", "Dave"] with no r: the Secret Santa case the
+	// docstring prints, order included
+	// example wanted: ["0", "1", "2"] with r 2: a partial derangement compares each index of the
+	// shorter tuple with the same index of the input
+	// example wanted: ["Alice", "Bob", "Bob"] with no r: a "Bob" may sit at index 1 because it came
+	// from index 2; identity is by position
+	// example wanted: ["a", "a", "b", "b"] with no r: one value arrangement is drawn from several
+	// position arrangements; the claim that each position arrangement appears once decides how many
+	// times it appears
+	// example wanted: the empty iterable with no r: whether the one empty arrangement counts as a
+	// derangement (it has no index to fix)
+	// example wanted: ["a", "b"] with r 0: the same question for the empty arrangement on a
+	// non-empty iterable
+	// example wanted: ["a", "b"] with r 3: no arrangement of three items can be drawn from two
+	// occurrences
+	// example wanted: ["a"] with no r: the only arrangement fixes its one element
+	// example wanted: ["a", "b"] with r -1: Python's permutations raises here; the author decides
+	// whether this becomes an error case in a Result

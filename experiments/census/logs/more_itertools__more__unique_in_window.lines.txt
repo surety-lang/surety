@@ -1,0 +1,15 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py lines /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__unique_in_window.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 47s
+
+round 1: tokens 15851/2189
+round 1: /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__unique_in_window.sur: line 13: `Err(...)` is a pattern; a value is expected here (pattern_as_value)
+round 2: tokens 15965/2186
+unique_in_window  inputs 0+500  mutants 7 of 13 apply  slipped 0  caught 7  underdetermined 6 in 1 gap
+  gap  on Ok, out can have {key: "b", value: "a"} or not; 6 inputs show it; the smallest in: ([{key: "b", value: "a"}, {key: "", value: ""}, {key: "", value: "a"}, {key: "a"…
+
+reaching for (for the sheet):
+  - a binder that gives an input occurrence's position p and says which input occurrences the output kept, so I could write: every kept occurrence of items at position p has its key not in items[p - (n - 1) .. p].key. The notation has no position binder, and leftover's earliest-match pairing gives the wrong occurrence when equal items are both dropped and kept: with [x, x, y, z, x] and n = 2 the kept copies are positions 0 and 4, but leftover pairs the output's second x with position 1.
+  - a position binder over the input occurrences the output dropped, so I could write: every dropped occurrence of items at position p has its key in items[p - (n - 1) .. p].key, with the window taken over all input items and not only the kept ones. `leftover` cannot stand in for this, because it treats the earliest equal occurrences as kept and so can name a kept copy as the dropped one when an item repeats.
+
+/Users/bennett/projects/surety/experiments/census/out/more_itertools__more__unique_in_window.sur still carries `// draft`; review the lines, remove the mark, then `surety pin`.
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-105409-lines

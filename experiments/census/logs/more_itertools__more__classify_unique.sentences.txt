@@ -1,0 +1,15 @@
+$ /Users/bennett/.pyenv/versions/3.14.0/bin/python3 /Users/bennett/projects/surety/experiments/draft.py sentences /Users/bennett/projects/surety/experiments/census/problems/more_itertools__more__classify_unique.md --out /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__classify_unique.sur --surety /Users/bennett/projects/surety/target/release/surety --model claude-opus-5-5 --effort high
+exit 0 in 24s
+
+round 1: tokens 15484/1657
+wrote /Users/bennett/projects/surety/experiments/census/out/more_itertools__more__classify_unique.sur: parse ok
+  drafted: 2 types, 0 named values; each under // drafted, read first
+  sentences: 4, no property lines yet; stage 2 asks for them
+  examples wanted: 5, as // example wanted lines; yours to turn into e: blocks or delete
+    the empty input, where there is nothing to classify
+    the docstring's 'otto' with each key equal to its value; the adjacent repeat and the non-adjacent repeat decide the flags differently
+    values "a" then "A" with keys both "a", as with a case-folding key; the keys decide, not the values
+    values "x" then "x" with keys "1" then "2"; equal values with different keys stay unique
+    "aba" with each key equal to its value; a key that returns after a different one is new to its run but already seen
+  examples: none, by rule
+run written to /Users/bennett/projects/surety/experiments/draft/runs/20261023-105456-sentences

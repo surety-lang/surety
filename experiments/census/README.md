@@ -1,6 +1,6 @@
 # Reach-for census (2026-10-23)
 
-The census measures which forms a model reaches for that the property fragment lacks, over real pure Python functions. `pick_functions.py` picks the functions and writes one problem file each; `run_census.py` runs the draft, both stages, per problem and checkpoints to `results.jsonl`. `draft.py` is not changed.
+The census measures which forms a model reaches for that the property fragment lacks, over real pure Python functions. `pick_functions.py` picks the functions and writes one problem file each; `run_census.py` runs the draft, both stages, per problem and checkpoints to `results.jsonl`. It passes stage 2 `--census`, `draft.py`'s census-only flag: the slice 6 lines stage refuses a file with no example, no census draft has one, and the flag skips that gate so the second half runs on the terms of the first, drafted before it. Each record says so (`census_flag`, and `stage2.example_gate` from the run directory's `census.json`), and carries `prompt_sha256`, the hash of the prompt material every problem shares. `NOTICE` names the libraries the problems quote, with their licenses.
 
 ## Running it locally
 

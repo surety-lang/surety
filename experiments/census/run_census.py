@@ -7,23 +7,30 @@ results.jsonl so a stopped run resumes.
 
 For each function in functions.jsonl with no complete record in results.jsonl:
 stage 1 (`draft.py sentences <problem> --out out/<id>.sur`), then, when the
-file parses, stage 2 (`draft.py lines out/<id>.sur`). draft.py is not changed;
-it is run as a subprocess with the prebuilt checker passed by `--surety`. Each
+file parses, stage 2 (`draft.py lines out/<id>.sur --census`). `--census` is
+draft.py's census-only flag, passed by this runner alone: it skips the example
+gate the author's flow keeps (no census draft has an example), so the second
+half runs on the terms of the first, drafted before the gate. draft.py is run
+as a subprocess with the prebuilt checker passed by `--surety`. Each
 stage's stdout and stderr go to logs/<id>.<stage>.txt. One JSON record per
 function is appended to results.jsonl:
 
-    id, qualname, source, complete, error, prompt_sha256,
+    id, qualname, source, complete, error, prompt_sha256, census_flag,
     stage1: exit, rounds, tokens_in, tokens_out, parse_ok, sentences,
             examples_wanted, notes, round_errors, last_error, run_dir, seconds
     stage2: exit, rounds, tokens_in, tokens_out, parse_ok, lines, reach,
             sentences [{text, line, reach}], refused, mutants (verbatim),
             mutants_summary {applicable, of, slipped, caught, not_judged,
-            no_passing, underdetermined, gaps, accepted}, round_errors,
-            round_hints, mended, round_reach, last_error, run_dir, seconds
+            no_passing, underdetermined, gaps, accepted}, example_gate,
+            round_errors, round_hints, mended, round_reach, last_error,
+            run_dir, seconds
 
 prompt_sha256 is the hash of the prompt material every problem shares: both
 stages' system prompts (the notation block in each), the docs and the corpus
 draft.py hands over. Two records with one hash were drafted from one prompt.
+census_flag says stage 2 was asked with `--census`; stage2.example_gate is what
+the run directory's census.json says of the gate, "skipped" for a draft with
+no example. Records from the first half, run before the gate, have neither.
 
 round_errors has one entry per round, the checker's report, or null for the
 round that parsed. For stage 2 it is read from the run's rounds.json, one
@@ -188,6 +195,12 @@ def stage2_rounds(d: pathlib.Path) -> tuple[list[str | None], list[dict], list[d
     return errors, hints, mended
 
 
+def example_gate(d: pathlib.Path) -> str | None:
+    """What a `--census` run directory's census.json says of the example gate."""
+    f = d / "census.json"
+    return json.loads(f.read_text(encoding="utf-8")).get("example_gate") if f.exists() else None
+
+
 def round_reach(d: pathlib.Path) -> list[int | None]:
     """How many sentences stand as reach-fors after each round, from
     rounds.json; for a run directory from before slice 6, how many each
@@ -277,7 +290,7 @@ def census_one(fn: dict, args: argparse.Namespace) -> dict:
     out = OUT / f"{fid}.sur"
     rec = {"id": fid, "qualname": fn["qualname"], "source": fn["source"], "complete": False, "error": None,
            "started": dt.datetime.now().isoformat(timespec="seconds"), "prompt_sha256": PROMPT,
-           "stage1": None, "stage2": None}
+           "census_flag": True, "stage1": None, "stage2": None}
     common = ["--surety", str(SURETY), "--model", args.model, "--effort", args.effort]
     cmd1 = [sys.executable, str(DRAFT), "sentences", str(problem), "--out", str(out), *common]
     if args.reply1:
@@ -304,7 +317,7 @@ def census_one(fn: dict, args: argparse.Namespace) -> dict:
     if not s1["parse_ok"]:
         rec["complete"] = True  # stage 1 never parsed after its rounds: that is a result
         return rec
-    cmd2 = [sys.executable, str(DRAFT), "lines", str(out), *common]
+    cmd2 = [sys.executable, str(DRAFT), "lines", str(out), "--census", *common]
     if args.reply2:
         cmd2 += ["--reply", args.reply2]
     code, text, secs = run(cmd2, LOGS / f"{fid}.lines.txt")
@@ -318,7 +331,8 @@ def census_one(fn: dict, args: argparse.Namespace) -> dict:
     s2 = {"exit": code, "rounds": rounds, "tokens_in": tin, "tokens_out": tout,
           "parse_ok": bool(errors) and errors[-1] is None,
           "lines": None, "reach": [], "sentences": [], "refused": [l.strip() for l in text.splitlines() if l.startswith("refused a line")],
-          "mutants": None, "mutants_summary": None, "round_errors": errors, "round_hints": hints, "mended": mended,
+          "mutants": None, "mutants_summary": None, "example_gate": example_gate(run_dir) if run_dir else None,
+          "round_errors": errors, "round_hints": hints, "mended": mended,
           "round_reach": round_reach(run_dir) if run_dir else [], "last_error": last_error(text),
           "run_dir": str(run_dir) if run_dir else None, "seconds": round(secs)}
     rec["stage2"] = s2
@@ -382,7 +396,8 @@ def main() -> int:
             return
         except Exception as e:  # never lose a slot to a bug
             rec = {"id": fn["id"], "qualname": fn["qualname"], "source": fn["source"], "complete": False,
-                   "error": f"runner exception: {type(e).__name__}: {e}", "stage1": None, "stage2": None}
+                   "error": f"runner exception: {type(e).__name__}: {e}", "prompt_sha256": PROMPT,
+                   "census_flag": True, "stage1": None, "stage2": None}
         append_result(rec)
         n += 1
         s1, s2 = rec.get("stage1") or {}, rec.get("stage2") or {}

@@ -26,7 +26,10 @@ output, so the file is parsed and an error goes back to the model for up to
 three rounds, as in stage 2. The author then edits the sentences in the editor.
 
 `lines` refuses a file that does not parse (exit 2, with the error: it only
-adds lines under sentences, and the types are stage 1's). Otherwise it asks,
+adds lines under sentences, and the types are stage 1's), and a file with no
+`e:` block (exit 2: a line is asked for only against an example that can run
+it). `--census`, passed by the census runner alone, skips the second refusal
+and says so in the run directory's census.json. Otherwise it asks,
 for every sentence with no property line beneath it, for one line in the
 notation; inserts it; runs `surety parse`; feeds errors back for
 up to three rounds; then runs `surety mutants` and prints its report. A
@@ -576,14 +579,21 @@ def cmd_lines(args: argparse.Namespace) -> int:
     if code != 0:
         print(f"{path} does not parse, so stage 2 does not start: it only adds lines under the sentences, and the types are stage 1's. The checker reports:\n{errors.strip()}", file=sys.stderr)
         return 2
-    # A line is asked for only against an example that can run it.
-    if not any(line.strip() == "e:" for line in original.split("\n")):
+    # A line is asked for only against an example that can run it. The
+    # census runner alone passes --census, which skips this so the census's
+    # second half runs on the terms of its first, drafted before the gate.
+    has_example = any(line.strip() == "e:" for line in original.split("\n"))
+    if not has_example and not args.census:
         print(f"{path} has no example, so stage 2 does not start: a line is asked for only against an example that can run it, and a line with none to run it says nothing yet. Each `// example wanted:` line is a case to turn into one: the editor's code action writes the block with the input filled in, and the output is yours to type.", file=sys.stderr)
         for case, lit in wanted_left(original):
             print(f"  example wanted: {case}" + (f"\n    in: {lit}" if lit else ""), file=sys.stderr)
         return 2
     d = run_dir("lines")
     (d / "before.sur").write_text(original, encoding="utf-8")
+    if args.census:
+        gate = "passed" if has_example else "skipped"
+        (d / "census.json").write_text(json.dumps({"census": True, "example_gate": gate}) + "\n", encoding="utf-8")
+        print(f"census run (--census): the example gate is {gate}; the author's flow never passes this flag")
     todo = sentences_without_lines(original)
     if not todo:
         print("every sentence already has a line beneath it")
@@ -730,6 +740,9 @@ def main() -> int:
             p.add_argument("--out", required=True, help="the .sur file to write")
         else:
             p.add_argument("file", help="the .sur file whose sentences want lines")
+            p.add_argument("--census", action="store_true",
+                           help="for the census runner alone: ask for lines on a file with no example, which the author's flow refuses, "
+                                "so the census's second half runs on the terms of its first; recorded as census.json in the run directory")
     args = ap.parse_args()
     return cmd_sentences(args) if args.stage == "sentences" else cmd_lines(args)
 

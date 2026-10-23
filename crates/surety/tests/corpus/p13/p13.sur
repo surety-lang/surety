@@ -9,18 +9,16 @@ errors = [size_error, page_error, past_end_error]
 
 paginate(items: Item[], page: Int, size: Int) -> Result<Page, PageError[]>
 	note "return the zero-based page of the items at the given page size, with the total number of pages and whether a later page exists"
-	# The output is Ok exactly when the size is at least 1, the page is at least 0, and page times
-	# size is below the item count, or below 1 for an empty list.
-	all_checks_ok = size >= 1 and page >= 0 and page * size < max(len(items), 1)
-	all_checks_ok <-> (exactly_one Ok(_) in out)
 	# The size error is reported exactly when the size is less than 1.
 	size < 1 <-> (exactly_one Err(errs) in out: size_error in errs)
 	# The page error is reported exactly when the page is less than 0.
 	page < 0 <-> (exactly_one Err(errs) in out: page_error in errs)
-	# The past-end error is reported exactly when the size is at least 1, the page is at least 0,
-	# and page times size is at least the item count, or at
+	# The past-end error is reported exactly when the page and size specified is out of range
 	past_end = size >= 1 and page >= 0 and page * size >= max(len(items), 1)
 	past_end <-> (exactly_one Err(errs) in out: past_end_error in errs)
+	# The output is Ok when no error occurs
+	all_checks_ok = size >= 1 and page >= 0 and page * size < max(len(items), 1)
+	all_checks_ok <-> (exactly_one Ok(_) in out)
 	# Every reported error is one of the size error, the page error and the past-end error.
 	all Err(errs) in out: errs drawn_from errors
 	all Err(errs) in out: errs unordered

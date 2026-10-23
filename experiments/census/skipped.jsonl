@@ -1,0 +1,177 @@
+{"module": "more_itertools.more", "name": "peekable", "reason": "class, not a function"}
+{"module": "more_itertools.more", "name": "consumer", "reason": "decorator; side effects (advances a coroutine)"}
+{"module": "more_itertools.more", "name": "with_iter", "reason": "IO (context manager, file handles)"}
+{"module": "more_itertools.more", "name": "sized_iterator", "reason": "class, not a function"}
+{"module": "more_itertools.more", "name": "raise_", "reason": "no docstring; raises"}
+{"module": "more_itertools.more", "name": "bucket", "reason": "class, not a function"}
+{"module": "more_itertools.more", "name": "interleave_randomly", "reason": "randomness"}
+{"module": "more_itertools.more", "name": "side_effect", "reason": "side effects by definition"}
+{"module": "more_itertools.more", "name": "numeric_range", "reason": "class, not a function"}
+{"module": "more_itertools.more", "name": "islice_extended", "reason": "class, not a function"}
+{"module": "more_itertools.more", "name": "SequenceView", "reason": "class, not a function"}
+{"module": "more_itertools.more", "name": "seekable", "reason": "class, not a function"}
+{"module": "more_itertools.more", "name": "run_length", "reason": "class, not a function"}
+{"module": "more_itertools.more", "name": "make_decorator", "reason": "returns a decorator; about functions, not data"}
+{"module": "more_itertools.more", "name": "time_limited", "reason": "class, not a function"}
+{"module": "more_itertools.more", "name": "sample", "reason": "randomness"}
+{"module": "more_itertools.more", "name": "AbortThread", "reason": "class, not a function"}
+{"module": "more_itertools.more", "name": "callback_iter", "reason": "class, not a function"}
+{"module": "more_itertools.more", "name": "countable", "reason": "class, not a function"}
+{"module": "more_itertools.more", "name": "iter_suppress", "reason": "input is an iterator that raises, not data"}
+{"module": "more_itertools.more", "name": "serialize", "reason": "class, not a function"}
+{"module": "more_itertools.more", "name": "synchronized", "reason": "threading; side effects"}
+{"module": "more_itertools.more", "name": "concurrent_tee", "reason": "threading; side effects"}
+{"module": "more_itertools.more", "name": "random_ordered_range", "reason": "randomness"}
+{"module": "more_itertools.recipes", "name": "consume", "reason": "side effects (advances an iterator); IO in the docstring"}
+{"module": "more_itertools.recipes", "name": "padnone", "reason": "alias of pad_none"}
+{"module": "more_itertools.recipes", "name": "pairwise", "reason": "docstring is 'Wrapper for itertools.pairwise' (thin)"}
+{"module": "more_itertools.recipes", "name": "iter_except", "reason": "calls a function until it raises; effectful"}
+{"module": "more_itertools.recipes", "name": "random_product", "reason": "randomness"}
+{"module": "more_itertools.recipes", "name": "random_permutation", "reason": "randomness"}
+{"module": "more_itertools.recipes", "name": "random_combination", "reason": "randomness"}
+{"module": "more_itertools.recipes", "name": "random_combination_with_replacement", "reason": "randomness"}
+{"module": "more_itertools.recipes", "name": "loops", "reason": "thin docstring (an n-element iterable of unspecified values)"}
+{"module": "more_itertools.recipes", "name": "Stats", "reason": "class, not a function"}
+{"module": "more_itertools.recipes", "name": "random_derangement", "reason": "randomness"}
+{"module": "toolz.itertoolz", "name": "isiterable", "reason": "type introspection, not a data relation"}
+{"module": "toolz.itertoolz", "name": "getter", "reason": "no docstring"}
+{"module": "toolz.itertoolz", "name": "random_sample", "reason": "randomness"}
+{"module": "toolz.functoolz", "name": "instanceproperty", "reason": "class-like decorator"}
+{"module": "toolz.functoolz", "name": "InstanceProperty", "reason": "class, not a function"}
+{"module": "toolz.functoolz", "name": "curry", "reason": "class, not a function"}
+{"module": "toolz.functoolz", "name": "Compose", "reason": "class, not a function"}
+{"module": "toolz.functoolz", "name": "juxt", "reason": "class, not a function"}
+{"module": "toolz.functoolz", "name": "do", "reason": "side effects by definition"}
+{"module": "toolz.functoolz", "name": "return_none", "reason": "thin docstring"}
+{"module": "toolz.functoolz", "name": "excepts", "reason": "class, not a function"}
+{"module": "toolz.functoolz", "name": "num_required_args", "reason": "introspection of code objects"}
+{"module": "toolz.functoolz", "name": "has_varargs", "reason": "introspection of code objects"}
+{"module": "toolz.functoolz", "name": "has_keywords", "reason": "introspection of code objects"}
+{"module": "toolz.functoolz", "name": "is_valid_args", "reason": "introspection of code objects"}
+{"module": "toolz.functoolz", "name": "is_partial_args", "reason": "introspection of code objects"}
+{"module": "toolz.functoolz", "name": "is_arity", "reason": "introspection of code objects"}
+{"module": "boltons.iterutils", "name": "is_iterable", "reason": "type introspection, not a data relation"}
+{"module": "boltons.iterutils", "name": "is_scalar", "reason": "type introspection, not a data relation"}
+{"module": "boltons.iterutils", "name": "is_collection", "reason": "type introspection, not a data relation"}
+{"module": "boltons.iterutils", "name": "split_iter", "reason": "lazy twin of split"}
+{"module": "boltons.iterutils", "name": "lstrip_iter", "reason": "lazy twin of lstrip"}
+{"module": "boltons.iterutils", "name": "rstrip_iter", "reason": "lazy twin of rstrip"}
+{"module": "boltons.iterutils", "name": "strip_iter", "reason": "lazy twin of strip"}
+{"module": "boltons.iterutils", "name": "chunked_iter", "reason": "lazy twin of chunked"}
+{"module": "boltons.iterutils", "name": "pairwise_iter", "reason": "lazy twin of pairwise"}
+{"module": "boltons.iterutils", "name": "windowed_iter", "reason": "lazy twin of windowed"}
+{"module": "boltons.iterutils", "name": "backoff_iter", "reason": "randomness (jitter)"}
+{"module": "boltons.iterutils", "name": "unique_iter", "reason": "lazy twin of unique"}
+{"module": "boltons.iterutils", "name": "flatten_iter", "reason": "lazy twin of flatten"}
+{"module": "boltons.iterutils", "name": "default_visit", "reason": "no docstring"}
+{"module": "boltons.iterutils", "name": "default_enter", "reason": "no docstring"}
+{"module": "boltons.iterutils", "name": "default_exit", "reason": "no docstring"}
+{"module": "boltons.iterutils", "name": "PathAccessError", "reason": "class, not a function"}
+{"module": "boltons.iterutils", "name": "GUIDerator", "reason": "class, not a function"}
+{"module": "boltons.iterutils", "name": "SequentialGUIDerator", "reason": "class, not a function"}
+{"module": "boltons.strutils", "name": "DeaccenterDict", "reason": "class, not a function"}
+{"module": "boltons.strutils", "name": "HTMLTextExtractor", "reason": "class, not a function"}
+{"module": "boltons.strutils", "name": "html2text", "reason": "depends on an HTML parser's behaviour"}
+{"module": "boltons.strutils", "name": "gunzip_bytes", "reason": "compression; the docstring leans on zlib"}
+{"module": "boltons.strutils", "name": "gzip_bytes", "reason": "compression; gzip output carries a timestamp"}
+{"module": "boltons.strutils", "name": "MultiReplace", "reason": "class, not a function"}
+{"module": "boltons.dictutils", "name": "OrderedMultiDict", "reason": "class, not a function"}
+{"module": "boltons.dictutils", "name": "OMD", "reason": "class, not a function"}
+{"module": "boltons.dictutils", "name": "MultiDict", "reason": "class, not a function"}
+{"module": "boltons.dictutils", "name": "FastIterOrderedMultiDict", "reason": "class, not a function"}
+{"module": "boltons.dictutils", "name": "OneToOne", "reason": "class, not a function"}
+{"module": "boltons.dictutils", "name": "ManyToMany", "reason": "class, not a function"}
+{"module": "boltons.dictutils", "name": "FrozenHashError", "reason": "class, not a function"}
+{"module": "boltons.dictutils", "name": "FrozenDict", "reason": "class, not a function"}
+{"module": "boltons.mathutils", "name": "Bits", "reason": "class, not a function"}
+{"module": "boltons.urlutils", "name": "URLParseError", "reason": "class, not a function"}
+{"module": "boltons.urlutils", "name": "to_unicode", "reason": "no docstring"}
+{"module": "boltons.urlutils", "name": "quote_path_part", "reason": "thin docstring"}
+{"module": "boltons.urlutils", "name": "quote_query_part", "reason": "thin docstring"}
+{"module": "boltons.urlutils", "name": "unquote_to_bytes", "reason": "thin docstring"}
+{"module": "boltons.urlutils", "name": "register_scheme", "reason": "mutates a global registry"}
+{"module": "boltons.urlutils", "name": "cachedproperty", "reason": "class, not a function"}
+{"module": "boltons.urlutils", "name": "URL", "reason": "class, not a function"}
+{"module": "boltons.urlutils", "name": "parse_qsl", "reason": "thin docstring"}
+{"module": "boltons.urlutils", "name": "QueryParamDict", "reason": "class, not a function"}
+{"module": "boltons.timeutils", "name": "parse_td", "reason": "alias of parse_timedelta"}
+{"module": "boltons.timeutils", "name": "decimal_relative_time", "reason": "clock (other defaults to now)"}
+{"module": "boltons.timeutils", "name": "relative_time", "reason": "clock (other defaults to now)"}
+{"module": "boltons.timeutils", "name": "ConstantTZInfo", "reason": "class, not a function"}
+{"module": "boltons.timeutils", "name": "LocalTZInfo", "reason": "class, not a function"}
+{"module": "boltons.timeutils", "name": "USTimeZone", "reason": "class, not a function"}
+{"module": "boltons.formatutils", "name": "BaseFormatField", "reason": "class, not a function"}
+{"module": "boltons.formatutils", "name": "DeferredValue", "reason": "class, not a function"}
+{"module": "boltons.setutils", "name": "IndexedSet", "reason": "class, not a function"}
+{"module": "boltons.setutils", "name": "complement", "reason": "returns a wrapper object, not data"}
+{"module": "boltons.funcutils", "name": "inspect_formatargspec", "reason": "decorators and function introspection, not data relations"}
+{"module": "boltons.funcutils", "name": "get_module_callables", "reason": "decorators and function introspection, not data relations"}
+{"module": "boltons.funcutils", "name": "mro_items", "reason": "decorators and function introspection, not data relations"}
+{"module": "boltons.funcutils", "name": "dir_dict", "reason": "decorators and function introspection, not data relations"}
+{"module": "boltons.funcutils", "name": "copy_function", "reason": "decorators and function introspection, not data relations"}
+{"module": "boltons.funcutils", "name": "partial_ordering", "reason": "decorators and function introspection, not data relations"}
+{"module": "boltons.funcutils", "name": "InstancePartial", "reason": "class, not a function"}
+{"module": "boltons.funcutils", "name": "CachedInstancePartial", "reason": "class, not a function"}
+{"module": "boltons.funcutils", "name": "partial", "reason": "class, not a function"}
+{"module": "boltons.funcutils", "name": "format_invocation", "reason": "decorators and function introspection, not data relations"}
+{"module": "boltons.funcutils", "name": "format_exp_repr", "reason": "decorators and function introspection, not data relations"}
+{"module": "boltons.funcutils", "name": "format_nonexp_repr", "reason": "decorators and function introspection, not data relations"}
+{"module": "boltons.funcutils", "name": "wraps", "reason": "decorators and function introspection, not data relations"}
+{"module": "boltons.funcutils", "name": "update_wrapper", "reason": "decorators and function introspection, not data relations"}
+{"module": "boltons.funcutils", "name": "FunctionBuilder", "reason": "class, not a function"}
+{"module": "boltons.funcutils", "name": "MissingArgument", "reason": "class, not a function"}
+{"module": "boltons.funcutils", "name": "ExistingArgument", "reason": "class, not a function"}
+{"module": "boltons.funcutils", "name": "noop", "reason": "decorators and function introspection, not data relations"}
+{"module": "boltons.funcutils", "name": "once", "reason": "decorators and function introspection, not data relations"}
+{"module": "django.utils.text", "name": "add_truncation_text", "reason": "no docstring"}
+{"module": "django.utils.text", "name": "calculate_truncate_chars_length", "reason": "no docstring"}
+{"module": "django.utils.text", "name": "TruncateHTMLParser", "reason": "class, not a function"}
+{"module": "django.utils.text", "name": "TruncateCharsHTMLParser", "reason": "class, not a function"}
+{"module": "django.utils.text", "name": "TruncateWordsHTMLParser", "reason": "class, not a function"}
+{"module": "django.utils.text", "name": "Truncator", "reason": "class, not a function"}
+{"module": "django.utils.text", "name": "compress_string", "reason": "no docstring; gzip"}
+{"module": "django.utils.text", "name": "StreamingBuffer", "reason": "class, not a function"}
+{"module": "django.utils.text", "name": "compress_sequence", "reason": "no docstring; gzip"}
+{"module": "django.utils.text", "name": "acompress_sequence", "reason": "no docstring; async"}
+{"module": "django.utils.text", "name": "format_lazy", "reason": "lazy evaluation wrapper"}
+{"module": "django.utils.html", "name": "escapejs", "reason": "thin docstring (which characters is not said)"}
+{"module": "django.utils.html", "name": "json_script", "reason": "leans on json serialisation"}
+{"module": "django.utils.html", "name": "conditional_escape", "reason": "depends on an __html__ protocol"}
+{"module": "django.utils.html", "name": "format_html", "reason": "depends on conditional_escape and str.format"}
+{"module": "django.utils.html", "name": "format_html_join", "reason": "depends on format_html"}
+{"module": "django.utils.html", "name": "linebreaks", "reason": "thin docstring (the paragraph rule is not said)"}
+{"module": "django.utils.html", "name": "MLStripper", "reason": "class, not a function"}
+{"module": "django.utils.html", "name": "smart_urlquote", "reason": "thin docstring"}
+{"module": "django.utils.html", "name": "CountsDict", "reason": "class, not a function"}
+{"module": "django.utils.html", "name": "Urlizer", "reason": "class, not a function"}
+{"module": "django.utils.html", "name": "urlize", "reason": "no docstring"}
+{"module": "django.utils.html", "name": "html_safe", "reason": "decorator"}
+{"module": "django.utils.http", "name": "http_date", "reason": "clock (epoch_seconds defaults to now)"}
+{"module": "django.utils.http", "name": "parse_http_date_safe", "reason": "docstring leans on parse_http_date"}
+{"module": "requests.utils", "name": "dict_to_sequence", "reason": "thin docstring"}
+{"module": "requests.utils", "name": "super_len", "reason": "no docstring; IO"}
+{"module": "requests.utils", "name": "get_netrc_auth", "reason": "IO (reads netrc)"}
+{"module": "requests.utils", "name": "guess_filename", "reason": "object attributes, not data"}
+{"module": "requests.utils", "name": "extract_zipped_paths", "reason": "IO (filesystem)"}
+{"module": "requests.utils", "name": "atomic_open", "reason": "IO"}
+{"module": "requests.utils", "name": "dict_from_cookiejar", "reason": "CookieJar object"}
+{"module": "requests.utils", "name": "add_dict_to_cookiejar", "reason": "mutates a CookieJar"}
+{"module": "requests.utils", "name": "get_encodings_from_content", "reason": "thin docstring (regexes not said)"}
+{"module": "requests.utils", "name": "stream_decode_response_unicode", "reason": "IO stream"}
+{"module": "requests.utils", "name": "iter_slices", "reason": "thin docstring"}
+{"module": "requests.utils", "name": "get_unicode_from_response", "reason": "response object; IO"}
+{"module": "requests.utils", "name": "is_ipv4_address", "reason": "thin docstring"}
+{"module": "requests.utils", "name": "is_valid_cidr", "reason": "thin docstring"}
+{"module": "requests.utils", "name": "set_environ", "reason": "mutates the environment"}
+{"module": "requests.utils", "name": "should_bypass_proxies", "reason": "reads the environment"}
+{"module": "requests.utils", "name": "get_environ_proxies", "reason": "reads the environment"}
+{"module": "requests.utils", "name": "resolve_proxies", "reason": "reads the environment"}
+{"module": "requests.utils", "name": "default_user_agent", "reason": "reads package metadata"}
+{"module": "requests.utils", "name": "default_headers", "reason": "thin docstring"}
+{"module": "requests.utils", "name": "guess_json_utf", "reason": "thin docstring"}
+{"module": "requests.utils", "name": "check_header_validity", "reason": "raises; validation only"}
+{"module": "requests.utils", "name": "rewind_body", "reason": "IO"}
+{"module": "humanize.time", "name": "Unit", "reason": "class, not a function"}
+{"module": "humanize.time", "name": "naturaltime", "reason": "clock (relative to now)"}
+{"module": "humanize.time", "name": "naturalday", "reason": "clock (relative to today)"}
+{"module": "humanize.time", "name": "naturaldate", "reason": "clock (relative to today)"}

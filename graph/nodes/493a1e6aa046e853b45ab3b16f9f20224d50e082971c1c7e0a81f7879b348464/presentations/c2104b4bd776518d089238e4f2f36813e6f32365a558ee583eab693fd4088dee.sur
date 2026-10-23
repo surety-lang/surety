@@ -1,0 +1,50 @@
+type LineItem = { amount_cents: Int }
+
+invoice_total(items: LineItem[], rate_bps: Int) -> Int
+	note "sum the line items' amounts in cents, apply the tax rate in basis points to that subtotal, and round the total half-even to a whole cent"
+	# The total is within half a cent of the subtotal, the sum of the items' amounts, with the tax
+	# rate applied to it.
+	abs(out * 10000 - sum(items.amount_cents) * (10000 + rate_bps)) <= 5000
+	# When the taxed subtotal is exactly halfway between two whole cents, the total is the even one.
+	(sum(items.amount_cents) * (10000 + rate_bps)) % 10000 == 5000 -> out % 2 == 0
+	# The total of the items is the total of a single item carrying the sum of their amounts, at the
+	# same rate, so the tax and the rounding are applied once to the subtotal and never per item
+	out == invoice_total([{amount_cents: sum(items.amount_cents)}], rate_bps)
+
+	e:
+		in: ([], 1000)
+		out: 0
+
+	e:
+		in: ([{amount_cents: 125}, {amount_cents: 250}], 0)
+		out: 375
+
+	e:
+		note "the taxed subtotal is exactly 137.5, a half-even tie whose lower neighbour is odd"
+		in: ([{amount_cents: 125}], 1000)
+		out: 138
+
+	e:
+		note "the taxed subtotal is exactly 16.5, a half-even tie whose lower neighbour is even"
+		in: ([{amount_cents: 15}], 1000)
+		out: 16
+
+	e:
+		note "each item alone is a tie at 5.5, the subtotal 10 taxed is exactly 11; decides rounding the total against rounding per item"
+		in: ([{amount_cents: 5}, {amount_cents: 5}], 1000)
+		out: 11
+
+	e:
+		note "the taxed subtotal is 1.4999, just under the half"
+		in: ([{amount_cents: 1}], 4999)
+		out: 1
+
+	e:
+		note "the taxed subtotal is 1.5001, just over the half"
+		in: ([{amount_cents: 1}], 5001)
+		out: 2
+
+	e:
+		note "decides whether a negative amount is allowed and how its tie goes"
+		in: ([{amount_cents: -15}], 1000)
+		out: -16

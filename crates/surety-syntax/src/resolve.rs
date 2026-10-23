@@ -509,6 +509,29 @@ impl<'g> Scope<'g> {
         }
     }
 
+    /// An operand of `+ - *` or `abs` is an `Int`. The refusals name what
+    /// the other types wait on, since each is a reach-for with a known
+    /// answer.
+    fn expect_arith(&self, what: &str, t: &Type, line: usize) -> Result<(), Error> {
+        let msg = match t {
+            Type::Int | Type::Unknown => return Ok(()),
+            Type::Float => format!(
+                "`{what}` on Float waits for the tolerance decision; write amounts in cents and rates in basis points, which are exact Ints"
+            ),
+            Type::Time => format!(
+                "`{what}` on Time: the language has no time arithmetic; Time values compare, they do not add"
+            ),
+            t if textish(t) => {
+                format!("`{what}` on {t}: no arithmetic on text; `len` gives its length")
+            }
+            Type::List(..) => {
+                format!("`{what}` on a list: `sum` and `len` turn a list into one Int")
+            }
+            t => format!("`{what}` needs Int operands, found {t}"),
+        };
+        Err(self.err(line, msg))
+    }
+
     fn expect_list(&self, e: &Expr, line: usize, what: &str) -> Result<Type, Error> {
         match self.infer(e, line)? {
             Type::List(t, _) => Ok(*t),
@@ -645,6 +668,26 @@ impl<'g> Scope<'g> {
                 }
                 Ok(Type::Bool)
             }
+            Expr::Arith(op, a, b) => {
+                let ta = self.infer(a, line)?;
+                let tb = self.infer(b, line)?;
+                for t in [&ta, &tb] {
+                    self.expect_arith(op.symbol(), t, line)?;
+                }
+                Ok(Type::Int)
+            }
+            Expr::Slice { list, from, to } => {
+                let elem = self.expect_list(list, line, "a slice")?;
+                for pos in [from, to] {
+                    let t = self.infer(pos, line)?;
+                    if !matches!(t, Type::Int | Type::Unknown) {
+                        return Err(
+                            self.err(line, format!("a slice position is an Int; found {t}"))
+                        );
+                    }
+                }
+                Ok(Type::list(elem))
+            }
             Expr::Before { a, b, list } => {
                 let elem = self.expect_list(list, line, "`before`")?;
                 let ta = self.infer(a, line)?;
@@ -774,6 +817,14 @@ impl<'g> Scope<'g> {
                     }
                     Ok(result)
                 }
+                "abs" => match tys.as_slice() {
+                    [Type::Int] | [Type::Unknown] => Ok(Type::Int),
+                    [t] => {
+                        self.expect_arith("abs", t, line)?;
+                        Ok(Type::Int)
+                    }
+                    _ => Err(self.err(line, "`abs` takes one Int")),
+                },
                 "flatten" => match tys.as_slice() {
                     [Type::List(inner, _)] => match &**inner {
                         Type::List(t, _) => Ok(Type::list((**t).clone())),

@@ -209,6 +209,25 @@ pub enum BinOp {
     NotIn,
 }
 
+/// Integer arithmetic: `*` binds tighter than `+` and `-`, all three
+/// left-associative and above every comparison.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ArithOp {
+    Add,
+    Sub,
+    Mul,
+}
+
+impl ArithOp {
+    pub fn symbol(self) -> &'static str {
+        match self {
+            ArithOp::Add => "+",
+            ArithOp::Sub => "-",
+            ArithOp::Mul => "*",
+        }
+    }
+}
+
 impl BinOp {
     pub fn symbol(self) -> &'static str {
         match self {
@@ -313,6 +332,16 @@ pub enum Expr {
     Tuple(Vec<Expr>),
     Not(Box<Expr>),
     Binary(BinOp, Box<Expr>, Box<Expr>),
+    /// `a + b`, `a - b`, `a * b` over `Int`.
+    Arith(ArithOp, Box<Expr>, Box<Expr>),
+    /// `list[from .. to]`: the elements from position `from` up to but not
+    /// including `to`, positions from 0, both clamped to the list, so a
+    /// negative `from` starts at 0 and never counts from the end.
+    Slice {
+        list: Box<Expr>,
+        from: Box<Expr>,
+        to: Box<Expr>,
+    },
     Before {
         a: Box<Expr>,
         b: Box<Expr>,
@@ -343,7 +372,7 @@ impl Expr {
                     e.walk(f);
                 }
             }
-            Expr::Binary(_, a, b) | Expr::Relation(_, a, b) => {
+            Expr::Binary(_, a, b) | Expr::Relation(_, a, b) | Expr::Arith(_, a, b) => {
                 a.walk(f);
                 b.walk(f);
             }
@@ -351,6 +380,11 @@ impl Expr {
                 a.walk(f);
                 b.walk(f);
                 list.walk(f);
+            }
+            Expr::Slice { list, from, to } => {
+                list.walk(f);
+                from.walk(f);
+                to.walk(f);
             }
             Expr::Quantifier(q) => {
                 q.domain.walk(f);

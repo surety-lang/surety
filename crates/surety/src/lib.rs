@@ -208,6 +208,9 @@ fn party_summaries(r: &Report) -> (Vec<String>, Vec<String>) {
                 p.line,
                 example + 1
             )),
+            PropVerdict::Error(m) if surety_check::is_obligation_fault(m) => {
+                obligation.push(format!("cannot evaluate property (line {}): {m}", p.line))
+            }
             PropVerdict::Error(_) => {
                 performance.push(format!("cannot evaluate property (line {})", p.line))
             }
@@ -955,7 +958,11 @@ pub fn json_lines(r: &Report) -> Vec<Json> {
             }
             PropVerdict::Error(m) => {
                 let mut f = finding("error", r, Some((p.line, &p.text)), &[]);
-                f["party"] = json!("performance");
+                f["party"] = json!(if surety_check::is_obligation_fault(m) {
+                    "obligation"
+                } else {
+                    "performance"
+                });
                 f["message"] = json!(m);
                 out.push(f);
             }

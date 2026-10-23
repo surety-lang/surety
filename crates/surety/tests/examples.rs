@@ -60,7 +60,7 @@ fn order_is_enforced_where_nothing_says_unordered() {
     assert!(compare(&a, &b, &[]).is_err());
     assert!(compare(&a, &b, &[vec![]]).is_ok());
     // A nested unordered list under an ordered one.
-    let rec = |xs: Vec<i64>| {
+    let rec = |xs: Vec<i128>| {
         Value::record(vec![(
             "orders".into(),
             Value::List(xs.into_iter().map(Value::Int).collect()),

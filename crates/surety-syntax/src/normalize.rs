@@ -326,6 +326,15 @@ impl<'s, 'g> Env<'s, 'g> {
             Expr::Binary(op, a, b) => {
                 format!("({} {} {})", op.symbol(), self.print(a)?, self.print(b)?)
             }
+            Expr::Arith(op, a, b) => {
+                format!("({} {} {})", op.symbol(), self.print(a)?, self.print(b)?)
+            }
+            Expr::Slice { list, from, to } => format!(
+                "(slice {} {} {})",
+                self.print(list)?,
+                self.print(from)?,
+                self.print(to)?
+            ),
             Expr::Before { a, b, list } => {
                 format!(
                     "(before {} {} {})",

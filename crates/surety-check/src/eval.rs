@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use surety_syntax::parser::BUILTINS;
-use surety_syntax::{BinOp, Dir, Expr, Function, QKind, Quantifier, RelOp, Side, Type};
+use surety_syntax::{ArithOp, BinOp, Dir, Expr, Function, QKind, Quantifier, RelOp, Side, Type};
 
 use crate::checker::Checker;
 use crate::value::{Value, from_json, from_json_at, from_json_untyped, to_json};
@@ -283,7 +283,7 @@ impl<'g> Checker<'g> {
     /// Evaluate an expression to a value.
     pub fn eval(&mut self, e: &Expr, env: &Env<'_>) -> Result<Value, String> {
         match e {
-            Expr::Int(i) => Ok(Value::Int(*i)),
+            Expr::Int(i) => Ok(Value::Int(i128::from(*i))),
             Expr::Float(f) => Ok(Value::Float(*f)),
             Expr::Text(s) => Ok(Value::Text(s.clone())),
             Expr::None => Ok(Value::None),
@@ -315,6 +315,21 @@ impl<'g> Checker<'g> {
                 Ok(Value::Bool(!truthy(&v, "`not` operand")?))
             }
             Expr::Binary(op, a, b) => self.eval_binary(*op, a, b, env),
+            Expr::Arith(op, a, b) => {
+                let va = self.eval(a, env)?;
+                let vb = self.eval(b, env)?;
+                arith(*op, &va, &vb)
+            }
+            Expr::Slice { list, from, to } => {
+                let xs = self.eval(list, env)?;
+                let xs = as_list(&xs, "a slice")?;
+                let from = int_of(&self.eval(from, env)?, "a slice position")?;
+                let to = int_of(&self.eval(to, env)?, "a slice position")?;
+                let n = xs.len() as i128;
+                let from = from.clamp(0, n);
+                let to = to.clamp(from, n);
+                Ok(Value::List(xs[from as usize..to as usize].to_vec()))
+            }
             Expr::Before { a, b, list } => {
                 let xs = self.eval(list, env)?;
                 let xs = as_list(&xs, "`before`")?;
@@ -422,6 +437,11 @@ impl<'g> Checker<'g> {
                     ));
                 }
             }
+        }
+        if let Some(big) = vals.iter().find_map(crate::value::exceeds_boundary) {
+            return Err(format!(
+                "{OBLIGATION_FAULT}produces {big} as an input to `{name}`, past the Int the boundary carries"
+            ));
         }
         let callee = self.resolve_callee(name, line)?;
         let display = self.graph_ref_label(&callee, name);
@@ -665,6 +685,47 @@ fn field(v: &Value, f: &str, line: usize) -> Result<Value, String> {
     }
 }
 
+/// The prefix of an evaluation error that is the obligation's own: its
+/// arithmetic overflowing the checker's `i128`, or producing a value the
+/// boundary cannot carry. A performance's integers do not overflow, so the
+/// report puts such an error under `obligation:`, not `performance:`.
+pub const OBLIGATION_FAULT: &str = "the obligation's arithmetic ";
+
+/// Whether an evaluation error is the obligation's own (see `OBLIGATION_FAULT`).
+pub fn is_obligation_fault(message: &str) -> bool {
+    message.starts_with(OBLIGATION_FAULT)
+}
+
+fn int_of(v: &Value, what: &str) -> Result<i128, String> {
+    match v {
+        Value::Int(i) => Ok(*i),
+        other => Err(format!("{what} is an Int, found {other}")),
+    }
+}
+
+/// `+ - *` over `Int`, checked in `i128`.
+fn arith(op: ArithOp, a: &Value, b: &Value) -> Result<Value, String> {
+    let (Value::Int(x), Value::Int(y)) = (a, b) else {
+        return Err(format!(
+            "`{}` needs Int operands, found {} and {}",
+            op.symbol(),
+            a.type_name(),
+            b.type_name()
+        ));
+    };
+    let r = match op {
+        ArithOp::Add => x.checked_add(*y),
+        ArithOp::Sub => x.checked_sub(*y),
+        ArithOp::Mul => x.checked_mul(*y),
+    };
+    r.map(Value::Int).ok_or_else(|| {
+        format!(
+            "{OBLIGATION_FAULT}overflows: {x} {} {y} is past the checker's integer",
+            op.symbol()
+        )
+    })
+}
+
 fn builtin(name: &str, args: &[Value]) -> Result<Value, String> {
     match name {
         "sum" => {
@@ -673,10 +734,12 @@ fn builtin(name: &str, args: &[Value]) -> Result<Value, String> {
             };
             let xs = as_list(list, "`sum`")?;
             if xs.iter().all(|x| matches!(x, Value::Int(_))) {
-                let mut total: i64 = 0;
+                let mut total: i128 = 0;
                 for x in xs {
                     if let Value::Int(i) = x {
-                        total = total.checked_add(*i).ok_or("`sum` overflowed")?;
+                        total = total.checked_add(*i).ok_or_else(|| {
+                            format!("{OBLIGATION_FAULT}overflows in `sum`: the total is past the checker's integer")
+                        })?;
                     }
                 }
                 Ok(Value::Int(total))
@@ -691,13 +754,20 @@ fn builtin(name: &str, args: &[Value]) -> Result<Value, String> {
             }
         }
         "len" => match args {
-            [Value::List(xs)] => Ok(Value::Int(xs.len() as i64)),
-            [Value::Text(s)] => Ok(Value::Int(s.chars().count() as i64)),
+            [Value::List(xs)] => Ok(Value::Int(xs.len() as i128)),
+            [Value::Text(s)] => Ok(Value::Int(s.chars().count() as i128)),
             _ => Err("`len` takes one list or Text".into()),
         },
         "count" => match args {
-            [Value::List(xs)] => Ok(Value::Int(xs.len() as i64)),
+            [Value::List(xs)] => Ok(Value::Int(xs.len() as i128)),
             _ => Err("`count` takes one list".into()),
+        },
+        "abs" => match args {
+            [Value::Int(i)] => i.checked_abs().map(Value::Int).ok_or_else(|| {
+                format!("{OBLIGATION_FAULT}overflows in `abs`: {i} is past the checker's integer")
+            }),
+            [other] => Err(format!("`abs` takes one Int, found {}", other.type_name())),
+            _ => Err("`abs` takes one Int".into()),
         },
         "min" | "max" => {
             if args.len() < 2 {

@@ -1,0 +1,2 @@
+split(total: Int, n: Int) -> Int
+	out == total / n

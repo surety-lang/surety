@@ -57,7 +57,7 @@ impl Budget {
 /// The scalar values generation draws from, per primitive type.
 #[derive(Debug, Clone, Default)]
 pub struct Domain {
-    pub ints: Vec<i64>,
+    pub ints: Vec<i128>,
     pub floats: Vec<f64>,
     pub texts: Vec<String>,
     pub ids: Vec<String>,
@@ -195,9 +195,10 @@ impl Domain {
     pub fn add_expr(&mut self, e: &Expr) {
         e.walk(&mut |sub| match sub {
             Expr::Int(i) => {
-                push_unique(&mut self.ints, *i);
-                push_unique(&mut self.ints, i.saturating_sub(1));
-                push_unique(&mut self.ints, i.saturating_add(1));
+                let i = i128::from(*i);
+                push_unique(&mut self.ints, i);
+                push_unique(&mut self.ints, i - 1);
+                push_unique(&mut self.ints, i + 1);
             }
             Expr::Float(f) => push_float(&mut self.floats, *f),
             Expr::Text(s) => self.push_text(s),
@@ -622,7 +623,7 @@ pub fn generate(
     let length_sets: Vec<Vec<usize>> = {
         let parts: Vec<Vec<Value>> = ranges
             .iter()
-            .map(|(_, lens)| lens.iter().map(|l| Value::Int(*l as i64)).collect())
+            .map(|(_, lens)| lens.iter().map(|l| Value::Int(*l as i128)).collect())
             .collect();
         cartesian(&parts)
             .into_iter()

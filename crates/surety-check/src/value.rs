@@ -10,7 +10,11 @@ use surety_syntax::{Expr, Refinement, Type};
 
 #[derive(Debug, Clone)]
 pub enum Value {
-    Int(i64),
+    /// The boundary caps an `Int` at `i64`; the checker's arithmetic runs
+    /// in `i128`, so a product of two boundary values and a sum over any
+    /// list the generator or an example produces fits, and the obligation's
+    /// own arithmetic never rounds or wraps.
+    Int(i128),
     Float(f64),
     Text(String),
     /// Nanoseconds since the epoch, plus the text as written.
@@ -329,12 +333,12 @@ pub fn from_json_at(json: &Json, ty: &Type, path: &str) -> Result<Value, Boundar
 fn decode(json: &Json, ty: &Type, path: &str) -> Result<Value, BoundaryError> {
     match ty {
         Type::Int => match json {
-            Json::Number(n) if n.is_i64() => Ok(Value::Int(n.as_i64().unwrap())),
+            Json::Number(n) if n.is_i64() => Ok(Value::Int(i128::from(n.as_i64().unwrap()))),
             Json::Number(n)
                 if n.as_f64()
                     .is_some_and(|f| f.fract() == 0.0 && f.abs() < 9.0e15) =>
             {
-                Ok(Value::Int(n.as_f64().unwrap() as i64))
+                Ok(Value::Int(n.as_f64().unwrap() as i128))
             }
             other => Err(bad(
                 path,
@@ -459,6 +463,18 @@ fn describe(json: &Json) -> String {
     }
 }
 
+/// The first `Int` in the value past what the boundary carries (`i64`),
+/// which only the obligation's own arithmetic can produce.
+pub fn exceeds_boundary(v: &Value) -> Option<i128> {
+    match v {
+        Value::Int(i) => i64::try_from(*i).is_err().then_some(*i),
+        Value::List(xs) => xs.iter().find_map(exceeds_boundary),
+        Value::Record(fields) => fields.iter().find_map(|(_, v)| exceeds_boundary(v)),
+        Value::Ok(x) | Value::Err(x) => exceeds_boundary(x),
+        _ => None,
+    }
+}
+
 /// Decode JSON with no type to guide it: a graph reference whose
 /// obligation is not in the graph.
 pub fn from_json_untyped(json: &Json) -> Value {
@@ -467,7 +483,7 @@ pub fn from_json_untyped(json: &Json) -> Value {
         Json::Bool(b) => Value::Bool(*b),
         Json::Number(n) => n
             .as_i64()
-            .map(Value::Int)
+            .map(|i| Value::Int(i128::from(i)))
             .unwrap_or_else(|| Value::Float(n.as_f64().unwrap_or(f64::NAN))),
         Json::String(s) => Value::Text(s.clone()),
         Json::Array(xs) => Value::List(xs.iter().map(from_json_untyped).collect()),
@@ -499,7 +515,12 @@ pub fn from_json_untyped(json: &Json) -> Value {
 /// keys and the record. The Python boundary uses `to_boundary_json`.
 pub fn to_json(v: &Value) -> Json {
     match v {
-        Value::Int(i) => Json::from(*i),
+        // An Int past i64 arises only from the obligation's arithmetic and
+        // never crosses the boundary (`exceeds_boundary` stops it); in a
+        // report or a key it is written as the nearest float.
+        Value::Int(i) => i64::try_from(*i)
+            .map(Json::from)
+            .unwrap_or_else(|_| Json::from(*i as f64)),
         Value::Float(f) => Json::from(*f),
         Value::Text(s) => Json::String(s.clone()),
         Value::Time { text, .. } => Json::String(text.clone()),
@@ -590,7 +611,7 @@ pub fn from_literal(
         }
         (Expr::None, Type::Option(_)) => Ok(Value::None),
         (_, Type::Option(inner)) => from_literal(e, inner, lookup, rest),
-        (Expr::Int(i), Type::Int) => Ok(Value::Int(*i)),
+        (Expr::Int(i), Type::Int) => Ok(Value::Int(i128::from(*i))),
         (Expr::Int(i), Type::Float) => Ok(Value::Float(*i as f64)),
         (Expr::Float(f), Type::Float) => Ok(Value::Float(*f)),
         (Expr::Text(s), Type::Text | Type::Id) => Ok(Value::Text(s.clone())),

@@ -6,7 +6,7 @@ use crate::ast::*;
 use crate::error::{Error, ErrorKind};
 use crate::lexer::{Line, Tok, Token, lex};
 
-pub const BUILTINS: &[&str] = &["sum", "len", "min", "max", "count", "flatten"];
+pub const BUILTINS: &[&str] = &["sum", "len", "min", "max", "count", "flatten", "abs"];
 
 /// The type names `parse_type` knows without a declaration.
 pub const PRIMITIVES: &[&str] = &[
@@ -837,8 +837,8 @@ impl<'a> ExprParser<'a> {
         syntax(self.cur_line(), msg).spanning(self.peek().map(|t| (t.col, t.end)))
     }
     /// A name straight after a complete term: two terms side by side, which
-    /// nothing in the language reads. Most often a multiplication, as in
-    /// `page x size`, and there is no arithmetic yet.
+    /// nothing in the language reads. Most often a product written without
+    /// its `*`, as in `page x size`.
     fn stray_name(&self) -> Option<Error> {
         let t = self.peek()?;
         let Tok::Ident(n) = &t.tok else {
@@ -852,7 +852,7 @@ impl<'a> ExprParser<'a> {
             syntax(
                 t.line,
                 format!(
-                    "unexpected `{n}` after {}: two terms cannot stand side by side, and the language has no multiplication or other arithmetic yet",
+                    "unexpected `{n}` after {}: two terms cannot stand side by side; a product is written `a * b`",
                     before.describe()
                 ),
             )
@@ -959,7 +959,7 @@ impl<'a> ExprParser<'a> {
             let e = self.parse_postfix()?;
             return Ok(Expr::Unique(Box::new(e)));
         }
-        let left = self.parse_postfix()?;
+        let left = self.parse_additive()?;
         let Some(t) = self.peek() else {
             return Ok(left);
         };
@@ -987,7 +987,7 @@ impl<'a> ExprParser<'a> {
         if let Some(op) = op {
             self.operator_ok()?;
             self.bump();
-            let right = self.parse_postfix()?;
+            let right = self.parse_additive()?;
             return Ok(Expr::Binary(op, Box::new(left), Box::new(right)));
         }
         let word = t.ident().unwrap_or("");
@@ -1055,20 +1055,85 @@ impl<'a> ExprParser<'a> {
         }
     }
 
+    /// `+` and `-`, left-associative, below `*`.
+    fn parse_additive(&mut self) -> Result<Expr, Error> {
+        let mut left = self.parse_multiplicative()?;
+        loop {
+            let op = match self.peek().map(|t| &t.tok) {
+                Some(Tok::Sym("+")) => ArithOp::Add,
+                Some(Tok::Sym("-")) => ArithOp::Sub,
+                _ => return Ok(left),
+            };
+            self.operator_ok()?;
+            self.bump();
+            let right = self.parse_multiplicative()?;
+            left = Expr::Arith(op, Box::new(left), Box::new(right));
+        }
+    }
+
+    /// `*`, left-associative, above `+` and `-`. `/` and `%` are refused
+    /// here with the reason: a quotient carries a rounding decision that is
+    /// an obligation's own, so it is a sibling obligation's claim and a
+    /// ratio is compared as products.
+    fn parse_multiplicative(&mut self) -> Result<Expr, Error> {
+        let mut left = self.parse_postfix()?;
+        loop {
+            match self.peek().map(|t| &t.tok) {
+                Some(Tok::Sym("*")) => {
+                    self.operator_ok()?;
+                    self.bump();
+                    let right = self.parse_postfix()?;
+                    left = Expr::Arith(ArithOp::Mul, Box::new(left), Box::new(right));
+                }
+                Some(Tok::Sym("/")) => {
+                    return Err(self.err(
+                        "`/` is not in the language: every division carries a rounding decision that is an obligation's own, so a quotient is a sibling obligation's claim; compare a ratio as products, `a * d <= c * b` for `a / b <= c / d`",
+                    ));
+                }
+                Some(Tok::Sym("%")) => {
+                    return Err(self.err(
+                        "`%` is not in the language: a remainder is a claim, `n == q * m + r` with `0 <= r` and `r < m`",
+                    ));
+                }
+                _ => return Ok(left),
+            }
+        }
+    }
+
+    /// Field access and the positional slice, `xs[a .. b]`.
     fn parse_postfix(&mut self) -> Result<Expr, Error> {
         let mut e = self.parse_primary()?;
-        while self.peek_sym(".") {
-            let dot = self.bump().unwrap();
-            let name = match self.bump() {
-                Some(t) => match t.ident() {
-                    Some(n) if !is_reserved(n) => n.to_string(),
-                    _ => return Err(syntax(t.line, "expected a field name after `.`")),
-                },
-                None => return Err(syntax(dot.line, "expected a field name after `.`")),
-            };
-            e = Expr::Field(Box::new(e), name, dot.line);
+        loop {
+            if self.peek_sym(".") {
+                let dot = self.bump().unwrap();
+                let name = match self.bump() {
+                    Some(t) => match t.ident() {
+                        Some(n) if !is_reserved(n) => n.to_string(),
+                        _ => return Err(syntax(t.line, "expected a field name after `.`")),
+                    },
+                    None => return Err(syntax(dot.line, "expected a field name after `.`")),
+                };
+                e = Expr::Field(Box::new(e), name, dot.line);
+            } else if self.peek_sym("[") && self.ctx != Ctx::Literal {
+                self.bump();
+                let from = self.parse_additive()?;
+                if !self.peek_sym("..") {
+                    return Err(self.err(
+                        "expected `..` in a slice: `xs[a .. b]` is the elements from position a up to but not including b",
+                    ));
+                }
+                self.bump();
+                let to = self.parse_additive()?;
+                self.expect_sym("]")?;
+                e = Expr::Slice {
+                    list: Box::new(e),
+                    from: Box::new(from),
+                    to: Box::new(to),
+                };
+            } else {
+                return Ok(e);
+            }
         }
-        Ok(e)
     }
 
     fn parse_primary(&mut self) -> Result<Expr, Error> {
@@ -1078,9 +1143,10 @@ impl<'a> ExprParser<'a> {
         match &t.tok {
             Tok::Int(i) => Ok(Expr::Int(*i)),
             Tok::Float(f) => Ok(Expr::Float(*f)),
-            // A minus sign is part of a number, read here rather than by the
-            // lexer so that `-` can later be subtraction too. There is no
-            // arithmetic yet, so it goes before a number and nothing else.
+            // A minus sign before a number is part of it, read here rather
+            // than by the lexer so that the same `-` is subtraction between
+            // two terms. Before anything else it is refused: a negation is
+            // written `0 - x`.
             Tok::Sym("-") => match self.peek().map(|n| &n.tok) {
                 Some(Tok::Int(i)) => {
                     let i = *i;
@@ -1094,7 +1160,7 @@ impl<'a> ExprParser<'a> {
                 }
                 _ => Err(syntax(
                     t.line,
-                    "a minus sign goes before a number; the language has no arithmetic yet",
+                    "a minus sign goes before a number; a negation is written `0 - x`",
                 )
                 .spanning(Some((t.col, t.end)))),
             },

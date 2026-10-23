@@ -509,12 +509,17 @@ fn calls_to(scope: &Scope<'_>, e: &Expr, name: &str, truth: bool, out: &mut Vec<
                 calls_to(scope, x, name, false, out);
             }
         }
-        Expr::Relation(_, a, b) => {
+        Expr::Relation(_, a, b) | Expr::Arith(_, a, b) => {
             calls_to(scope, a, name, false, out);
             calls_to(scope, b, name, false, out);
         }
         Expr::Before { a, b, list } => {
             for x in [a, b, list] {
+                calls_to(scope, x, name, false, out);
+            }
+        }
+        Expr::Slice { list, from, to } => {
+            for x in [list, from, to] {
                 calls_to(scope, x, name, false, out);
             }
         }
@@ -566,6 +571,7 @@ fn builtin(name: &str) -> Option<&'static str> {
         "min" => "the least of two or more values of one ordered type",
         "max" => "the greatest of two or more values of one ordered type",
         "flatten" => "a list of lists as one list, in order",
+        "abs" => "the absolute value of an `Int`, an `Int`",
         _ => return None,
     })
 }

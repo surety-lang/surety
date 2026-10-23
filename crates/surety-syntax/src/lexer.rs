@@ -258,9 +258,13 @@ impl Scanner<'_> {
                 (':', _, _) => (":", 1),
                 ('=', _, _) => ("=", 1),
                 ('.', _, _) => (".", 1),
+                ('+', _, _) => ("+", 1),
+                ('*', _, _) => ("*", 1),
                 ('/', Some('/'), _) => {
                     return Err(self.err("`//` comments must start a line"));
                 }
+                ('/', _, _) => ("/", 1),
+                ('%', _, _) => ("%", 1),
                 _ => return Err(self.err(format!("unexpected character `{c}`"))),
             };
             for _ in 0..len {

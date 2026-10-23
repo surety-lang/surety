@@ -158,7 +158,7 @@ fn two_terms_side_by_side_are_named() {
     let e = parse(&text).unwrap_err();
     assert_eq!(
         e.message,
-        "unexpected `x` after `page`: two terms cannot stand side by side, and the language has no multiplication or other arithmetic yet"
+        "unexpected `x` after `page`: two terms cannot stand side by side; a product is written `a * b`"
     );
     let line = text.lines().nth(e.line - 1).unwrap();
     let (from, to) = e.span.unwrap();
@@ -185,8 +185,8 @@ fn two_terms_side_by_side_are_named() {
 /// A minus sign before a number is part of it, wherever a number goes: a
 /// named value, a property, a float, an example, and the line the editor's
 /// quick fix writes for a gap whose input is negative. Rendered, it reads
-/// back the same. Before anything but a number it is refused, since there
-/// is no arithmetic yet.
+/// back the same. Before anything but a number it is refused: a negation
+/// is written `0 - x`.
 #[test]
 fn a_number_may_be_negative() {
     let text = "type Item = { amount: Int, rate: Float }\n\nfloor: Int = -5\n\ntotal(items: Item[], tax: Int) -> Int\n\tall i in items: i.amount > -1000 and i.rate >= -2.5\n\ttax == -1 -> out == floor\n\n\te:\n\t\tin: ([{amount: -125, rate: -0.5}], -1)\n\t\tout: -5\n\n\te:\n\t\tin: ([], -1)\n\t\tout: 0\n";
@@ -211,7 +211,7 @@ fn a_number_may_be_negative() {
     let e = parse("total(xs: Int[]) -> Int\n\tout == -xs\n").unwrap_err();
     assert_eq!(
         e.message,
-        "a minus sign goes before a number; the language has no arithmetic yet"
+        "a minus sign goes before a number; a negation is written `0 - x`"
     );
     assert_eq!(e.span, Some((8, 9)), "the minus sign");
 }

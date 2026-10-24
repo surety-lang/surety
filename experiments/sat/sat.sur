@@ -1,0 +1,43 @@
+type Lit = { var: Int, neg: Bool }
+type Clause = { lits: Lit[] }
+type Formula = { n: Int, clauses: Clause[] }
+type Val = { var: Int, value: Bool }
+type Assignment = { vals: Val[unique var] }
+type Unsat = { code: Text }
+
+unsat: Unsat = { code: "unsat" }
+
+sat(f: Formula) -> Result<Assignment, Unsat>
+	note "a satisfying assignment of the formula, or unsat when none exists"
+	# Every clause has a literal the assignment makes true.
+	all Ok(a) in out: all c in f.clauses: any l in c.lits: any v in a.vals where v.var == l.var: (v.value == true) <-> (l.neg == false)
+	# The assignment names every variable the formula mentions.
+	all Ok(a) in out: all c in f.clauses: all l in c.lits: l.var in a.vals.var
+	# The order of the assignment's entries is not a claim.
+	all Ok(a) in out: a.vals unordered
+	# The only error is unsat.
+	all Err(e) in out: e == unsat
+
+	e:
+		note "three clauses with one model: (x1) and (not x1 or x2) and (not x2 or x3); a formula with several models would pin one of them here"
+		in: { n: 3, clauses: [
+			{ lits: [{ var: 1, neg: false }] },
+			{ lits: [{ var: 1, neg: true }, { var: 2, neg: false }] },
+			{ lits: [{ var: 2, neg: true }, { var: 3, neg: false }] }
+		] }
+		out: Ok({ vals: [{ var: 1, value: true }, { var: 2, value: true }, { var: 3, value: true }] })
+
+	e:
+		note "unsatisfiable: (x) and (not x)"
+		in: { n: 1, clauses: [{ lits: [{ var: 1, neg: false }] }, { lits: [{ var: 1, neg: true }] }] }
+		out: Err(unsat)
+
+	e:
+		note "the empty formula is satisfied by the empty assignment"
+		in: { n: 0, clauses: [] }
+		out: Ok({ vals: [] })
+
+	e:
+		note "a formula with an empty clause has no model"
+		in: { n: 1, clauses: [{ lits: [] }] }
+		out: Err(unsat)

@@ -1,0 +1,53 @@
+sat  NOT ACCEPTED  obligation: 3 underdetermined inputs, 1 gap  performance: passes
+  pass  example 1 (line 24, "three clauses with one model: (x1) and (not x1 or x2) and (not x2 or x3); a formula with several models would pin one of them here")
+  pass  example 2 (line 33, "unsatisfiable: (x) and (not x)")
+  pass  example 3 (line 38, "the empty formula is satisfied by the empty assignment")
+  pass  example 4 (line 43, "a formula with an empty clause has no model")
+  pass  property (line 13): all Ok(a) in out: all c in f.clauses: any l in c.lits: any v in a.vals where v.var == l.var: (v.value == true) <-> (l.neg == false)  (504 runs, 0 findings)
+  pass  property (line 15): all Ok(a) in out: all c in f.clauses: all l in c.lits: l.var in a.vals.var  (504 runs, 0 findings)
+  pass  property (line 17): all Ok(a) in out: a.vals unordered  (504 runs, 0 findings)
+  pass  property (line 19): all Err(e) in out: e == unsat  (504 runs, 0 findings)
+  UNDERDETERMINED  out can be Ok({vals: []}) or Err({code: "unsat"}); 3 inputs show it; the smallest:
+        in: {clauses: [], n: 0}
+        out: Ok({vals: []})    # example 3
+        out: Err({code: "unsat"})    # also passes every clause
+  ACCEPTED  two outputs pass every clause; accept (line 22)
+        in: {clauses: [{lits: [{neg: false, var: 1}]}, {lits: [{neg: true, var: 1}, {neg: false, var: 2}]}, {lits: [{neg: true, var: 2}, {neg: false, var: 3}]}], n: 3}
+        out: Ok({vals: [{value: true, var: 1}, {value: true, var: 2}, {value: true, var: 3}]})    # example 1
+        out: Err({code: "unsat"})    # also passes every clause
+  ACCEPTED  two outputs pass every clause; accept (line 22)
+        in: {clauses: [{lits: [{neg: true, var: 0}]}, {lits: [{neg: false, var: 0}, {neg: true, var: 4}, {neg: true, var: 4}, {neg: false, var: 4}]}, {lits: [{neg: true, var: 1}]}, {lits: [{neg: true, var: 4}]}], n: 4}
+        out: Err({code: "unsat"})    # passes every clause
+        out: Ok({vals: [{value: false, var: 4}, {value: false, var: 0}, {value: false, var: 1}]})    # also passes every clause
+  ACCEPTED  two outputs pass every clause; accept (line 22)
+        in: {clauses: [{lits: [{neg: false, var: 0}, {neg: false, var: 0}, {neg: true, var: 3}, {neg: false, var: 0}]}, {lits: [{neg: false, var: 3}]}, {lits: [{neg: false, var: 1}, {neg: true, var: 0}]}], n: 0}
+        out: Err({code: "unsat"})    # passes every clause
+        out: Ok({vals: [{value: true, var: 1}, {value: true, var: 2}, {value: true, var: 0}, {value: true, var: 3}]})    # also passes every clause
+  ACCEPTED  two outputs pass every clause; accept (line 22)
+        in: {clauses: [{lits: [{neg: true, var: 0}, {neg: true, var: 1}, {neg: false, var: 1}]}], n: 3}
+        out: Err({code: "unsat"})    # passes every clause
+        out: Ok({vals: [{value: false, var: 1}, {value: true, var: 3}, {value: false, var: 0}, {value: false, var: 2}]})    # also passes every clause
+  ACCEPTED  two outputs pass every clause; accept (line 22)
+        in: {clauses: [{lits: [{neg: false, var: 1}]}, {lits: [{neg: false, var: 1}, {neg: false, var: 3}, {neg: false, var: 0}]}, {lits: [{neg: false, var: 4}, {neg: true, var: 1}, {neg: true, var: 3}, {neg: true, var: 4}]}], n: 4}
+        out: Err({code: "unsat"})    # passes every clause
+        out: Ok({vals: [{value: false, var: 4}, {value: true, var: 1}, {value: true, var: 0}, {value: false, var: 3}]})    # also passes every clause
+  evidence
+    types:            validated at the boundary; 4 example inputs, 500 generated inputs, 504 outputs
+    examples:         4/4
+    properties:       4 of 4 clean over 504 runs
+    determinism:      504/504, each input run twice and compared under the order claims
+    totality:         504/504 answered within 10s
+    purity:           unverified (no sandbox in this slice); imports: none
+    shape:            49 lines, 1 functions; dependencies: none
+    underdetermination: 3 of 14 mutants apply; 0 slipped; 3 underdetermined inputs, 1 gap; 5 accepted
+    accepts:          1; line 22 fires on 444 inputs
+    obligation:       accd6d193f4f987f6d8e764074042ba3e0ed2cf7bc22a9a0cd6b759767165e08
+    performance:      45086a06228ee0aed3053b6f80d936bfb9fe72f413b749a62f745b361bc3e2fb
+    generated:        500 inputs over the record's fields, sampled
+  look here  2 places: 1 clause no mutant can violate, 1 accept that fired
+    clause (line 17): all Ok(a) in out: a.vals unordered    # no mutant can violate it
+        in: {clauses: [{lits: [{neg: false, var: 1}]}, {lits: [{neg: true, var: 1}, {neg: false, var: 2}]}, {lits: [{neg: true, var: 2}, {neg: false, var: 3}]}], n: 3}
+        out: Ok({vals: [{value: true, var: 1}, {value: true, var: 2}, {value: true, var: 3}]})    # the performance's
+    accept (line 22): accept any c in f.clauses: len(c.lits) > 1    # fires on 444 inputs
+        in: {clauses: [{lits: [{neg: false, var: 1}]}, {lits: [{neg: true, var: 1}, {neg: false, var: 2}]}, {lits: [{neg: true, var: 2}, {neg: false, var: 3}]}], n: 3}
+        out: Ok({vals: [{value: true, var: 1}, {value: true, var: 2}, {value: true, var: 3}]})    # the performance's

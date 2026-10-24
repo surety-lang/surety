@@ -1,0 +1,1 @@
+{"code":"unbound_name","file":"experiments/sat/attempts/a2_no_assignment_exists_lowercase.sur","kind":"error","line":21,"message":"`assignments` is not an input, `out`, a binder here, a named value, or an abbreviation"}

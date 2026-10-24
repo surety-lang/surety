@@ -1,0 +1,1 @@
+experiments/sat/attempts/e_accept_the_choice.sur: ok sat props=4 accepts=1 examples=4 abbrevs=0 pins=10

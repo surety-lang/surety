@@ -1,0 +1,1 @@
+{"code":"unbound_name","file":"experiments/sat/attempts/a_no_assignment_exists.sur","kind":"error","line":21,"message":"`Assignment` is not an input, `out`, a binder here, a named value, or an abbreviation"}

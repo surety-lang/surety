@@ -1,0 +1,1 @@
+experiments/sat/attempts/c_self_call.sur: ok sat props=5 accepts=0 examples=4 abbrevs=0 pins=10

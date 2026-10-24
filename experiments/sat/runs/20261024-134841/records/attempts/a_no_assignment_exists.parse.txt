@@ -1,0 +1,1 @@
+experiments/sat/attempts/a_no_assignment_exists.sur: line 21: `Assignment` is not an input, `out`, a binder here, a named value, or an abbreviation (unbound_name)

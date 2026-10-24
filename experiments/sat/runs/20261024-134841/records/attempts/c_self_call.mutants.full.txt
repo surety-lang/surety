@@ -1,0 +1,31 @@
+sat  inputs 4+500  mutants 3 of 14 apply  slipped 0  caught 3  underdetermined 8 in 1 gap
+  gap  out can be Ok({vals: []}) or Err({code: "unsat"}); 8 inputs show it; the smallest in: {clauses: [], n: 0}
+  gap: out can be Ok({vals: []}) or Err({code: "unsat"})
+    8 inputs show it; the smallest:
+    e:
+      in: {clauses: [], n: 0}
+      out: Ok({vals: []})    # example 3
+      out: Err({code: "unsat"})    # also passes every clause; 5 candidates tried
+  mutant empty caught on 504 of 504 inputs by line 19: all Err(e) in out: e == unsat (504 inputs)
+    slipped through anyway: lines 13, 15, 17, 21
+  mutant ok_empty caught on 499 of 504 inputs by line 13: all Ok(a) in out: all c in f.clauses: any l in c.lits: any v in a.vals where v.var == l.var: (v.value == true) <-> (l.neg == false) (499 inputs); line 15: all Ok(a) in out: all c in f.clauses: all l in c.lits: l.var in a.vals.var (489 inputs)
+    slipped through anyway: lines 17, 19, 21
+  mutant err_fabricated caught on 504 of 504 inputs by line 19: all Err(e) in out: e == unsat (504 inputs)
+    slipped through anyway: lines 13, 15, 17, 21
+  mutant identity does not apply: no single input has the output's shape
+  mutant drop_one does not apply: the identity is not a list, or no input gave it an element to edit
+  mutant duplicate_one does not apply: the identity is not a list, or no input gave it an element to edit
+  mutant append_fabricated does not apply: the identity is not a list, or no input gave it an element to edit
+  mutant swap_adjacent does not apply: the identity is not a list, or no input gave it an element to edit
+  mutant skeleton does not apply: no frame pair gives the output a source
+  mutant skeleton_per_key does not apply: no frame pair matches on a field
+  mutant skeleton_drop_one does not apply: the skeleton has no list to edit, or no input gave it an element
+  mutant skeleton_duplicate_one does not apply: the skeleton has no list to edit, or no input gave it an element
+  mutant skeleton_append_fabricated does not apply: the skeleton has no list to edit, or no input gave it an element
+  mutant skeleton_swap_adjacent does not apply: the skeleton has no list to edit, or no input gave it an element
+  clauses that caught no mutant:
+    line 17: all Ok(a) in out: a.vals unordered
+    line 21: all Ok(a) in out: all Ok(b) in sat(f): a == b
+  search: 12 inputs, up to 600 candidates each
+  generated: 500 inputs by list length: any: 500 of 76211705989985525
+  obligation: fa28e738e452492e535d520ecdbdd5ff0709507e831fe372f12de33170a6b83a

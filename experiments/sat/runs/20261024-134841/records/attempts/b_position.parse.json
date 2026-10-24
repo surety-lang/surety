@@ -1,0 +1,1 @@
+{"code":"syntax","file":"experiments/sat/attempts/b_position.sur","kind":"error","line":21,"message":"expected `..` in a slice: `xs[a .. b]` is the elements from position a up to but not including b, and an element at a position is the one-element slice `xs[i .. i + 1]`","span":[27,28]}

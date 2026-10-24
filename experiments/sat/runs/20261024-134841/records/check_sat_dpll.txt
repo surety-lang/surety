@@ -1,0 +1,29 @@
+sat  NOT ACCEPTED  obligation: 8 underdetermined inputs, 1 gap  performance: passes
+  pass  example 1 (line 21, "three clauses with one model: (x1) and (not x1 or x2) and (not x2 or x3); a formula with several models would pin one of them here")
+  pass  example 2 (line 30, "unsatisfiable: (x) and (not x)")
+  pass  example 3 (line 35, "the empty formula is satisfied by the empty assignment")
+  pass  example 4 (line 40, "a formula with an empty clause has no model")
+  pass  property (line 13): all Ok(a) in out: all c in f.clauses: any l in c.lits: any v in a.vals where v.var == l.var: (v.value == true) <-> (l.neg == false)  (504 runs, 0 findings)
+  pass  property (line 15): all Ok(a) in out: all c in f.clauses: all l in c.lits: l.var in a.vals.var  (504 runs, 0 findings)
+  pass  property (line 17): all Ok(a) in out: a.vals unordered  (504 runs, 0 findings)
+  pass  property (line 19): all Err(e) in out: e == unsat  (504 runs, 0 findings)
+  UNDERDETERMINED  out can be Ok({vals: []}) or Err({code: "unsat"}); 8 inputs show it; the smallest:
+        in: {clauses: [], n: 0}
+        out: Ok({vals: []})    # example 3
+        out: Err({code: "unsat"})    # also passes every clause
+  evidence
+    types:            validated at the boundary; 4 example inputs, 500 generated inputs, 504 outputs
+    examples:         4/4
+    properties:       4 of 4 clean over 504 runs
+    determinism:      504/504, each input run twice and compared under the order claims
+    totality:         504/504 answered within 10s
+    purity:           unverified (no sandbox in this slice); imports: none
+    shape:            99 lines, 3 functions; dependencies: none
+    underdetermination: 3 of 14 mutants apply; 0 slipped; 8 underdetermined inputs, 1 gap
+    obligation:       b4810dd7fab9df1b692bf19f3336145a139a89f02e873be385289c79dd5ae345
+    performance:      3b91537e19c5cd156e2d59ce133446a51fb6b54ed376490d9cfbb06bed200805
+    generated:        500 inputs over the record's fields, sampled
+  look here  1 place: 1 clause no mutant can violate
+    clause (line 17): all Ok(a) in out: a.vals unordered    # no mutant can violate it
+        in: {clauses: [{lits: [{neg: false, var: 1}]}, {lits: [{neg: true, var: 1}, {neg: false, var: 2}]}, {lits: [{neg: true, var: 2}, {neg: false, var: 3}]}], n: 3}
+        out: Ok({vals: [{value: true, var: 1}, {value: true, var: 2}, {value: true, var: 3}]})    # the performance's

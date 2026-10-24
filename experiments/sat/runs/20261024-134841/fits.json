@@ -1,0 +1,367 @@
+{
+  "random3sat/plain": {
+    "points": 22,
+    "sizes": [
+      10,
+      12,
+      14,
+      16,
+      18,
+      20,
+      22,
+      24
+    ],
+    "range": [
+      10,
+      24
+    ],
+    "timed_out_at": [
+      24,
+      30
+    ],
+    "skipped_at": [
+      40,
+      50,
+      75,
+      100,
+      150,
+      200
+    ],
+    "exponential": {
+      "base_per_unit": 1.9185287188335782,
+      "r2": 0.8870678067612011
+    },
+    "polynomial": {
+      "exponent": 10.303895106734803,
+      "r2": 0.9052279551332006
+    },
+    "better": "polynomial"
+  },
+  "random3sat/dpll": {
+    "points": 39,
+    "sizes": [
+      10,
+      12,
+      14,
+      16,
+      18,
+      20,
+      22,
+      24,
+      30,
+      40,
+      50,
+      75,
+      100
+    ],
+    "range": [
+      10,
+      100
+    ],
+    "timed_out_at": [
+      150
+    ],
+    "skipped_at": [
+      200
+    ],
+    "exponential": {
+      "base_per_unit": 1.1005763117013638,
+      "r2": 0.8537454619969789
+    },
+    "polynomial": {
+      "exponent": 3.7781466741071164,
+      "r2": 0.8938206047619057
+    },
+    "better": "polynomial"
+  },
+  "random3sat/cdcl": {
+    "points": 45,
+    "sizes": [
+      10,
+      12,
+      14,
+      16,
+      18,
+      20,
+      22,
+      24,
+      30,
+      40,
+      50,
+      75,
+      100,
+      150,
+      200
+    ],
+    "range": [
+      10,
+      200
+    ],
+    "timed_out_at": [],
+    "skipped_at": [],
+    "exponential": {
+      "base_per_unit": 1.045791906108807,
+      "r2": 0.9197165289503293
+    },
+    "polynomial": {
+      "exponent": 2.681846855775595,
+      "r2": 0.8995341789395013
+    },
+    "better": "exponential"
+  },
+  "php/plain": {
+    "points": 2,
+    "sizes": [
+      3,
+      4
+    ],
+    "range": [
+      3,
+      4
+    ],
+    "timed_out_at": [
+      5
+    ],
+    "skipped_at": [
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ],
+    "note": "fewer than three sizes completed; no fit"
+  },
+  "php/dpll": {
+    "points": 6,
+    "sizes": [
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "range": [
+      3,
+      8
+    ],
+    "timed_out_at": [
+      9
+    ],
+    "skipped_at": [
+      10,
+      11,
+      12
+    ],
+    "exponential": {
+      "base_per_unit": 6.482449412301628,
+      "r2": 0.9986819702649263
+    },
+    "polynomial": {
+      "exponent": 9.428451608710605,
+      "r2": 0.9689645114840547
+    },
+    "better": "exponential"
+  },
+  "php/cdcl": {
+    "points": 5,
+    "sizes": [
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "range": [
+      3,
+      7
+    ],
+    "timed_out_at": [
+      8
+    ],
+    "skipped_at": [
+      9,
+      10,
+      11,
+      12
+    ],
+    "exponential": {
+      "base_per_unit": 10.456269198435187,
+      "r2": 0.9898401751223639
+    },
+    "polynomial": {
+      "exponent": 10.865810380511238,
+      "r2": 0.950165188817022
+    },
+    "better": "exponential"
+  },
+  "tseitin/plain": {
+    "points": 5,
+    "sizes": [
+      6,
+      8,
+      10,
+      12,
+      14
+    ],
+    "range": [
+      6,
+      14
+    ],
+    "timed_out_at": [
+      16
+    ],
+    "skipped_at": [
+      20,
+      24,
+      30,
+      40
+    ],
+    "exponential": {
+      "base_per_unit": 2.831397506211938,
+      "r2": 0.999999668423162
+    },
+    "polynomial": {
+      "exponent": 9.759712284280111,
+      "r2": 0.984724283813818
+    },
+    "better": "exponential"
+  },
+  "tseitin/dpll": {
+    "points": 9,
+    "sizes": [
+      6,
+      8,
+      10,
+      12,
+      14,
+      16,
+      20,
+      24,
+      30
+    ],
+    "range": [
+      6,
+      30
+    ],
+    "timed_out_at": [
+      40
+    ],
+    "skipped_at": [],
+    "exponential": {
+      "base_per_unit": 1.4738402443360785,
+      "r2": 0.9853889258623799
+    },
+    "polynomial": {
+      "exponent": 5.685006952731164,
+      "r2": 0.935128160755243
+    },
+    "better": "exponential"
+  },
+  "tseitin/cdcl": {
+    "points": 10,
+    "sizes": [
+      6,
+      8,
+      10,
+      12,
+      14,
+      16,
+      20,
+      24,
+      30,
+      40
+    ],
+    "range": [
+      6,
+      40
+    ],
+    "timed_out_at": [],
+    "skipped_at": [],
+    "exponential": {
+      "base_per_unit": 1.2154698639403672,
+      "r2": 0.9260906317458026
+    },
+    "polynomial": {
+      "exponent": 3.494160237436367,
+      "r2": 0.9200840246862054
+    },
+    "better": "exponential"
+  },
+  "factoring/plain": {
+    "points": 0,
+    "sizes": [],
+    "range": null,
+    "timed_out_at": [
+      5
+    ],
+    "skipped_at": [
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ],
+    "note": "fewer than three sizes completed; no fit"
+  },
+  "factoring/dpll": {
+    "points": 8,
+    "sizes": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ],
+    "range": [
+      5,
+      12
+    ],
+    "timed_out_at": [],
+    "skipped_at": [],
+    "exponential": {
+      "base_per_unit": 1.9561078823360705,
+      "r2": 0.7096776010096174
+    },
+    "polynomial": {
+      "exponent": 5.450265260166753,
+      "r2": 0.7216082130046186
+    },
+    "better": "polynomial"
+  },
+  "factoring/cdcl": {
+    "points": 8,
+    "sizes": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ],
+    "range": [
+      5,
+      12
+    ],
+    "timed_out_at": [],
+    "skipped_at": [],
+    "exponential": {
+      "base_per_unit": 1.61662314799396,
+      "r2": 0.46675441516010663
+    },
+    "polynomial": {
+      "exponent": 3.9269508060053435,
+      "r2": 0.4807251772876109
+    },
+    "better": "polynomial"
+  }
+}

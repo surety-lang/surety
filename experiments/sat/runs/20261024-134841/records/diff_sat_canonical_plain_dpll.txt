@@ -1,0 +1,17 @@
+sat_canonical  DIFFERS  on 84 of 504 inputs (4 examples, 500 generated): 60 regressions, 24 within the obligation (0 accepted, 24 undecided)
+  old: experiments/sat/sat_plain.py  45086a06228ee0aed3053b6f80d936bfb9fe72f413b749a62f745b361bc3e2fb
+  new: experiments/sat/sat_dpll.py  3b91537e19c5cd156e2d59ce133446a51fb6b54ed376490d9cfbb06bed200805
+  REGRESSION  new fails line 21 (all Ok(a) in out: all v in a.vals where v.value == true: any c in f.cl…); old passes
+        in: {clauses: [{lits: [{neg: false, var: 3}, {neg: true, var: 4}]}], n: 0}
+        old: Ok({vals: [{value: false, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: true, var: 3}, {value: false, var: 4}]})
+  REGRESSION  new fails line 21 (all Ok(a) in out: all v in a.vals where v.value == true: any c in f.cl…); old passes
+        in: {clauses: [{lits: [{neg: false, var: 4}, {neg: true, var: 2}]}], n: 0}
+        old: Ok({vals: [{value: false, var: 2}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: false, var: 2}, {value: true, var: 4}]})
+  REGRESSION  new fails line 21 (all Ok(a) in out: all v in a.vals where v.value == true: any c in f.cl…); old passes
+        in: {clauses: [{lits: [{neg: false, var: 0}, {neg: true, var: 2}]}], n: 1}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 2}]})
+        new: Ok({vals: [{value: true, var: 0}, {value: false, var: 2}]})
+  3 of 84 shown, regressions and smallest first; --full for all
+  obligation: 45a618223bd73b5e22b5e379b338fff2fac1197339ea88b20bfa42e5dd0014b9

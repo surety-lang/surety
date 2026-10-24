@@ -1,0 +1,340 @@
+sat  DIFFERS  on 84 of 504 inputs (4 examples, 500 generated): 84 within the obligation (0 accepted, 84 undecided)
+  old: experiments/sat/sat_plain.py  45086a06228ee0aed3053b6f80d936bfb9fe72f413b749a62f745b361bc3e2fb
+  new: experiments/sat/sat_dpll.py  3b91537e19c5cd156e2d59ce133446a51fb6b54ed376490d9cfbb06bed200805
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 3}, {neg: true, var: 4}]}], n: 0}
+        old: Ok({vals: [{value: false, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: true, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 4}, {neg: true, var: 2}]}], n: 0}
+        old: Ok({vals: [{value: false, var: 2}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: false, var: 2}, {value: true, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 1}, {neg: false, var: 2}]}], n: 2}
+        old: Ok({vals: [{value: false, var: 1}, {value: true, var: 2}]})
+        new: Ok({vals: [{value: true, var: 1}, {value: false, var: 2}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 0}, {neg: true, var: 2}]}], n: 1}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 2}]})
+        new: Ok({vals: [{value: true, var: 0}, {value: false, var: 2}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 1}, {neg: false, var: 3}]}], n: 2}
+        old: Ok({vals: [{value: false, var: 1}, {value: true, var: 3}]})
+        new: Ok({vals: [{value: true, var: 1}, {value: false, var: 3}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 1}, {neg: true, var: 3}]}], n: 4}
+        old: Ok({vals: [{value: false, var: 1}, {value: false, var: 3}]})
+        new: Ok({vals: [{value: true, var: 1}, {value: false, var: 3}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 2}, {neg: true, var: 4}]}], n: 1}
+        old: Ok({vals: [{value: false, var: 2}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: true, var: 2}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 1}, {neg: true, var: 4}]}], n: 0}
+        old: Ok({vals: [{value: false, var: 1}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: true, var: 1}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 2}, {neg: true, var: 1}, {neg: true, var: 1}]}], n: 3}
+        old: Ok({vals: [{value: false, var: 1}, {value: false, var: 2}]})
+        new: Ok({vals: [{value: false, var: 1}, {value: true, var: 2}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 2}, {neg: true, var: 3}, {neg: false, var: 0}]}], n: 0}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 2}, {value: false, var: 3}]})
+        new: Ok({vals: [{value: false, var: 0}, {value: true, var: 2}, {value: false, var: 3}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 2}, {neg: true, var: 4}, {neg: false, var: 0}]}], n: 1}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 2}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: false, var: 0}, {value: true, var: 2}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 3}, {neg: true, var: 1}, {neg: false, var: 0}]}], n: 4}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 3}]})
+        new: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: true, var: 3}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: true, var: 3}]}, {lits: [{neg: false, var: 2}, {neg: true, var: 4}]}], n: 3}
+        old: Ok({vals: [{value: false, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: true, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 2}, {neg: false, var: 3}]}, {lits: [{neg: false, var: 1}]}], n: 0}
+        old: Ok({vals: [{value: true, var: 1}, {value: false, var: 2}, {value: true, var: 3}]})
+        new: Ok({vals: [{value: true, var: 1}, {value: true, var: 2}, {value: false, var: 3}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 0}, {neg: true, var: 1}, {neg: true, var: 3}, {neg: true, var: 4}]}], n: 4}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: true, var: 0}, {value: false, var: 1}, {value: false, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 1}, {neg: true, var: 4}, {neg: true, var: 4}, {neg: true, var: 4}]}], n: 4}
+        old: Ok({vals: [{value: false, var: 1}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: true, var: 1}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 0}, {neg: true, var: 1}, {neg: true, var: 3}, {neg: true, var: 2}]}], n: 3}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: false, var: 3}]})
+        new: Ok({vals: [{value: true, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: false, var: 3}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 2}, {neg: true, var: 1}, {neg: false, var: 2}, {neg: true, var: 1}]}], n: 3}
+        old: Ok({vals: [{value: false, var: 1}, {value: false, var: 2}]})
+        new: Ok({vals: [{value: false, var: 1}, {value: true, var: 2}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 3}, {neg: true, var: 2}, {neg: true, var: 0}, {neg: false, var: 4}]}], n: 3}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: false, var: 0}, {value: false, var: 2}, {value: true, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 4}, {neg: true, var: 2}, {neg: false, var: 1}, {neg: true, var: 0}]}], n: 0}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: true, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 0}, {neg: false, var: 0}, {neg: false, var: 2}, {neg: true, var: 1}]}], n: 0}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}]})
+        new: Ok({vals: [{value: true, var: 0}, {value: false, var: 1}, {value: false, var: 2}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: true, var: 2}]}, {lits: [{neg: false, var: 2}, {neg: false, var: 3}, {neg: false, var: 4}]}], n: 2}
+        old: Ok({vals: [{value: false, var: 2}, {value: false, var: 3}, {value: true, var: 4}]})
+        new: Ok({vals: [{value: false, var: 2}, {value: true, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 1}, {neg: true, var: 4}, {neg: false, var: 2}]}, {lits: [{neg: false, var: 4}, {neg: false, var: 2}]}], n: 2}
+        old: Ok({vals: [{value: false, var: 1}, {value: true, var: 2}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: true, var: 1}, {value: false, var: 2}, {value: true, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 0}, {neg: false, var: 4}, {neg: true, var: 3}]}, {lits: [{neg: true, var: 2}, {neg: true, var: 2}]}], n: 1}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: true, var: 0}, {value: false, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: true, var: 1}, {neg: false, var: 3}, {neg: false, var: 4}, {neg: false, var: 4}]}, {lits: [{neg: false, var: 1}]}], n: 3}
+        old: Ok({vals: [{value: true, var: 1}, {value: false, var: 3}, {value: true, var: 4}]})
+        new: Ok({vals: [{value: true, var: 1}, {value: true, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 3}, {neg: false, var: 1}]}, {lits: [{neg: true, var: 3}, {neg: true, var: 4}, {neg: true, var: 3}]}], n: 2}
+        old: Ok({vals: [{value: false, var: 1}, {value: true, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: true, var: 1}, {value: false, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: true, var: 3}, {neg: false, var: 2}, {neg: true, var: 1}]}, {lits: [{neg: false, var: 0}, {neg: true, var: 4}]}], n: 1}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: true, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 3}, {neg: true, var: 1}, {neg: true, var: 1}]}, {lits: [{neg: true, var: 1}, {neg: false, var: 2}]}], n: 0}
+        old: Ok({vals: [{value: false, var: 1}, {value: false, var: 2}, {value: false, var: 3}]})
+        new: Ok({vals: [{value: false, var: 1}, {value: false, var: 2}, {value: true, var: 3}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 4}, {neg: true, var: 0}, {neg: true, var: 3}]}, {lits: [{neg: false, var: 2}, {neg: true, var: 4}]}], n: 2}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: false, var: 0}, {value: true, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 3}, {neg: true, var: 2}]}, {lits: [{neg: true, var: 2}, {neg: true, var: 2}, {neg: true, var: 1}]}], n: 0}
+        old: Ok({vals: [{value: false, var: 1}, {value: false, var: 2}, {value: false, var: 3}]})
+        new: Ok({vals: [{value: false, var: 1}, {value: false, var: 2}, {value: true, var: 3}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 1}, {neg: false, var: 1}, {neg: true, var: 0}, {neg: true, var: 0}]}, {lits: [{neg: true, var: 4}, {neg: true, var: 4}]}], n: 2}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: false, var: 0}, {value: true, var: 1}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: true, var: 2}, {neg: false, var: 4}, {neg: true, var: 2}, {neg: true, var: 1}]}, {lits: [{neg: false, var: 1}, {neg: false, var: 3}]}], n: 0}
+        old: Ok({vals: [{value: false, var: 1}, {value: false, var: 2}, {value: true, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: true, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 2}, {neg: false, var: 3}, {neg: false, var: 4}, {neg: false, var: 4}]}, {lits: [{neg: true, var: 1}, {neg: false, var: 4}]}], n: 2}
+        old: Ok({vals: [{value: false, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: true, var: 4}]})
+        new: Ok({vals: [{value: false, var: 1}, {value: true, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: true, var: 4}, {neg: true, var: 1}, {neg: true, var: 1}]}, {lits: [{neg: false, var: 3}, {neg: false, var: 0}, {neg: true, var: 2}]}], n: 1}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: true, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 3}, {neg: false, var: 1}]}, {lits: [{neg: false, var: 2}, {neg: true, var: 4}, {neg: false, var: 0}, {neg: true, var: 1}]}], n: 0}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: true, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: true, var: 2}, {value: true, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 2}, {neg: false, var: 1}, {neg: false, var: 2}]}, {lits: [{neg: true, var: 2}, {neg: false, var: 4}, {neg: true, var: 3}]}], n: 2}
+        old: Ok({vals: [{value: false, var: 1}, {value: true, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: true, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: true, var: 2}, {neg: true, var: 3}, {neg: true, var: 2}, {neg: true, var: 3}]}, {lits: [{neg: false, var: 1}, {neg: true, var: 4}]}], n: 4}
+        old: Ok({vals: [{value: false, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: true, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 1}, {neg: false, var: 2}]}, {lits: [{neg: true, var: 0}, {neg: false, var: 3}, {neg: false, var: 0}, {neg: true, var: 2}]}], n: 0}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: true, var: 2}, {value: false, var: 3}]})
+        new: Ok({vals: [{value: false, var: 0}, {value: true, var: 1}, {value: false, var: 2}, {value: false, var: 3}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 2}, {neg: true, var: 4}]}, {lits: [{neg: false, var: 3}, {neg: true, var: 2}, {neg: true, var: 2}, {neg: true, var: 2}]}], n: 3}
+        old: Ok({vals: [{value: false, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: false, var: 2}, {value: true, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 3}, {neg: true, var: 1}, {neg: true, var: 2}]}, {lits: [{neg: false, var: 4}, {neg: false, var: 0}, {neg: false, var: 0}]}], n: 1}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: true, var: 4}]})
+        new: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: true, var: 3}, {value: true, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: true, var: 3}, {neg: true, var: 4}, {neg: false, var: 2}]}, {lits: [{neg: false, var: 4}, {neg: false, var: 1}, {neg: true, var: 2}]}], n: 2}
+        old: Ok({vals: [{value: false, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: false, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: true, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 4}, {neg: true, var: 2}]}, {lits: [{neg: true, var: 4}, {neg: true, var: 4}, {neg: false, var: 3}, {neg: false, var: 2}]}], n: 0}
+        old: Ok({vals: [{value: false, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: false, var: 2}, {value: true, var: 3}, {value: true, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 2}, {neg: false, var: 3}, {neg: false, var: 3}, {neg: false, var: 2}]}, {lits: [{neg: false, var: 1}, {neg: true, var: 4}]}], n: 2}
+        old: Ok({vals: [{value: false, var: 1}, {value: false, var: 2}, {value: true, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: true, var: 1}, {value: true, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 1}, {neg: true, var: 4}]}, {lits: [{neg: true, var: 3}, {neg: false, var: 2}]}, {lits: [{neg: true, var: 3}, {neg: false, var: 1}]}], n: 4}
+        old: Ok({vals: [{value: false, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: true, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 4}, {neg: true, var: 3}]}, {lits: [{neg: false, var: 2}, {neg: true, var: 3}]}, {lits: [{neg: true, var: 3}, {neg: false, var: 2}]}], n: 3}
+        old: Ok({vals: [{value: false, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: true, var: 2}, {value: false, var: 3}, {value: true, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 0}]}, {lits: [{neg: true, var: 4}, {neg: true, var: 4}, {neg: false, var: 2}]}, {lits: [{neg: false, var: 1}, {neg: false, var: 2}]}], n: 4}
+        old: Ok({vals: [{value: true, var: 0}, {value: false, var: 1}, {value: true, var: 2}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: true, var: 0}, {value: true, var: 1}, {value: false, var: 2}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 3}, {neg: true, var: 4}]}, {lits: [{neg: true, var: 2}, {neg: false, var: 1}]}, {lits: [{neg: true, var: 1}, {neg: true, var: 0}]}], n: 2}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: true, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 4}, {neg: true, var: 3}, {neg: true, var: 3}]}, {lits: [{neg: false, var: 1}, {neg: true, var: 2}, {neg: true, var: 0}, {neg: false, var: 1}]}], n: 0}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: false, var: 0}, {value: true, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: true, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 1}, {neg: true, var: 3}, {neg: true, var: 4}]}, {lits: [{neg: true, var: 2}, {neg: true, var: 4}, {neg: true, var: 3}, {neg: true, var: 3}]}], n: 2}
+        old: Ok({vals: [{value: false, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: true, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: true, var: 0}, {neg: false, var: 2}, {neg: true, var: 1}, {neg: true, var: 3}]}, {lits: [{neg: false, var: 3}, {neg: true, var: 4}, {neg: true, var: 1}]}], n: 4}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: true, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 2}, {neg: false, var: 2}, {neg: false, var: 1}, {neg: true, var: 0}]}, {lits: [{neg: true, var: 3}, {neg: true, var: 4}, {neg: true, var: 4}]}], n: 1}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: true, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 4}, {neg: false, var: 3}]}, {lits: [{neg: false, var: 0}, {neg: false, var: 1}]}, {lits: [{neg: true, var: 0}, {neg: true, var: 0}, {neg: false, var: 0}]}], n: 1}
+        old: Ok({vals: [{value: false, var: 0}, {value: true, var: 1}, {value: false, var: 3}, {value: true, var: 4}]})
+        new: Ok({vals: [{value: true, var: 0}, {value: false, var: 1}, {value: false, var: 3}, {value: true, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 1}, {neg: true, var: 3}, {neg: true, var: 2}, {neg: false, var: 4}]}, {lits: [{neg: false, var: 3}, {neg: true, var: 1}, {neg: true, var: 1}, {neg: true, var: 3}]}], n: 4}
+        old: Ok({vals: [{value: false, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: true, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: true, var: 0}, {neg: false, var: 0}, {neg: false, var: 3}, {neg: false, var: 3}]}, {lits: [{neg: false, var: 2}, {neg: false, var: 2}, {neg: false, var: 2}, {neg: true, var: 4}]}], n: 2}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: false, var: 0}, {value: true, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: true, var: 1}, {neg: true, var: 0}, {neg: false, var: 1}, {neg: false, var: 2}]}, {lits: [{neg: false, var: 0}, {neg: true, var: 4}, {neg: false, var: 2}, {neg: false, var: 1}]}], n: 2}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: true, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 0}, {neg: true, var: 2}]}, {lits: [{neg: false, var: 3}, {neg: false, var: 3}, {neg: false, var: 1}]}, {lits: [{neg: false, var: 3}, {neg: false, var: 2}, {neg: true, var: 1}]}], n: 3}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: true, var: 3}]})
+        new: Ok({vals: [{value: true, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: true, var: 3}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 4}, {neg: true, var: 0}, {neg: false, var: 2}, {neg: false, var: 2}]}, {lits: [{neg: true, var: 2}]}, {lits: [{neg: false, var: 4}, {neg: true, var: 1}, {neg: false, var: 2}]}], n: 2}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: true, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 3}, {neg: false, var: 4}, {neg: true, var: 3}, {neg: false, var: 0}]}, {lits: [{neg: false, var: 0}, {neg: true, var: 3}]}, {lits: [{neg: true, var: 1}, {neg: false, var: 3}]}], n: 1}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: true, var: 0}, {value: false, var: 1}, {value: false, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 0}]}, {lits: [{neg: true, var: 0}, {neg: false, var: 3}, {neg: false, var: 4}]}, {lits: [{neg: false, var: 1}]}, {lits: [{neg: false, var: 2}, {neg: false, var: 2}, {neg: false, var: 1}]}], n: 0}
+        old: Ok({vals: [{value: true, var: 0}, {value: true, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: true, var: 4}]})
+        new: Ok({vals: [{value: true, var: 0}, {value: true, var: 1}, {value: false, var: 2}, {value: true, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 0}, {neg: false, var: 3}]}, {lits: [{neg: true, var: 1}, {neg: false, var: 1}]}, {lits: [{neg: true, var: 1}, {neg: true, var: 2}]}, {lits: [{neg: true, var: 1}, {neg: true, var: 1}]}], n: 4}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: true, var: 3}]})
+        new: Ok({vals: [{value: true, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: false, var: 3}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 1}, {neg: true, var: 3}, {neg: true, var: 1}, {neg: false, var: 0}]}, {lits: [{neg: false, var: 3}, {neg: false, var: 4}, {neg: true, var: 2}]}, {lits: [{neg: true, var: 4}, {neg: false, var: 2}]}], n: 1}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: true, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 4}, {neg: false, var: 4}, {neg: false, var: 4}]}, {lits: [{neg: false, var: 1}, {neg: true, var: 4}, {neg: true, var: 0}]}, {lits: [{neg: true, var: 1}, {neg: false, var: 1}, {neg: true, var: 4}]}], n: 0}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: true, var: 4}]})
+        new: Ok({vals: [{value: false, var: 0}, {value: true, var: 1}, {value: true, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: true, var: 2}]}, {lits: [{neg: false, var: 1}, {neg: false, var: 3}, {neg: true, var: 3}, {neg: true, var: 4}]}, {lits: [{neg: false, var: 3}, {neg: false, var: 0}, {neg: false, var: 4}, {neg: false, var: 4}]}], n: 0}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: true, var: 4}]})
+        new: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: true, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 3}, {neg: false, var: 4}, {neg: true, var: 4}]}, {lits: [{neg: false, var: 1}, {neg: false, var: 1}, {neg: true, var: 4}, {neg: true, var: 3}]}, {lits: [{neg: true, var: 4}, {neg: true, var: 4}, {neg: false, var: 0}]}], n: 1}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: false, var: 0}, {value: true, var: 1}, {value: false, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 1}, {neg: false, var: 3}, {neg: false, var: 2}, {neg: false, var: 4}]}, {lits: [{neg: false, var: 3}, {neg: false, var: 2}, {neg: true, var: 0}]}, {lits: [{neg: false, var: 2}, {neg: true, var: 4}, {neg: false, var: 1}]}], n: 0}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: true, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: false, var: 0}, {value: true, var: 1}, {value: false, var: 2}, {value: true, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 3}, {neg: false, var: 3}, {neg: false, var: 4}]}, {lits: [{neg: true, var: 2}, {neg: true, var: 1}, {neg: false, var: 2}, {neg: false, var: 0}]}, {lits: [{neg: false, var: 3}, {neg: true, var: 2}, {neg: true, var: 1}]}], n: 2}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: true, var: 4}]})
+        new: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: true, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 0}, {neg: true, var: 4}, {neg: false, var: 3}, {neg: false, var: 2}]}, {lits: [{neg: false, var: 0}, {neg: true, var: 4}, {neg: true, var: 3}, {neg: true, var: 4}]}, {lits: [{neg: false, var: 3}]}, {lits: [{neg: true, var: 2}]}], n: 3}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 2}, {value: true, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: true, var: 0}, {value: false, var: 2}, {value: true, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: true, var: 4}, {neg: false, var: 4}, {neg: true, var: 4}, {neg: true, var: 0}]}, {lits: [{neg: true, var: 0}, {neg: true, var: 1}]}, {lits: [{neg: true, var: 0}, {neg: true, var: 3}]}, {lits: [{neg: false, var: 3}, {neg: true, var: 1}]}], n: 0}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: true, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 1}, {neg: true, var: 0}, {neg: true, var: 0}]}, {lits: [{neg: true, var: 4}, {neg: false, var: 4}, {neg: false, var: 0}, {neg: true, var: 0}]}, {lits: [{neg: false, var: 3}, {neg: false, var: 4}, {neg: true, var: 3}, {neg: false, var: 3}]}], n: 3}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: false, var: 0}, {value: true, var: 1}, {value: false, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: true, var: 1}, {neg: true, var: 0}, {neg: true, var: 4}]}, {lits: [{neg: true, var: 2}, {neg: true, var: 3}, {neg: false, var: 0}, {neg: false, var: 2}]}, {lits: [{neg: false, var: 2}]}, {lits: [{neg: false, var: 1}, {neg: false, var: 4}, {neg: false, var: 4}]}], n: 0}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: true, var: 2}, {value: false, var: 3}, {value: true, var: 4}]})
+        new: Ok({vals: [{value: false, var: 0}, {value: true, var: 1}, {value: true, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 1}, {neg: true, var: 0}, {neg: true, var: 3}]}, {lits: [{neg: true, var: 4}, {neg: true, var: 0}]}, {lits: [{neg: false, var: 4}, {neg: false, var: 2}, {neg: true, var: 0}, {neg: false, var: 2}]}, {lits: [{neg: true, var: 0}, {neg: true, var: 2}]}], n: 0}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: false, var: 0}, {value: true, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: true, var: 4}, {neg: false, var: 4}, {neg: true, var: 3}]}, {lits: [{neg: false, var: 1}, {neg: false, var: 4}, {neg: true, var: 4}]}, {lits: [{neg: false, var: 4}, {neg: true, var: 2}, {neg: true, var: 3}, {neg: false, var: 4}]}, {lits: [{neg: false, var: 1}]}], n: 3}
+        old: Ok({vals: [{value: true, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: true, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: true, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: true, var: 3}, {neg: true, var: 1}, {neg: false, var: 1}, {neg: false, var: 4}]}, {lits: [{neg: false, var: 0}, {neg: true, var: 3}, {neg: true, var: 0}, {neg: false, var: 0}]}, {lits: [{neg: false, var: 3}]}, {lits: [{neg: false, var: 1}, {neg: true, var: 0}]}], n: 2}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: true, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: false, var: 0}, {value: true, var: 1}, {value: true, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 3}, {neg: true, var: 1}, {neg: false, var: 3}]}, {lits: [{neg: false, var: 2}, {neg: true, var: 1}]}, {lits: [{neg: false, var: 4}, {neg: false, var: 1}]}, {lits: [{neg: true, var: 1}, {neg: true, var: 4}, {neg: true, var: 2}, {neg: false, var: 0}]}], n: 1}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: true, var: 4}]})
+        new: Ok({vals: [{value: true, var: 0}, {value: false, var: 1}, {value: true, var: 2}, {value: true, var: 3}, {value: true, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: true, var: 0}]}, {lits: [{neg: false, var: 3}, {neg: false, var: 0}, {neg: true, var: 2}, {neg: false, var: 0}]}, {lits: [{neg: true, var: 1}, {neg: false, var: 3}, {neg: true, var: 3}, {neg: true, var: 3}]}, {lits: [{neg: false, var: 4}, {neg: false, var: 0}, {neg: false, var: 2}]}], n: 4}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: true, var: 4}]})
+        new: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: true, var: 3}, {value: true, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 4}, {neg: false, var: 4}, {neg: true, var: 0}, {neg: true, var: 4}]}, {lits: [{neg: false, var: 3}, {neg: false, var: 4}]}, {lits: [{neg: false, var: 2}, {neg: true, var: 4}, {neg: false, var: 1}]}, {lits: [{neg: false, var: 2}, {neg: true, var: 2}, {neg: true, var: 2}]}], n: 3}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: true, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: true, var: 2}, {value: true, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: true, var: 2}, {neg: true, var: 3}, {neg: true, var: 1}, {neg: false, var: 4}]}, {lits: [{neg: false, var: 0}, {neg: true, var: 3}, {neg: false, var: 2}]}, {lits: [{neg: false, var: 1}, {neg: true, var: 3}]}, {lits: [{neg: false, var: 3}, {neg: true, var: 1}, {neg: true, var: 0}]}], n: 2}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: false, var: 0}, {value: true, var: 1}, {value: true, var: 2}, {value: false, var: 3}, {value: true, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 2}, {neg: true, var: 4}, {neg: true, var: 0}, {neg: false, var: 1}]}, {lits: [{neg: false, var: 4}, {neg: false, var: 0}]}, {lits: [{neg: false, var: 4}, {neg: true, var: 0}, {neg: false, var: 1}, {neg: false, var: 1}]}, {lits: [{neg: true, var: 0}, {neg: true, var: 3}]}], n: 0}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: true, var: 4}]})
+        new: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: true, var: 2}, {value: false, var: 3}, {value: true, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 1}, {neg: true, var: 1}, {neg: true, var: 2}, {neg: false, var: 0}]}, {lits: [{neg: true, var: 0}, {neg: false, var: 0}, {neg: true, var: 0}]}, {lits: [{neg: false, var: 3}, {neg: false, var: 4}]}, {lits: [{neg: false, var: 3}, {neg: true, var: 1}, {neg: true, var: 4}]}], n: 0}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: true, var: 4}]})
+        new: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: true, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: true, var: 3}, {neg: false, var: 2}, {neg: false, var: 0}, {neg: true, var: 3}]}, {lits: [{neg: false, var: 1}, {neg: false, var: 2}, {neg: false, var: 2}, {neg: true, var: 3}]}, {lits: [{neg: false, var: 4}, {neg: true, var: 2}, {neg: false, var: 1}]}, {lits: [{neg: false, var: 3}, {neg: false, var: 4}]}], n: 2}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: true, var: 4}]})
+        new: Ok({vals: [{value: true, var: 0}, {value: true, var: 1}, {value: false, var: 2}, {value: true, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: true, var: 1}, {neg: true, var: 4}, {neg: true, var: 2}]}, {lits: [{neg: true, var: 0}, {neg: true, var: 0}, {neg: true, var: 3}, {neg: false, var: 0}]}, {lits: [{neg: true, var: 2}, {neg: true, var: 0}, {neg: false, var: 1}]}, {lits: [{neg: false, var: 3}, {neg: true, var: 0}, {neg: true, var: 0}]}], n: 2}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: true, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: true, var: 3}, {neg: false, var: 4}, {neg: true, var: 2}]}, {lits: [{neg: true, var: 1}, {neg: false, var: 0}, {neg: false, var: 3}]}, {lits: [{neg: true, var: 0}, {neg: false, var: 4}, {neg: true, var: 2}]}, {lits: [{neg: false, var: 4}, {neg: true, var: 3}, {neg: true, var: 3}, {neg: true, var: 0}]}], n: 1}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: true, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: false, var: 2}, {neg: false, var: 3}, {neg: false, var: 4}, {neg: false, var: 1}]}, {lits: [{neg: true, var: 1}, {neg: true, var: 2}, {neg: false, var: 2}]}, {lits: [{neg: true, var: 4}, {neg: false, var: 3}, {neg: true, var: 1}, {neg: false, var: 0}]}, {lits: [{neg: true, var: 3}, {neg: false, var: 0}, {neg: true, var: 4}]}], n: 0}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: true, var: 4}]})
+        new: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: true, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+  WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input: the obligation does not decide between them
+        in: {clauses: [{lits: [{neg: true, var: 1}, {neg: false, var: 2}, {neg: false, var: 4}, {neg: false, var: 0}]}, {lits: [{neg: true, var: 2}, {neg: false, var: 2}, {neg: false, var: 0}]}, {lits: [{neg: false, var: 1}, {neg: true, var: 3}, {neg: true, var: 3}, {neg: true, var: 1}]}, {lits: [{neg: true, var: 2}, {neg: true, var: 3}, {neg: false, var: 1}, {neg: true, var: 4}]}], n: 3}
+        old: Ok({vals: [{value: false, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+        new: Ok({vals: [{value: true, var: 0}, {value: false, var: 1}, {value: false, var: 2}, {value: false, var: 3}, {value: false, var: 4}]})
+  obligation: b4810dd7fab9df1b692bf19f3336145a139a89f02e873be385289c79dd5ae345

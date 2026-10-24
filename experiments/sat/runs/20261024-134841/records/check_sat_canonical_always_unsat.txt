@@ -1,0 +1,33 @@
+sat_canonical  NOT ACCEPTED  obligation: 8 underdetermined inputs, 1 gap  performance: fails examples 1, 3
+  FAIL  example 1 (line 23, "three clauses with one model: (x1) and (not x1 or x2) and (not x2 or x3); a formula with several models would pin one of them here"): out: expected Ok({vals: [{value: true, var: 1}, {value: true, var: 2}, {value: true, var: 3}]}), got Err({code: "unsat"})
+  pass  example 2 (line 32, "unsatisfiable: (x) and (not x)")
+  FAIL  example 3 (line 37, "the empty formula is satisfied by the empty assignment"): out: expected Ok({vals: []}), got Err({code: "unsat"})
+  pass  example 4 (line 42, "a formula with an empty clause has no model")
+  pass  property (line 13): all Ok(a) in out: all c in f.clauses: any l in c.lits: any v in a.vals where v.var == l.var: (v.value == true) <-> (l.neg == false)  (504 runs, 0 findings)
+  pass  property (line 15): all Ok(a) in out: all c in f.clauses: all l in c.lits: l.var in a.vals.var  (504 runs, 0 findings)
+  pass  property (line 17): all Ok(a) in out: a.vals unordered  (504 runs, 0 findings)
+  pass  property (line 19): all Err(e) in out: e == unsat  (504 runs, 0 findings)
+  pass  property (line 21): all Ok(a) in out: all v in a.vals where v.value == true: any c in f.clauses: any l in c.lits where l.var == v.var and l.neg == false: none m in c.lits where m.var != v.var: any w in a.vals where w.var == m.var: (w.value == true) <-> (m.neg == false)  (504 runs, 0 findings)
+  UNDERDETERMINED  out can be Ok({vals: []}) or Err({code: "unsat"}); 8 inputs show it; the smallest:
+        in: {clauses: [], n: 0}
+        out: Ok({vals: []})    # example 3
+        out: Err({code: "unsat"})    # also passes every clause
+  evidence
+    types:            validated at the boundary; 4 example inputs, 500 generated inputs, 504 outputs
+    examples:         2/4
+    properties:       5 of 5 clean over 504 runs
+    determinism:      504/504, each input run twice and compared under the order claims
+    totality:         504/504 answered within 10s
+    purity:           unverified (no sandbox in this slice); imports: none
+    shape:            12 lines, 1 functions; dependencies: none
+    underdetermination: 3 of 14 mutants apply; 0 slipped; 8 underdetermined inputs, 1 gap
+    obligation:       45a618223bd73b5e22b5e379b338fff2fac1197339ea88b20bfa42e5dd0014b9
+    performance:      95a4385b2c58ee0e1e89596890df5b0ea93a98cc1cc0085a150978c777c77d48
+    generated:        500 inputs over the record's fields, sampled
+  look here  2 places: 2 clauses no mutant can violate
+    clause (line 17): all Ok(a) in out: a.vals unordered    # no mutant can violate it
+        in: {clauses: [{lits: [{neg: false, var: 1}]}, {lits: [{neg: true, var: 1}, {neg: false, var: 2}]}, {lits: [{neg: true, var: 2}, {neg: false, var: 3}]}], n: 3}
+        out: Err({code: "unsat"})    # the performance's
+    clause (line 21): all Ok(a) in out: all v in a.vals where v.value == true: any c in f.clauses: any l in c.lits where l.var == v.var and l.neg == false: none m in c.lits where m.var != v.var: any w in a.vals where w.var == m.var: (w.value == true) <-> (m.neg == false)    # no mutant can violate it
+        in: {clauses: [{lits: [{neg: false, var: 1}]}, {lits: [{neg: true, var: 1}, {neg: false, var: 2}]}, {lits: [{neg: true, var: 2}, {neg: false, var: 3}]}], n: 3}
+        out: Err({code: "unsat"})    # the performance's

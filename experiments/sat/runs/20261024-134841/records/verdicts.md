@@ -1,0 +1,24 @@
+# Verdict lines
+
+- `check sat.sur sat_plain.py (exit 0): sat  NOT ACCEPTED  obligation: 8 underdetermined inputs, 1 gap  performance: passes`
+- `check sat.sur sat_dpll.py (exit 0): sat  NOT ACCEPTED  obligation: 8 underdetermined inputs, 1 gap  performance: passes`
+- `check sat.sur sat_cdcl.py (exit 0): sat  NOT ACCEPTED  obligation: 8 underdetermined inputs, 1 gap  performance: passes`
+- `check sat.sur sat_always_unsat.py (exit 1): sat  NOT ACCEPTED  obligation: 8 underdetermined inputs, 1 gap  performance: fails examples 1, 3`
+- `mutants sat.sur (exit 0): sat  no performance  inputs 4+500  mutants 3 of 14 apply  slipped 0  caught 3  underdetermined 8 in 1 gap`
+- `check sat_canonical.sur sat_plain.py (exit 0): sat_canonical  NOT ACCEPTED  obligation: 8 underdetermined inputs, 1 gap  performance: passes`
+- `check sat_canonical.sur sat_dpll.py (exit 0): sat_canonical  NOT ACCEPTED  obligation: 8 underdetermined inputs, 1 gap  performance: fails property (line 21) on 60 of 500 generated inputs`
+- `check sat_canonical.sur sat_cdcl.py (exit 0): sat_canonical  NOT ACCEPTED  obligation: 8 underdetermined inputs, 1 gap  performance: fails property (line 21) on 2 of 500 generated inputs`
+- `check sat_canonical.sur sat_always_unsat.py (exit 1): sat_canonical  NOT ACCEPTED  obligation: 8 underdetermined inputs, 1 gap  performance: fails examples 1, 3`
+- `mutants sat_canonical.sur (exit 0): sat_canonical  no performance  inputs 4+500  mutants 3 of 14 apply  slipped 0  caught 3  underdetermined 8 in 1 gap`
+- `diff sat.sur plain dpll (exit 1): sat  DIFFERS  on 84 of 504 inputs (4 examples, 500 generated): 84 within the obligation (0 accepted, 84 undecided)`
+- `diff sat.sur plain cdcl (exit 1): sat  DIFFERS  on 2 of 504 inputs (4 examples, 500 generated): 2 within the obligation (0 accepted, 2 undecided)`
+- `diff sat.sur dpll cdcl (exit 1): sat  DIFFERS  on 85 of 504 inputs (4 examples, 500 generated): 85 within the obligation (0 accepted, 85 undecided)`
+- `diff sat_canonical.sur plain dpll (exit 1): sat_canonical  DIFFERS  on 84 of 504 inputs (4 examples, 500 generated): 60 regressions, 24 within the obligation (0 accepted, 24 undecided)`
+- `diff sat_canonical.sur plain cdcl (exit 1): sat_canonical  DIFFERS  on 2 of 504 inputs (4 examples, 500 generated): 2 regressions`
+- `parse attempts/a2_no_assignment_exists_lowercase.sur (exit 1): experiments/sat/attempts/a2_no_assignment_exists_lowercase.sur: line 21: `assignments` is not an input, `out`, a binder here, a named value, or an abbreviation (unbound_name)`
+- `parse attempts/a_no_assignment_exists.sur (exit 1): experiments/sat/attempts/a_no_assignment_exists.sur: line 21: `Assignment` is not an input, `out`, a binder here, a named value, or an abbreviation (unbound_name)`
+- `parse attempts/b_position.sur (exit 1): experiments/sat/attempts/b_position.sur: line 21: expected `..` in a slice: `xs[a .. b]` is the elements from position a up to but not including b, and an element at a position is the one-element slice `xs[i .. i + 1]` (syntax)`
+- `parse attempts/c_self_call.sur (exit 0): experiments/sat/attempts/c_self_call.sur: ok sat props=5 accepts=0 examples=4 abbrevs=0 pins=10`
+- `check attempts/c_self_call.sur c_self_call.py (exit 0): sat  NOT ACCEPTED  obligation: 8 underdetermined inputs, 1 gap  performance: passes`
+- `parse attempts/e_accept_the_choice.sur (exit 0): experiments/sat/attempts/e_accept_the_choice.sur: ok sat props=4 accepts=1 examples=4 abbrevs=0 pins=10`
+- `check attempts/e_accept_the_choice.sur e_accept_the_choice.py (exit 0): sat  NOT ACCEPTED  obligation: 3 underdetermined inputs, 1 gap  performance: passes`

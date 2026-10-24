@@ -11,9 +11,10 @@ parser, the checker and the generator are as they were.
 The goal was never a fast solver. It was to record exactly what the language could and
 could not express about SAT, with the tool's own output as the evidence, and to measure the
 performances on instance families where every resolution-based solver is known to be
-exponential. Both canaries say exponential, which is the expected outcome.
+exponential. The pigeonhole canary says exponential, cleanly; the factoring canary, at the
+miniature scale run here, says nothing either way. Both are the expected outcome.
 
-Run directory for every number below: `runs/<<STAMP>>/`. The checker's text and JSON reports
+Run directory for every number below: `runs/20261024-134841/`. The checker's text and JSON reports
 are under `records/`, the instances under `instances/<family>/`, the per-instance results in
 `results.jsonl`, the fits in `fits.json` and `cost.md`.
 
@@ -171,17 +172,165 @@ SAT is not in either file, and no example can supply it for more than one formul
 
 ## 2. Records
 
-The verdict lines, from `records/verdicts.md` in the run directory.
+The verdict lines, from `records/verdicts.md` in the run directory; the full text and JSON
+reports sit beside it. Checker: commit `3f52aa2`, `target/release/surety` built 2026-10-24
+13:30, Python 3.13.17 in the sandbox. Default budget: 500 generated inputs; the search, as the
+report states it, `12 inputs, up to 600 candidates each`.
 
-<<RECORDS>>
+`surety check`, `sat.sur`:
+
+    check sat.sur sat_plain.py (exit 0): sat  NOT ACCEPTED  obligation: 8 underdetermined inputs, 1 gap  performance: passes
+    check sat.sur sat_dpll.py (exit 0): sat  NOT ACCEPTED  obligation: 8 underdetermined inputs, 1 gap  performance: passes
+    check sat.sur sat_cdcl.py (exit 0): sat  NOT ACCEPTED  obligation: 8 underdetermined inputs, 1 gap  performance: passes
+    check sat.sur sat_always_unsat.py (exit 1): sat  NOT ACCEPTED  obligation: 8 underdetermined inputs, 1 gap  performance: fails examples 1, 3
+
+Every performance passes; the obligation is not accepted, on its own account (the gap of
+section 1a). The three real solvers: 4/4 examples, 4 of 4 properties clean over 504 runs,
+determinism 504/504, totality 504/504 within 10 s, imports none. Shape, as the record counts
+it: plain 49 lines and 1 function, DPLL 99 lines and 3 functions, CDCL 265 lines and 11
+functions.
+
+`surety check`, `sat_canonical.sur`:
+
+    check sat_canonical.sur sat_plain.py (exit 0): sat_canonical  NOT ACCEPTED  obligation: 8 underdetermined inputs, 1 gap  performance: passes
+    check sat_canonical.sur sat_dpll.py (exit 0): sat_canonical  NOT ACCEPTED  obligation: 8 underdetermined inputs, 1 gap  performance: fails property (line 21) on 60 of 500 generated inputs
+    check sat_canonical.sur sat_cdcl.py (exit 0): sat_canonical  NOT ACCEPTED  obligation: 8 underdetermined inputs, 1 gap  performance: fails property (line 21) on 2 of 500 generated inputs
+    check sat_canonical.sur sat_always_unsat.py (exit 1): sat_canonical  NOT ACCEPTED  obligation: 8 underdetermined inputs, 1 gap  performance: fails examples 1, 3
+
+`surety mutants`, both obligations, the same verdict:
+
+    mutants sat.sur (exit 0): sat  no performance  inputs 4+500  mutants 3 of 14 apply  slipped 0  caught 3  underdetermined 8 in 1 gap
+    mutants sat_canonical.sur (exit 0): sat_canonical  no performance  inputs 4+500  mutants 3 of 14 apply  slipped 0  caught 3  underdetermined 8 in 1 gap
+      gap  out can be Ok({vals: []}) or Err({code: "unsat"}); 8 inputs show it; the smallest in: {clauses: [], n: 0}
+
+The three that apply are `empty`, `ok_empty` and `err_fabricated`; the eleven identity and
+skeleton mutants do not apply, since no input has the output's shape and no frame pair gives
+the output a source. `slipped 0` is true of the library and says nothing about the always-unsat
+performance, which the library does not contain (section 1a). The generator's own line:
+`500 inputs by list length: any: 500 of 76211705989985525`.
+
+`surety diff`:
+
+    diff sat.sur plain dpll (exit 1): sat  DIFFERS  on 84 of 504 inputs (4 examples, 500 generated): 84 within the obligation (0 accepted, 84 undecided)
+    diff sat.sur plain cdcl (exit 1): sat  DIFFERS  on 2 of 504 inputs (4 examples, 500 generated): 2 within the obligation (0 accepted, 2 undecided)
+    diff sat.sur dpll cdcl (exit 1): sat  DIFFERS  on 85 of 504 inputs (4 examples, 500 generated): 85 within the obligation (0 accepted, 85 undecided)
+    diff sat_canonical.sur plain dpll (exit 1): sat_canonical  DIFFERS  on 84 of 504 inputs (4 examples, 500 generated): 60 regressions, 24 within the obligation (0 accepted, 24 undecided)
+    diff sat_canonical.sur plain cdcl (exit 1): sat_canonical  DIFFERS  on 2 of 504 inputs (4 examples, 500 generated): 2 regressions
+
+This is the relational problem from the diff's side. Plain and DPLL are both correct and
+return different models on 84 of 504 inputs, and the diff classes every one of them
+`WITHIN THE OBLIGATION  both outputs pass every clause and no accept line covers this input:
+the obligation does not decide between them`, for example:
+
+    in: {clauses: [{lits: [{neg: false, var: 1}, {neg: false, var: 2}]}], n: 2}
+    old: Ok({vals: [{value: false, var: 1}, {value: true, var: 2}]})
+    new: Ok({vals: [{value: true, var: 1}, {value: false, var: 2}]})
+
+The diff exits 1 on every pair, so two correct solvers never "agree everywhere" under this
+obligation; the tool is right, and the obligation has no line to make the agreement
+expressible (section 5). Plain and CDCL differ on only 2 of 504 inputs because CDCL's saved
+phase starts false, which is close to plain's lexicographic order.
+
+The attempts (`records/attempts/`):
+
+    parse attempts/a_no_assignment_exists.sur (exit 1): ... line 21: `Assignment` is not an input, `out`, a binder here, a named value, or an abbreviation (unbound_name)
+    parse attempts/a2_no_assignment_exists_lowercase.sur (exit 1): ... line 21: `assignments` is not an input, `out`, a binder here, a named value, or an abbreviation (unbound_name)
+    parse attempts/b_position.sur (exit 1): ... line 21: expected `..` in a slice: `xs[a .. b]` is the elements from position a up to but not including b, and an element at a position is the one-element slice `xs[i .. i + 1]` (syntax)
+    parse attempts/c_self_call.sur (exit 0): ... ok sat props=5 accepts=0 examples=4 abbrevs=0 pins=10
+    check attempts/c_self_call.sur c_self_call.py (exit 0): sat  NOT ACCEPTED  obligation: 8 underdetermined inputs, 1 gap  performance: passes
+    parse attempts/e_accept_the_choice.sur (exit 0): ... ok sat props=4 accepts=1 examples=4 abbrevs=0 pins=10
+    check attempts/e_accept_the_choice.sur e_accept_the_choice.py (exit 0): sat  NOT ACCEPTED  obligation: 3 underdetermined inputs, 1 gap  performance: passes
+
+`cargo test` is green and nothing under `crates/` or `graph/` changed; see the commit.
 
 ## 3. Cost by family
 
-<<COST>>
+Cost is lines of the performance's own source executed, counted by a `sys.settrace` hook the
+harness installs in the child process and that declines every frame outside the performance's
+file. Wall time is from a separate untraced run under the checker's 10-second cap (tracing
+slows CPython about 6.5 times); a run that answered past the cap is recorded as a timeout, since
+the checker's sandbox would have killed it. log(lines) is fitted against size (exponential: the
+base per unit of size) and against log(size) (polynomial: the exponent), both over every
+completed instance in the range; the range is given with each fit and no fit is reported over
+fewer than three sizes. The full table, every instance included, is `cost.md` in the run
+directory; the fits are `fits.json`.
+
+219 performance runs: 159 answered within the cap, 14 timed out, 46 were skipped after a
+performance timed out on every instance of a size. Every one of the 90 models returned was
+verified against the obligation's own clauses; every unsat answer where plain reached (22)
+agreed with it; 36 unsat answers are beyond plain's reach and are **unverified** (no
+certificate is produced; a DRAT check is the next step). No answer was wrong.
+
+| Family | Size | Performance | Fitted range (points) | Exponential: base per unit of size (R²) | Polynomial: exponent (R²) | Timed out at |
+| --- | --- | --- | --- | --- | --- | --- |
+| Random 3-SAT, ratio 4.26, 3 instances per size | n variables | plain | 10..24 (22) | 1.919 (0.89) | 10.30 (0.91) | 24 (2 of 3), 30 |
+| | | dpll | 10..100 (39) | 1.101 (0.85) | 3.78 (0.89) | 150 |
+| | | cdcl | 10..200 (45) | 1.046 (0.92) | 2.68 (0.90) | none |
+| PHP_n | n holes, n(n+1) variables | plain | 3..4 (2) | no fit | no fit | 5 |
+| | | dpll | 3..8 (6) | 6.482 (1.00) | 9.43 (0.97) | 9 |
+| | | cdcl | 3..7 (5) | 10.456 (0.99) | 10.87 (0.95) | 8 |
+| Tseitin, random 3-regular, odd charge | V vertices, 3V/2 variables | plain | 6..14 (5) | 2.831 (1.00) | 9.76 (0.98) | 16 |
+| | | dpll | 6..30 (9) | 1.474 (0.99) | 5.69 (0.94) | 40 |
+| | | cdcl | 6..40 (10) | 1.215 (0.93) | 3.49 (0.92) | none |
+| Factoring, one semiprime per width | b bits per factor | plain | none | no fit | no fit | 5 |
+| | | dpll | 5..12 (8) | 1.956 (0.71) | 5.45 (0.72) | none |
+| | | cdcl | 5..12 (8) | 1.617 (0.47) | 3.93 (0.48) | none |
+
+Reading it:
+
+- **The ranges are short, and R² does not separate the two shapes on most of them.** On
+  random 3-SAT the plain performance's lines grow by 1.92 per variable, as brute force
+  should (2 per variable, less the early exits on satisfiable instances), and a degree-10
+  polynomial fits the same 15 variables of range as well. A fit of exponent 10 over 10..24
+  is not a polynomial finding; it is a range too short to tell. The same holds for every row
+  where the two R² are within a few hundredths. The base with its range is the number to
+  carry, and the exponent beside it says how short the range is.
+- **Random 3-SAT at the threshold.** Plain's last answer within the cap is n = 22 (an unsat
+  instance at 7.96 s, 369 million lines); two of three instances at 24 and all at 30 time
+  out. DPLL answers through n = 100 (1.7 s at worst) and times out on all three at 150. CDCL
+  answers every instance through n = 200 (2.9 s and 103 million lines at worst). Three
+  instances per size, satisfiable and unsatisfiable mixed, so the scatter is large and the
+  fits are over the mix.
+- **Tseitin.** Both optimized performances grow exponentially in the vertex count with a
+  clean fit (R² 0.99 for DPLL on 6..30, 0.93 for CDCL on 6..40); DPLL times out at 40
+  vertices (60 variables) and CDCL answers 40 in 0.13 s. Every answer is unsat, as the odd
+  charge requires; those past 14 vertices are unverified.
+- **Lines against wall.** The two measures agree on order (`cost.md`, every instance): the
+  traced count is deterministic across runs where the wall time is not, which is why lines
+  are the number reported.
 
 ## 4. The canaries
 
-<<CANARIES>>
+**Pigeonhole, PHP_n.** Every resolution-based solver is provably exponential here, and both
+optimized performances are:
+
+- DPLL: base **6.48 per hole**, fitted on n = 3..8 (6 points, R² 1.00). PHP_8 (72 variables,
+  9 + 8 × 36 = 297 clauses) takes 1.16 s and 63 million lines; PHP_9 answers unsat at 10.70 s,
+  past the cap, and is recorded as a timeout.
+- CDCL: base **10.46 per hole**, fitted on n = 3..7 (5 points, R² 0.99). PHP_7 takes 1.29 s
+  and 62 million lines; PHP_8 times out. The small CDCL (no clause deletion, no minimization,
+  one-instance restarts) is slower than DPLL on this family, which is a fact about this CDCL
+  and not about the family.
+- Plain: answers PHP_3 and PHP_4 (20 variables, 2.05 s), times out at PHP_5 (30 variables);
+  two sizes, no fit.
+
+Per hole the variable count grows quadratically, so the per-variable base is smaller
+(between PHP_7 and PHP_8 the 16 added variables carry DPLL's factor of 6.5, about 1.12 per
+variable); the fit is against n because n is the size the lower bounds are stated in. Both
+curves are consistent with exponential behaviour and with the known lower bounds, which is the
+expected outcome. Nothing here is evidence of anything else.
+
+**Factoring, in miniature.** The multiplier circuit for a semiprime with two b-bit factors,
+b = 5..12, N up to 5,094,443 = 2113 × 2411 (23 bits, 432 variables, 2,220 clauses). This is a
+shape check only: both optimized performances solved every instance within the cap, the
+largest in 0.14 s (DPLL, 6.8 million lines) and 0.02 s (CDCL, 0.76 million lines), and every
+model decoded to the two factors (`cost.md` carries `x=... y=... x*y==N` per instance). With
+one instance per width and no timeout reached, the fits are poor (R² 0.47 to 0.72) and say
+nothing: the bases of 1.6 to 2.0 per factor bit are consistent with exponential behaviour and
+are not evidence of it. A 24-bit semiprime is far below any size at which this family tells
+solvers apart; the family exists so a later run with a larger multiplier has its generator and
+its decoder in place. Plain times out at b = 5 (75 variables and 330 clauses, the smallest
+circuit) and solved nothing.
 
 ## 5. The relational form
 

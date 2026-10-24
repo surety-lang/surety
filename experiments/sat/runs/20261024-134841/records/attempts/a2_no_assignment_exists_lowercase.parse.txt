@@ -1,0 +1,1 @@
+experiments/sat/attempts/a2_no_assignment_exists_lowercase.sur: line 21: `assignments` is not an input, `out`, a binder here, a named value, or an abbreviation (unbound_name)

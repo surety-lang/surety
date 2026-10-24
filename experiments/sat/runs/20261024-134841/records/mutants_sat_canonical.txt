@@ -1,0 +1,2 @@
+sat_canonical  no performance  inputs 4+500  mutants 3 of 14 apply  slipped 0  caught 3  underdetermined 8 in 1 gap
+  gap  out can be Ok({vals: []}) or Err({code: "unsat"}); 8 inputs show it; the smallest in: {clauses: [], n: 0}
